@@ -159,7 +159,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 setHandTrackingError(
                     "Camera access is not supported in this browser.",
                 );
-            handTrackingEnabledRef.current = false;
+                handTrackingEnabledRef.current = false;
                 setHandTrackingEnabledState(false);
                 return;
             }

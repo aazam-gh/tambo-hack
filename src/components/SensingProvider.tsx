@@ -52,6 +52,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const gestureMappingEnabledRef = useRef(gestureMappingEnabled);
     const [gestureAction, setGestureAction] = useState<GestureAction | null>(null);
     const gestureActionIdRef = useRef(0);
+    const missingGestureMappingLoggedRef = useRef<Set<HandGesture>>(new Set());
 
     // Gesture detection is intentionally conservative:
     // - `gestureCandidateRef` tracks the most recent detected gesture + when it started.
@@ -407,7 +408,11 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 : null;
 
                             if (import.meta.env.DEV && !mapping) {
-                                console.warn("Missing gesture mapping", { gesture });
+                                const logged = missingGestureMappingLoggedRef.current;
+                                if (!logged.has(gesture)) {
+                                    logged.add(gesture);
+                                    console.warn("Missing gesture mapping", { gesture });
+                                }
                             }
 
                             const shouldSuppressAction =

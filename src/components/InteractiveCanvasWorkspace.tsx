@@ -18,7 +18,7 @@ export function InteractiveCanvasWorkspace({
 
   return (
     <SensingProvider>
-      <div className={cn("flex w-full", className)}>
+      <div className={cn("flex w-full", className)} data-sensing-surface="true">
         <GestureSidebar
           open={sidebarOpen}
           onToggle={() => setSidebarOpen((v) => !v)}

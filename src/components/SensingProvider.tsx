@@ -30,6 +30,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const streamRef = useRef<MediaStream | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const lastPredictionTimeRef = useRef(0);
+    const sensingSurfaceRef = useRef<HTMLElement | null>(null);
 
     const predictionIntervalMs = 33;
 
@@ -119,6 +120,9 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         let canceled = false;
 
         lastPredictionTimeRef.current = 0;
+        sensingSurfaceRef.current = document.querySelector(
+            '[data-sensing-surface="true"]',
+        );
 
         const predict = () => {
             if (canceled || !handTrackingEnabledRef.current) return;
@@ -137,10 +141,19 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     if (results && results.landmarks && results.landmarks.length > 0) {
                         const indexFingerTip = results.landmarks[0][8];
 
+                        const surfaceRect =
+                            sensingSurfaceRef.current?.getBoundingClientRect();
+
                         // MediaPipe coordinates are normalized 0-1
                         // We flip X because camera is mirrored
-                        const x = (1 - indexFingerTip.x) * window.innerWidth;
-                        const y = indexFingerTip.y * window.innerHeight;
+                        const x =
+                            (surfaceRect?.left ?? 0) +
+                            (1 - indexFingerTip.x) *
+                            (surfaceRect?.width ?? window.innerWidth);
+                        const y =
+                            (surfaceRect?.top ?? 0) +
+                            indexFingerTip.y *
+                            (surfaceRect?.height ?? window.innerHeight);
 
                         setHandPosition({ x, y });
 

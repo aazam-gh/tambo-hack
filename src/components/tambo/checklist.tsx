@@ -26,7 +26,7 @@ export const checklistSchema = z.object({
 export type ChecklistProps = z.infer<typeof checklistSchema>;
 
 export const Checklist = React.forwardRef<HTMLDivElement, ChecklistProps>(
-  ({ title, items, className, ...props }, ref) => {
+  ({ title, items, className }, ref) => {
     return (
       <div
         ref={ref}
@@ -34,7 +34,6 @@ export const Checklist = React.forwardRef<HTMLDivElement, ChecklistProps>(
           "w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-4 text-foreground shadow-sm backdrop-blur",
           className,
         )}
-        {...props}
       >
         <div className="text-sm font-semibold tracking-tight">{title}</div>
         <div className="mt-3 space-y-2">

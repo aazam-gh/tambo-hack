@@ -48,7 +48,7 @@ function GestureStatusMessage({
       </div>
     ) : (
       <div className="text-xs text-muted-foreground">
-        Enable hand tracking to start mapping gestures to canvas components.
+        Starting hand tracking for gesture mapping (camera access may be requested).
       </div>
     );
   }
@@ -154,7 +154,13 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   <input
                     type="checkbox"
                     checked={handTrackingEnabled}
-                    onChange={(e) => setHandTrackingEnabled(e.target.checked)}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setHandTrackingEnabled(enabled);
+                      if (!enabled) {
+                        setGestureMappingEnabled(false);
+                      }
+                    }}
                     disabled={handTrackingInitializing}
                     aria-label="Hand tracking"
                     className="h-4 w-4 accent-emerald-500"

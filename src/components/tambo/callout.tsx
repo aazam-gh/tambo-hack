@@ -36,7 +36,7 @@ export const calloutSchema = z.object({
 export type CalloutProps = z.infer<typeof calloutSchema>;
 
 export const Callout = React.forwardRef<HTMLDivElement, CalloutProps>(
-  ({ title, message, tone = "info", className, ...props }, ref) => {
+  ({ title, message, tone = "info", className }, ref) => {
     const Icon = toneIcon[tone];
 
     return (
@@ -48,7 +48,6 @@ export const Callout = React.forwardRef<HTMLDivElement, CalloutProps>(
           toneStyles[tone],
           className,
         )}
-        {...props}
       >
         <div className="flex items-start gap-3">
           <div className="mt-0.5 rounded-xl bg-background/40 p-2">

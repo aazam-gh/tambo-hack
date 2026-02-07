@@ -15,6 +15,8 @@ type GestureComponentFactory = {
   render: () => React.ReactNode;
 };
 
+// Note: `HandGesture` includes additional values (e.g. `point`, `fist`) that are
+// intentionally left unmapped for now.
 const gestureComponentMap: Partial<Record<HandGesture, GestureComponentFactory>> =
   {
     open_palm: {

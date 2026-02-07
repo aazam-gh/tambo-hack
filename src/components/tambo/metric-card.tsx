@@ -34,11 +34,12 @@ export const metricCardSchema = z.object({
 export type MetricCardProps = z.infer<typeof metricCardSchema>;
 
 export const MetricCard = React.forwardRef<HTMLDivElement, MetricCardProps>(
-  ({ label, value, unit, change, tone = "neutral", className, ...props }, ref) => {
+  ({ label, value, unit, change, tone = "neutral", className }, ref) => {
     const trendTone: MetricTone =
       typeof change === "number" ? (change >= 0 ? "positive" : "negative") : tone;
 
-    const TrendIcon = change && change < 0 ? ArrowDownRight : ArrowUpRight;
+    const TrendIcon =
+      typeof change === "number" && change < 0 ? ArrowDownRight : ArrowUpRight;
 
     return (
       <div
@@ -48,7 +49,6 @@ export const MetricCard = React.forwardRef<HTMLDivElement, MetricCardProps>(
           toneStyles[tone],
           className,
         )}
-        {...props}
       >
         <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {label}

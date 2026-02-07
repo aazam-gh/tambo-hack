@@ -7,7 +7,7 @@ import { SensingStatus } from "@/components/SensingStatus";
 import { VirtualCursor } from "@/components/VirtualCursor";
 import type { HandGesture } from "@/lib/hand-gestures";
 import { getGestureComponentForGesture } from "@/lib/gesture-component-mapping";
-import { GESTURE_EMIT_COOLDOWN_MS } from "@/lib/gesture-timing";
+import { GESTURE_EMIT_COOLDOWN_MS, nowMs } from "@/lib/gesture-timing";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ export function InteractiveCanvasWorkspace({
 function GestureComponentBridge() {
   const { handGesture, handTrackingEnabled, gestureMappingEnabled } = useSensing();
   const lastGestureRef = React.useRef<HandGesture | null>(null);
-  const lastEmittedAtRef = React.useRef<number | null>(null);
+  const nextAllowedEmitAtRef = React.useRef(0);
   // When gestures change during the cooldown window, we only emit the latest one.
   const pendingGestureRef = React.useRef<HandGesture | null>(null);
   const emitTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,21 +64,24 @@ function GestureComponentBridge() {
     }
 
     const cooldownMs = GESTURE_EMIT_COOLDOWN_MS;
-    const now = performance.now();
-    const lastEmittedAt = lastEmittedAtRef.current;
+    const now = nowMs();
 
-    if (lastEmittedAt === null || now - lastEmittedAt >= cooldownMs) {
-      lastEmittedAtRef.current = now;
+    if (now >= nextAllowedEmitAtRef.current) {
+      nextAllowedEmitAtRef.current = now + cooldownMs;
+      pendingGestureRef.current = null;
+      if (emitTimeoutRef.current !== null) {
+        clearTimeout(emitTimeoutRef.current);
+        emitTimeoutRef.current = null;
+      }
       emitTamboShowComponent(mapped);
       return;
     }
 
-    const elapsed = now - lastEmittedAt;
-
     pendingGestureRef.current = gesture;
 
+    const delay = nextAllowedEmitAtRef.current - now;
     if (emitTimeoutRef.current !== null) {
-      return;
+      clearTimeout(emitTimeoutRef.current);
     }
 
     emitTimeoutRef.current = setTimeout(() => {
@@ -99,9 +102,10 @@ function GestureComponentBridge() {
         return;
       }
 
-      lastEmittedAtRef.current = performance.now();
+      const emitNow = nowMs();
+      nextAllowedEmitAtRef.current = emitNow + cooldownMs;
       emitTamboShowComponent(pendingMapped);
-    }, cooldownMs - elapsed);
+    }, delay);
   }, []);
 
   React.useEffect(() => {
@@ -112,6 +116,9 @@ function GestureComponentBridge() {
       }
 
       gestureEnabledRef.current = false;
+      lastGestureRef.current = null;
+      pendingGestureRef.current = null;
+      nextAllowedEmitAtRef.current = 0;
     };
   }, []);
 
@@ -119,6 +126,7 @@ function GestureComponentBridge() {
     if (!gestureEnabledRef.current) {
       lastGestureRef.current = null;
       pendingGestureRef.current = null;
+      nextAllowedEmitAtRef.current = 0;
       if (emitTimeoutRef.current !== null) {
         clearTimeout(emitTimeoutRef.current);
         emitTimeoutRef.current = null;

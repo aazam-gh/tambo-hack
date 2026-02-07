@@ -8,11 +8,17 @@ import React, {
 } from "react";
 import { HandLandmarkerService } from "../services/HandLandmarker";
 import { detectHandGesture, type HandGesture } from "@/lib/hand-gestures";
-import { GESTURE_STABILITY_MS } from "@/lib/gesture-timing";
+import { GESTURE_STABILITY_MS, nowMs } from "@/lib/gesture-timing";
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
     hoveredElement: HTMLElement | null;
+    /**
+     * Smoothed, stable gesture signal.
+     *
+     * The provider promotes a detected gesture (including `null`) only after it
+     * has remained unchanged for `GESTURE_STABILITY_MS`.
+     */
     handGesture: HandGesture | null;
     handTrackingEnabled: boolean;
     setHandTrackingEnabled: (enabled: boolean) => void;
@@ -190,7 +196,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const predict = () => {
             if (canceled || !handTrackingEnabledRef.current) return;
 
-            const now = performance.now();
+            const now = nowMs();
             if (now - lastPredictionTimeRef.current < predictionIntervalMs) {
                 animationFrameRef.current = requestAnimationFrame(predict);
                 return;

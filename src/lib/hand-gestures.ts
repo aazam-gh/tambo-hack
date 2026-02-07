@@ -7,6 +7,9 @@ export type HandGesture =
   | "thumbs_up"
   | "point";
 
+const FINGER_Y_THRESHOLD = 0.02;
+const PINCH_MAX_DISTANCE = 0.05;
+
 function distance(a: NormalizedLandmark, b: NormalizedLandmark): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
@@ -18,19 +21,22 @@ function isFingerExtended(
   pip: NormalizedLandmark,
 ): boolean {
   // MediaPipe coordinates are normalized with y increasing downward.
-  return tip.y < pip.y - 0.02;
+  return tip.y < pip.y - FINGER_Y_THRESHOLD;
 }
 
 function isFingerCurled(
   tip: NormalizedLandmark,
   pip: NormalizedLandmark,
 ): boolean {
-  return tip.y > pip.y + 0.02;
+  return tip.y > pip.y + FINGER_Y_THRESHOLD;
 }
 
 export function detectHandGesture(
   landmarks: NormalizedLandmark[],
 ): HandGesture | null {
+  // IMPORTANT: The `if` checks below rely on this priority order (first match wins).
+  // Changing the order will change which gestures win in ambiguous poses.
+  // pinch -> thumbs_up -> open_palm -> point -> fist
   if (landmarks.length < 21) {
     return null;
   }
@@ -56,10 +62,10 @@ export function detectHandGesture(
   const ringCurled = isFingerCurled(ringTip, ringPip);
   const pinkyCurled = isFingerCurled(pinkyTip, pinkyPip);
 
-  const thumbUp = thumbTip.y < thumbIp.y - 0.02;
+  const thumbUp = thumbTip.y < thumbIp.y - FINGER_Y_THRESHOLD;
   const thumbIndexDistance = distance(thumbTip, indexTip);
 
-  if (thumbIndexDistance < 0.05) {
+  if (thumbIndexDistance < PINCH_MAX_DISTANCE) {
     return "pinch";
   }
 

@@ -125,8 +125,8 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   </div>
                 ) : (
                   <div className="text-xs text-zinc-500">
-                    Turn this on to request camera permission and show the
-                    virtual cursor.
+                    Turn this on to request camera access and drive the
+                    on-screen hand cursor.
                   </div>
                 )}
               </div>

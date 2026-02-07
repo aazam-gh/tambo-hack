@@ -104,7 +104,7 @@ export function GestureComponentSpawner() {
   const { gestureAction } = useSensing();
 
   // Effects run twice in development under React.StrictMode, so we
-  // de-dupe by action key to avoid spawning duplicate canvas items.
+  // de-dupe by action id to avoid spawning duplicate canvas items.
   const lastHandledKeyRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
@@ -112,14 +112,14 @@ export function GestureComponentSpawner() {
       return;
     }
 
-    const actionKey = `${gestureAction.gesture}-${gestureAction.at}`;
+    const actionKey = String(gestureAction.id);
     if (lastHandledKeyRef.current === actionKey) {
       return;
     }
 
     lastHandledKeyRef.current = actionKey;
 
-    const messageId = `gesture-${gestureAction.id}-${Math.round(gestureAction.at)}`;
+    const messageId = `gesture-${gestureAction.gesture}-${gestureAction.id}`;
 
     const component = buildComponentForGesture(gestureAction);
     if (!component) {

@@ -93,6 +93,13 @@ function buildInitialFormState(fields: FormProps["fields"]): InitialFormState {
   };
 }
 
+function getFormValuesKey(fields: FormField[]): string {
+  return fields
+    .map((field) => JSON.stringify([field.name, field.type]))
+    .sort()
+    .join("|");
+}
+
 export const Form = React.forwardRef<HTMLDivElement, FormProps>(
   (
     {
@@ -109,6 +116,7 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
     const formId = React.useId();
 
     const initial = React.useMemo(() => buildInitialFormState(fields), [fields]);
+    const valuesKey = getFormValuesKey(initial.uniqueFields);
 
     const [values, setValues] = React.useState<Record<string, FormValue>>(
       () => initial.initialValues,
@@ -122,7 +130,7 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
     React.useEffect(() => {
       setValues(initial.initialValues);
       setSubmitted(null);
-    }, [fields]);
+    }, [valuesKey]);
 
     return (
       <div

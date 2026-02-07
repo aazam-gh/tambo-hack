@@ -9,7 +9,13 @@ export type GestureAction = {
   clientY?: number;
 };
 
-export type GestureSpawnComponent = "Form" | "Graph" | "Modal";
+export type GestureSpawnComponent =
+  | "Callout"
+  | "Checklist"
+  | "MetricCard"
+  | "Form"
+  | "Graph"
+  | "Modal";
 
 export type GestureMapping = {
   label: string;
@@ -25,17 +31,17 @@ export const gestureMappings = {
   },
   thumbsUp: {
     label: "Thumbs up",
-    description: "Spawn a chart",
-    componentName: "Graph",
+    description: "Spawn a checklist",
+    componentName: "Checklist",
   },
   peaceSign: {
     label: "Peace sign",
-    description: "Spawn a chart",
-    componentName: "Graph",
+    description: "Spawn a metric card",
+    componentName: "MetricCard",
   },
   openPalm: {
     label: "Open palm",
-    description: "Spawn a modal",
-    componentName: "Modal",
+    description: "Spawn a callout",
+    componentName: "Callout",
   },
 } as const satisfies Record<HandGesture, GestureMapping>;

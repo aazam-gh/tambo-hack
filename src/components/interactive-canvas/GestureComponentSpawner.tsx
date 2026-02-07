@@ -1,8 +1,11 @@
 import * as React from "react";
 
 import { useSensing } from "@/components/SensingProvider";
+import { Callout } from "@/components/tambo/callout";
+import { Checklist } from "@/components/tambo/checklist";
 import { Form } from "@/components/tambo/form";
 import { Graph } from "@/components/tambo/graph";
+import { MetricCard } from "@/components/tambo/metric-card";
 import { Modal } from "@/components/tambo/modal";
 import {
   gestureMappings,
@@ -79,9 +82,49 @@ function buildDemoModal(actionId: number) {
   );
 }
 
+function buildDemoCallout(actionId: number) {
+  return (
+    <Callout
+      tone="info"
+      title={`Callout #${actionId}`}
+      message="This callout was created from a hand gesture."
+    />
+  );
+}
+
+function buildDemoChecklist(actionId: number) {
+  return (
+    <Checklist
+      title={`Checklist #${actionId}`}
+      items={[
+        { text: "Gesture detected", checked: true },
+        { text: "Component spawned", checked: true },
+        { text: "Keep exploring", checked: false },
+      ]}
+    />
+  );
+}
+
+function buildDemoMetricCard(actionId: number) {
+  const change = (actionId % 5) - 2;
+
+  return (
+    <MetricCard
+      label="Gesture metric"
+      value={actionId}
+      unit="events"
+      change={change}
+      tone="neutral"
+    />
+  );
+}
+
 const componentBuilders: Record<GestureSpawnComponent, (id: number) => React.ReactNode> = {
+  Callout: buildDemoCallout,
+  Checklist: buildDemoChecklist,
   Form: buildDemoForm,
   Graph: buildDemoChart,
+  MetricCard: buildDemoMetricCard,
   Modal: buildDemoModal,
 };
 
@@ -134,6 +177,7 @@ export function GestureComponentSpawner() {
 
     const component = buildComponentForGesture(gestureAction);
     if (!component) {
+      clearGestureAction();
       return;
     }
 

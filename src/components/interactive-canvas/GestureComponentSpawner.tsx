@@ -101,7 +101,7 @@ function buildComponentForGesture(action: GestureAction): React.ReactNode {
 }
 
 export function GestureComponentSpawner() {
-  const { gestureAction, handPosition, clearGestureAction } = useSensing();
+  const { gestureAction, clearGestureAction } = useSensing();
 
   // Effects run twice in development under React.StrictMode, so we
   // de-dupe by action id to avoid spawning duplicate canvas items.
@@ -129,11 +129,11 @@ export function GestureComponentSpawner() {
     emitTamboShowComponent({
       messageId,
       component,
-      clientX: handPosition?.x,
-      clientY: handPosition?.y,
+      clientX: gestureAction.clientX,
+      clientY: gestureAction.clientY,
     });
     clearGestureAction();
-  }, [clearGestureAction, gestureAction, handPosition]);
+  }, [clearGestureAction, gestureAction]);
 
   return null;
 }

@@ -49,15 +49,16 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     });
   }, []);
 
-  const [items, setItemsState] = React.useState<CanvasItem[]>([]);
+  const [items, _setItemsState] = React.useState<CanvasItem[]>([]);
   const itemsRef = React.useRef(items);
 
   type CanvasItemsUpdater =
     | CanvasItem[]
     | ((prev: CanvasItem[]) => CanvasItem[]);
 
+  // Always use setItems so itemsRef stays in sync for drag interactions.
   const setItems = React.useCallback((updater: CanvasItemsUpdater) => {
-    setItemsState((prev) => {
+    _setItemsState((prev) => {
       const next = typeof updater === "function" ? updater(prev) : updater;
       itemsRef.current = next;
       return next;
@@ -71,6 +72,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     startClientY: number;
     startX: number;
     startY: number;
+    startScale: number;
   } | null>(null);
 
   const handDragRef = React.useRef<{
@@ -164,6 +166,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         startClientY: e.clientY,
         startX: currentItem.x,
         startY: currentItem.y,
+        startScale: viewRef.current.scale,
       };
 
       setItems((prev) => {
@@ -193,7 +196,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       e.preventDefault();
       e.stopPropagation();
 
-      const scale = viewRef.current.scale;
+      const scale = session.startScale;
       const dx = (e.clientX - session.startClientX) / scale;
       const dy = (e.clientY - session.startClientY) / scale;
       const nextX = session.startX + dx;

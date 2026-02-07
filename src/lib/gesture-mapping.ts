@@ -1,6 +1,7 @@
 import type { HandGesture } from "@/lib/hand-gestures";
 
 export type GestureAction = {
+  // Opaque unique id assigned by the sensing layer for each emitted action.
   id: number;
   gesture: HandGesture;
   at: number;

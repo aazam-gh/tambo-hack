@@ -119,7 +119,7 @@ export function GestureComponentSpawner() {
 
     lastHandledKeyRef.current = actionKey;
 
-    const messageId = `gesture-${gestureAction.gesture}-${gestureAction.id}`;
+    const messageId = `gesture-v2-${gestureAction.gesture}-${gestureAction.id}`;
 
     const component = buildComponentForGesture(gestureAction);
     if (!component) {

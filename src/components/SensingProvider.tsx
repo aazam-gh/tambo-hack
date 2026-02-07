@@ -8,7 +8,8 @@ import React, {
 } from "react";
 import { HandLandmarkerService } from "../services/HandLandmarker";
 import { detectHandGesture, type HandGesture } from "@/lib/hand-gestures";
-import { gestureMappings, type GestureAction } from "@/lib/gesture-mapping";
+import { gestureMappings } from "@/lib/gesture-mapping";
+import type { GestureSignal } from "@/lib/gesture-signals";
 
 const PREDICTION_INTERVAL_MS = 33;
 const GESTURE_STABILITY_MS = 350;
@@ -35,8 +36,8 @@ interface SensingContextType {
     handGesture: HandGesture | null;
     gestureMappingEnabled: boolean;
     setGestureMappingEnabled: (enabled: boolean) => void;
-    gestureAction: GestureAction | null;
-    clearGestureAction: () => void;
+    gestureSignal: GestureSignal | null;
+    clearGestureSignal: () => void;
 }
 
 const SensingContext = createContext<SensingContextType | undefined>(undefined);
@@ -50,8 +51,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [handGesture, setHandGesture] = useState<HandGesture | null>(null);
     const [gestureMappingEnabled, setGestureMappingEnabledState] = useState(false);
     const gestureMappingEnabledRef = useRef(gestureMappingEnabled);
-    const [gestureAction, setGestureAction] = useState<GestureAction | null>(null);
-    const gestureActionIdRef = useRef(0);
+    const [gestureSignal, setGestureSignal] = useState<GestureSignal | null>(null);
+    const gestureSignalIdRef = useRef(0);
     const missingGestureMappingLoggedRef = useRef<Set<HandGesture>>(new Set());
 
     // Gesture detection is intentionally conservative:
@@ -122,8 +123,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGestureMappingEnabledState(enabled);
     }, []);
 
-    const clearGestureAction = useCallback(() => {
-        setGestureAction(null);
+    const clearGestureSignal = useCallback(() => {
+        setGestureSignal(null);
     }, []);
 
     const resetGestureDetection = useCallback((now: number) => {
@@ -163,7 +164,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setHoveredElement(null);
         hitTestCacheRef.current = null;
         resetGestureDetection(now);
-        setGestureAction(null);
+        setGestureSignal(null);
     }, [resetGestureDetection, resetMissingVideoTracking]);
 
     const disableHandTracking = useCallback(
@@ -398,8 +399,6 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 session.triggered = false;
                             }
 
-                            // Only gestures mapped to a spawnable component emit a
-                            // GestureAction.
                             const mapping = Object.prototype.hasOwnProperty.call(
                                 gestureMappings,
                                 gesture,
@@ -415,21 +414,30 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 }
                             }
 
-                            const shouldSuppressAction =
-                                !mapping || mapping.componentName === null;
+                            const mappingSignalType = mapping?.signalType ?? null;
+                            const shouldSuppressSignal = mappingSignalType === null;
 
                             if (
                                 gestureMappingEnabledRef.current &&
-                                !shouldSuppressAction &&
+                                !shouldSuppressSignal &&
                                 !session.triggered &&
                                 now - candidate.since >= GESTURE_STABILITY_MS
                             ) {
-                                gestureActionIdRef.current += 1;
+                                gestureSignalIdRef.current += 1;
                                 session.triggered = true;
-                                setGestureAction({
-                                    id: gestureActionIdRef.current,
-                                    gesture,
+
+                                const confidence = clamp(
+                                    (now - candidate.since) /
+                                        (GESTURE_STABILITY_MS * 1.5),
+                                    0,
+                                    1,
+                                );
+
+                                setGestureSignal({
+                                    id: gestureSignalIdRef.current,
+                                    type: mappingSignalType,
                                     at: now,
+                                    confidence,
                                     clientX,
                                     clientY,
                                 });
@@ -534,8 +542,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 handGesture,
                 gestureMappingEnabled,
                 setGestureMappingEnabled,
-                gestureAction,
-                clearGestureAction,
+                gestureSignal,
+                clearGestureSignal,
             }}
         >
             {children}

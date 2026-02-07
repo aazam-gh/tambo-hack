@@ -1,47 +1,31 @@
+import type { GestureSignalType } from "@/lib/gesture-signals";
 import type { HandGesture } from "@/lib/hand-gestures";
-
-export type GestureAction = {
-  // Opaque unique id assigned by the sensing layer for each emitted action.
-  id: number;
-  gesture: HandGesture;
-  at: number;
-  clientX?: number;
-  clientY?: number;
-};
-
-export type GestureSpawnComponent =
-  | "Callout"
-  | "Checklist"
-  | "MetricCard"
-  | "Form"
-  | "Graph"
-  | "Modal";
 
 export type GestureMapping = {
   label: string;
   description: string;
-  componentName: GestureSpawnComponent | null;
+  signalType: GestureSignalType | null;
 };
 
 export const gestureMappings = {
   pinch: {
     label: "Pinch",
     description: "Drag and drop items",
-    componentName: null,
+    signalType: null,
   },
   thumbsUp: {
     label: "Thumbs up",
-    description: "Spawn a checklist",
-    componentName: "Checklist",
+    description: "Confirm",
+    signalType: "confirm",
   },
   peaceSign: {
     label: "Peace sign",
-    description: "Spawn a metric card",
-    componentName: "MetricCard",
+    description: "Select",
+    signalType: "select",
   },
   openPalm: {
     label: "Open palm",
-    description: "Spawn a callout",
-    componentName: "Callout",
+    description: "Summon or dismiss the command surface",
+    signalType: "summon_ui",
   },
 } as const satisfies Record<HandGesture, GestureMapping>;

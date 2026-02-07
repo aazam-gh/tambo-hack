@@ -1,10 +1,20 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import { HandLandmarkerService } from "../services/HandLandmarker";
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
     hoveredElement: HTMLElement | null;
     lastVoiceCommand: string;
+    handTrackingEnabled: boolean;
+    setHandTrackingEnabled: (enabled: boolean) => void;
+    handTrackingError: string | null;
 }
 
 const SensingContext = createContext<SensingContextType | undefined>(undefined);
@@ -12,37 +22,71 @@ const SensingContext = createContext<SensingContextType | undefined>(undefined);
 export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [handPosition, setHandPosition] = useState<{ x: number; y: number } | null>(null);
     const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
-    const [lastVoiceCommand, setLastVoiceCommand] = useState("");
+    const [lastVoiceCommand] = useState("");
+    const [handTrackingEnabled, setHandTrackingEnabledState] = useState(false);
+    const [handTrackingError, setHandTrackingError] = useState<string | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
-    const recognitionRef = useRef<any>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
+
+    const setHandTrackingEnabled = useCallback(
+        (enabled: boolean) => {
+            if (!enabled) {
+                setHandTrackingError(null);
+            }
+
+            setHandTrackingEnabledState(enabled);
+        },
+        [],
+    );
+
+    const stopHandTracking = useCallback(() => {
+        if (animationFrameRef.current !== null) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
+        }
+
+        if (videoRef.current) {
+            try {
+                videoRef.current.pause();
+            } catch {
+                // Ignore pause errors.
+            }
+
+            videoRef.current.srcObject = null;
+        }
+
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+        }
+
+        setHandPosition(null);
+        setHoveredElement(null);
+    }, []);
 
     useEffect(() => {
-        const service = HandLandmarkerService.getInstance();
-        let isRunning = true;
-
-        const startCamera = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 1280, height: 720 }
-                });
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    await videoRef.current.play();
-                    await service.initialize();
-                    if (isRunning) requestAnimationFrame(predict);
-                }
-            } catch (err) {
-                console.error("Camera access denied:", err);
-            }
+        return () => {
+            stopHandTracking();
         };
+    }, [stopHandTracking]);
+
+    useEffect(() => {
+        if (!handTrackingEnabled) {
+            stopHandTracking();
+            return;
+        }
+
+        const service = HandLandmarkerService.getInstance();
+        let canceled = false;
 
         const predict = () => {
-            if (!isRunning) return;
+            if (canceled) return;
 
             if (videoRef.current && videoRef.current.readyState >= 2) {
                 const results = service.predict(videoRef.current, performance.now());
                 if (results && results.landmarks && results.landmarks.length > 0) {
-                    const indexFingerTip = results.landmarks[0][8]; // Index finger tip
+                    const indexFingerTip = results.landmarks[0][8];
 
                     // MediaPipe coordinates are normalized 0-1
                     // We flip X because camera is mirrored
@@ -51,10 +95,12 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                     setHandPosition({ x, y });
 
-                    // Find the top-most interactable element at this point
                     const element = document.elementFromPoint(x, y) as HTMLElement;
                     if (element) {
-                        setHoveredElement(element.closest("[data-interactable]") as HTMLElement || null);
+                        setHoveredElement(
+                            (element.closest("[data-interactable]") as HTMLElement) ||
+                            null,
+                        );
                     } else {
                         setHoveredElement(null);
                     }
@@ -63,56 +109,68 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     setHoveredElement(null);
                 }
             }
-            requestAnimationFrame(predict);
+
+            animationFrameRef.current = requestAnimationFrame(predict);
         };
 
-        const startVoice = () => {
-            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                const recognition = new SpeechRecognition();
-                recognition.continuous = true;
-                recognition.lang = "en-US";
+        const startCamera = async () => {
+            setHandTrackingError(null);
 
-                recognition.onresult = (event: any) => {
-                    const current = event.resultIndex;
-                    const transcript = event.results[current][0].transcript.toLowerCase().trim();
-                    setLastVoiceCommand(transcript);
-                };
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 1280, height: 720 },
+                });
 
-                recognition.onerror = (event: any) => {
-                    console.error("Speech Recognition Error:", event.error);
-                };
+                if (canceled) {
+                    stream.getTracks().forEach((track) => track.stop());
+                    return;
+                }
 
-                recognition.onend = () => {
-                    if (isRunning) recognition.start();
-                };
+                streamRef.current = stream;
 
-                recognition.start();
-                recognitionRef.current = recognition;
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    await videoRef.current.play();
+                }
+
+                await service.initialize();
+                if (!canceled) {
+                    animationFrameRef.current = requestAnimationFrame(predict);
+                }
+            } catch (err) {
+                console.error("Camera access denied:", err);
+                setHandTrackingError(
+                    err instanceof Error ? err.message : "Camera access denied",
+                );
+                setHandTrackingEnabledState(false);
             }
         };
 
         startCamera();
-        startVoice();
 
         return () => {
-            isRunning = false;
-            if (videoRef.current && videoRef.current.srcObject) {
-                (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
-            }
-            if (recognitionRef.current) {
-                recognitionRef.current.stop();
-            }
+            canceled = true;
+            stopHandTracking();
         };
-    }, []);
+    }, [handTrackingEnabled, stopHandTracking]);
 
     return (
-        <SensingContext.Provider value={{ handPosition, hoveredElement, lastVoiceCommand }}>
+        <SensingContext.Provider
+            value={{
+                handPosition,
+                hoveredElement,
+                lastVoiceCommand,
+                handTrackingEnabled,
+                setHandTrackingEnabled,
+                handTrackingError,
+            }}
+        >
             {children}
             <video
                 ref={videoRef}
                 style={{ display: "none" }}
                 playsInline
+                muted
             />
         </SensingContext.Provider>
     );

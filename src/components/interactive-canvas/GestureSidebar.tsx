@@ -8,6 +8,7 @@ import {
   ZoomIn,
 } from "lucide-react";
 
+import { useSensing } from "@/components/SensingProvider";
 import { cn } from "@/lib/utils";
 
 export type GestureSidebarProps = {
@@ -16,6 +17,12 @@ export type GestureSidebarProps = {
 };
 
 export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
+  const {
+    handTrackingEnabled,
+    setHandTrackingEnabled,
+    handTrackingError,
+  } = useSensing();
+
   return (
     <aside
       className={cn(
@@ -52,7 +59,7 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                     Gesture Controls
                   </div>
                   <div className="text-xs text-zinc-400">
-                    UI scaffold (no gesture logic yet)
+                    Toggle MediaPipe hand tracking
                   </div>
                 </div>
               </div>
@@ -88,8 +95,9 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   <span className="text-zinc-200">Hand tracking</span>
                   <input
                     type="checkbox"
-                    disabled
-                    aria-label="Hand tracking (coming soon)"
+                    checked={handTrackingEnabled}
+                    onChange={(e) => setHandTrackingEnabled(e.target.checked)}
+                    aria-label="Hand tracking"
                     className="h-4 w-4 accent-emerald-500"
                   />
                 </label>
@@ -111,10 +119,16 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                     className="h-4 w-4 accent-emerald-500"
                   />
                 </label>
-                <div className="text-xs text-zinc-500">
-                  These controls are placeholders. Gesture recognition will be
-                  wired up in a follow-up.
-                </div>
+                {handTrackingError ? (
+                  <div className="text-xs text-rose-400">
+                    {handTrackingError}
+                  </div>
+                ) : (
+                  <div className="text-xs text-zinc-500">
+                    Turn this on to request camera permission and show the
+                    virtual cursor.
+                  </div>
+                )}
               </div>
             </section>
           </div>

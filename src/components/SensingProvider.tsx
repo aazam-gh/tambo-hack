@@ -11,7 +11,6 @@ import { HandLandmarkerService } from "../services/HandLandmarker";
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
     hoveredElement: HTMLElement | null;
-    lastVoiceCommand: string;
     handTrackingEnabled: boolean;
     setHandTrackingEnabled: (enabled: boolean) => void;
     handTrackingError: string | null;
@@ -22,7 +21,6 @@ const SensingContext = createContext<SensingContextType | undefined>(undefined);
 export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [handPosition, setHandPosition] = useState<{ x: number; y: number } | null>(null);
     const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
-    const [lastVoiceCommand] = useState("");
     const [handTrackingEnabled, setHandTrackingEnabledState] = useState(false);
     const [handTrackingError, setHandTrackingError] = useState<string | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -159,7 +157,6 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             value={{
                 handPosition,
                 hoveredElement,
-                lastVoiceCommand,
                 handTrackingEnabled,
                 setHandTrackingEnabled,
                 handTrackingError,

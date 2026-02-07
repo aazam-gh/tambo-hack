@@ -3,7 +3,7 @@ import { useSensing } from "./SensingProvider";
 import { Mic, Hand, Camera } from "lucide-react";
 
 export const SensingStatus: React.FC = () => {
-    const { handPosition, lastVoiceCommand, handTrackingEnabled } = useSensing();
+    const { handPosition, handTrackingEnabled } = useSensing();
 
     const handClasses = handTrackingEnabled
         ? handPosition
@@ -34,11 +34,6 @@ export const SensingStatus: React.FC = () => {
                 </div>
             </div>
 
-            {lastVoiceCommand && (
-                <div className="bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-md border border-white/20 text-sm animate-in fade-in slide-in-from-bottom-2">
-                    " {lastVoiceCommand} "
-                </div>
-            )}
         </div>
     );
 };

@@ -12,7 +12,7 @@ function applyTheme(theme: Theme) {
 
   const root = document.documentElement;
   root.classList.toggle("dark", theme === "dark");
-  root.style.colorScheme = theme;
+  root.style.colorScheme = theme === "dark" ? "dark" : "light";
 }
 
 function persistTheme(theme: Theme) {
@@ -33,6 +33,61 @@ export function ThemeToggle({ className }: { className?: string }) {
       ? "dark"
       : "light";
   });
+
+  React.useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== "theme") {
+        return;
+      }
+
+      if (e.newValue === "dark" || e.newValue === "light") {
+        applyTheme(e.newValue);
+        setTheme(e.newValue);
+        return;
+      }
+
+      const systemDark = window.matchMedia
+        ? window.matchMedia("(prefers-color-scheme: dark)").matches
+        : false;
+      const next: Theme = systemDark ? "dark" : "light";
+      applyTheme(next);
+      setTheme(next);
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  React.useEffect(() => {
+    if (!window.matchMedia) {
+      return;
+    }
+
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const onChange = () => {
+      try {
+        const stored = localStorage.getItem("theme");
+        if (stored === "light" || stored === "dark") {
+          return;
+        }
+      } catch {
+        return;
+      }
+
+      const next: Theme = mql.matches ? "dark" : "light";
+      applyTheme(next);
+      setTheme(next);
+    };
+
+    if (mql.addEventListener) {
+      mql.addEventListener("change", onChange);
+      return () => mql.removeEventListener("change", onChange);
+    }
+
+    mql.addListener(onChange);
+    return () => mql.removeListener(onChange);
+  }, []);
 
   const onToggle = React.useCallback(() => {
     const nextTheme: Theme = theme === "dark" ? "light" : "dark";

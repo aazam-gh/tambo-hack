@@ -1,9 +1,9 @@
 (function () {
   try {
     const stored = localStorage.getItem("theme");
-    const mql =
-      window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
-    const systemPrefersDark = mql ? mql.matches : false;
+    const systemPrefersDark = window.matchMedia
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+      : false;
 
     const theme =
       stored === "light" || stored === "dark"
@@ -14,7 +14,7 @@
 
     const root = document.documentElement;
     root.classList.toggle("dark", theme === "dark");
-    root.style.colorScheme = theme;
+    root.style.colorScheme = theme === "dark" ? "dark" : "light";
   } catch {
     // Ignore unavailable localStorage access.
   }

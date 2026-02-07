@@ -6,13 +6,13 @@ import { z } from "zod/v3";
 type ModalVariant = "default" | "solid" | "bordered";
 type ModalSize = "default" | "sm" | "lg";
 
-const FOCUSABLE_SELECTOR =
+const TABBABLE_SELECTOR =
   [
     "a[href]",
-    "button",
-    "textarea",
-    "input",
-    "select",
+    "button:not([disabled])",
+    "textarea:not([disabled])",
+    "input:not([disabled])",
+    "select:not([disabled])",
     '[tabindex]:not([tabindex="-1"])',
   ].join(", ");
 
@@ -39,8 +39,8 @@ function shouldTrapFocus(dialog: HTMLElement, target: Element | null): boolean {
   return true;
 }
 
-function getFocusableElements(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+function getTabbableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)).filter(
     (el) => !el.hasAttribute("disabled") && el.tabIndex >= 0,
   );
 }
@@ -116,64 +116,61 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
     const wasOpenRef = React.useRef(open);
     const lastFocusedRef = React.useRef<HTMLElement | null>(null);
 
-    const onDialogKeyDown = React.useCallback(
-      (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          setOpen(false);
-          return;
-        }
+    const onDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        return;
+      }
 
-        if (event.key !== "Tab") {
-          return;
-        }
+      if (event.key !== "Tab") {
+        return;
+      }
 
-        const dialog = dialogRef.current;
-        if (!dialog) {
-          return;
-        }
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return;
+      }
 
-        const focusables = getFocusableElements(dialog);
+      const focusables = getTabbableElements(dialog);
 
-        if (focusables.length === 0) {
-          const fallback = closeButtonRef.current ?? dialog;
-          fallback.focus();
-          lastFocusedRef.current = fallback;
-          event.preventDefault();
-          return;
-        }
+      if (focusables.length === 0) {
+        const fallback = closeButtonRef.current ?? dialog;
+        fallback.focus();
+        lastFocusedRef.current = fallback;
+        event.preventDefault();
+        return;
+      }
 
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        const active = document.activeElement as HTMLElement | null;
-        const activeInside = !!active && dialog.contains(active);
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      const activeInside = !!active && dialog.contains(active);
 
-        if (!activeInside) {
-          const target = event.shiftKey ? last : first;
-          target.focus();
-          lastFocusedRef.current = target;
-          event.preventDefault();
-          return;
-        }
+      if (!activeInside) {
+        const target = event.shiftKey ? last : first;
+        target.focus();
+        lastFocusedRef.current = target;
+        event.preventDefault();
+        return;
+      }
 
-        if (event.shiftKey) {
-          if (active === first) {
-            last.focus();
-            lastFocusedRef.current = last;
-            event.preventDefault();
-          }
-          return;
-        }
-
-        if (active === last) {
-          first.focus();
-          lastFocusedRef.current = first;
+      if (event.shiftKey) {
+        if (active === first) {
+          last.focus();
+          lastFocusedRef.current = last;
           event.preventDefault();
         }
-      },
-      [setOpen],
-    );
+        return;
+      }
+
+      if (active === last) {
+        first.focus();
+        lastFocusedRef.current = first;
+        event.preventDefault();
+      }
+    };
 
     React.useEffect(() => {
       if (!open) {

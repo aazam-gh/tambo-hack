@@ -8,11 +8,7 @@ import React, {
 } from "react";
 import { HandLandmarkerService } from "../services/HandLandmarker";
 import { detectHandGesture, type HandGesture } from "@/lib/hand-gestures";
-import {
-    gestureMappings,
-    type GestureAction,
-    type GestureMapping,
-} from "@/lib/gesture-mapping";
+import { gestureMappings, type GestureAction } from "@/lib/gesture-mapping";
 
 const PREDICTION_INTERVAL_MS = 33;
 const GESTURE_STABILITY_MS = 350;
@@ -403,11 +399,12 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                             // Only gestures mapped to a spawnable component emit a
                             // GestureAction.
-                            const mapping = (
-                                gestureMappings as Partial<
-                                    Record<HandGesture, GestureMapping>
-                                >
-                            )[gesture];
+                            const mapping = Object.prototype.hasOwnProperty.call(
+                                gestureMappings,
+                                gesture,
+                            )
+                                ? gestureMappings[gesture]
+                                : null;
 
                             if (import.meta.env.DEV && !mapping) {
                                 console.warn("Missing gesture mapping", { gesture });

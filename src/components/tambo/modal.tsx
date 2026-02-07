@@ -44,9 +44,14 @@ function shouldTrapFocus(dialog: HTMLElement, target: Element | null): boolean {
 }
 
 function getTabbableElements(container: HTMLElement): HTMLElement[] {
+  if (container.closest("[inert]")) {
+    return [];
+  }
+
   return Array.from(container.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)).filter(
     (el) =>
       !el.hasAttribute("disabled") &&
+      !el.closest("[inert]") &&
       el.tabIndex >= 0 &&
       el.getAttribute("aria-hidden") !== "true" &&
       el.getClientRects().length > 0,
@@ -123,6 +128,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
     const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
     const wasOpenRef = React.useRef(open);
     const lastFocusedRef = React.useRef<HTMLElement | null>(null);
+    const restoringFocusRef = React.useRef(false);
 
     const onDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.key === "Escape") {
@@ -150,6 +156,12 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 
       const dialog = dialogRef.current;
       if (!dialog) {
+        return;
+      }
+
+      const owningModal = dialog.closest(MODAL_SELECTOR);
+      const topmostModal = getTopmostModal();
+      if (owningModal && topmostModal && owningModal !== topmostModal) {
         return;
       }
 
@@ -198,6 +210,10 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
       }
 
       const onFocusIn = (event: FocusEvent) => {
+        if (restoringFocusRef.current) {
+          return;
+        }
+
         const dialog = dialogRef.current;
         if (!dialog) {
           return;
@@ -213,14 +229,27 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 
         const lastFocused = lastFocusedRef.current;
         if (lastFocused && lastFocused.isConnected && dialog.contains(lastFocused)) {
-          lastFocused.focus();
+          restoringFocusRef.current = true;
+
+          try {
+            lastFocused.focus();
+          } finally {
+            restoringFocusRef.current = false;
+          }
+
           return;
         }
 
         const fallback = closeButtonRef.current ?? dialog;
         if (fallback.isConnected) {
-          fallback.focus();
-          lastFocusedRef.current = fallback;
+          restoringFocusRef.current = true;
+
+          try {
+            fallback.focus();
+            lastFocusedRef.current = fallback;
+          } finally {
+            restoringFocusRef.current = false;
+          }
         }
       };
 

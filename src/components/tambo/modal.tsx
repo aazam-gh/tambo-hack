@@ -7,7 +7,13 @@ type ModalVariant = "default" | "solid" | "bordered";
 type ModalSize = "default" | "sm" | "lg";
 
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button, textarea, input, select, [tabindex]';
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (el) => !el.hasAttribute("disabled") && el.tabIndex >= 0,
+  );
+}
 
 export const modalVariants = cva("w-full", {
   variants: {
@@ -98,9 +104,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           return;
         }
 
-        const focusables = Array.from(
-          dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-        ).filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
+        const focusables = getFocusableElements(dialog);
 
         if (focusables.length === 0) {
           const fallback = closeButtonRef.current ?? dialog;
@@ -152,20 +156,17 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           return;
         }
 
-        const owningModal = dialog.closest("[role=dialog][aria-modal=true]");
+        const MODAL_SELECTOR = "[role=dialog][aria-modal=true]";
+        const owningModal = dialog.closest(MODAL_SELECTOR);
+        const targetModal = (event.target as Element | null)?.closest(MODAL_SELECTOR);
 
-        const dialogs = Array.from(
-          document.querySelectorAll<HTMLElement>("[role=dialog][aria-modal=true]"),
-        );
-        const topmostDialog = dialogs[dialogs.length - 1];
+        const topmostModal = Array.from(
+          document.querySelectorAll<HTMLElement>(MODAL_SELECTOR),
+        ).at(-1);
 
-        if (owningModal && topmostDialog && owningModal !== topmostDialog) {
+        if (owningModal && topmostModal && owningModal !== topmostModal) {
           return;
         }
-
-        const targetModal = (event.target as Element | null)?.closest(
-          "[role=dialog][aria-modal=true]",
-        );
 
         if (targetModal && owningModal && targetModal !== owningModal) {
           return;

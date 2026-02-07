@@ -62,7 +62,6 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const lastPredictionTimeRef = useRef(0);
     const predictionErrorCountRef = useRef(0);
     const lastLandmarksTimeRef = useRef(0);
-    const missingVideoCountRef = useRef(0);
     const lastMissingVideoLogAtRef = useRef(0);
     const missingVideoSinceRef = useRef<number | null>(null);
     const missingVideoClearedRef = useRef(false);
@@ -131,7 +130,6 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         predictionErrorCountRef.current = 0;
         lastLandmarksTimeRef.current = 0;
-        missingVideoCountRef.current = 0;
         lastMissingVideoLogAtRef.current = 0;
         missingVideoSinceRef.current = null;
         missingVideoClearedRef.current = false;
@@ -190,7 +188,6 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         lastPredictionTimeRef.current = 0;
         predictionErrorCountRef.current = 0;
         lastLandmarksTimeRef.current = 0;
-        missingVideoCountRef.current = 0;
         lastMissingVideoLogAtRef.current = 0;
         missingVideoSinceRef.current = null;
         missingVideoClearedRef.current = false;
@@ -217,9 +214,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 }
 
                 if (!document.body.contains(video)) {
-                    missingVideoCountRef.current += 1;
-
-                    const isFirstMissingFrame = missingVideoCountRef.current === 1;
+                    const isFirstMissingFrame = missingVideoSinceRef.current === null;
                     if (isFirstMissingFrame) {
                         missingVideoSinceRef.current = now;
                         missingVideoClearedRef.current = false;
@@ -235,7 +230,9 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         console.warn(
                             "Hand tracking video element missing from DOM",
                             {
-                                count: missingVideoCountRef.current,
+                                missingForMs: missingVideoSinceRef.current
+                                    ? Math.round(now - missingVideoSinceRef.current)
+                                    : 0,
                             },
                         );
                     }
@@ -259,8 +256,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     return;
                 }
 
-                if (missingVideoCountRef.current > 0) {
-                    missingVideoCountRef.current = 0;
+                if (missingVideoSinceRef.current !== null) {
                     lastMissingVideoLogAtRef.current = 0;
                     missingVideoSinceRef.current = null;
                     missingVideoClearedRef.current = false;

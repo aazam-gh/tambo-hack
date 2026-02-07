@@ -23,6 +23,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
     const [handTrackingEnabled, setHandTrackingEnabledState] = useState(false);
     const [handTrackingError, setHandTrackingError] = useState<string | null>(null);
+    const handTrackingEnabledRef = useRef(handTrackingEnabled);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const animationFrameRef = useRef<number | null>(null);
@@ -49,8 +50,13 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             setHandTrackingError(null);
         }
 
+        handTrackingEnabledRef.current = enabled;
         setHandTrackingEnabledState(enabled);
     }, []);
+
+    useEffect(() => {
+        handTrackingEnabledRef.current = handTrackingEnabled;
+    }, [handTrackingEnabled]);
 
     const stopHandTracking = useCallback(() => {
         if (animationFrameRef.current !== null) {
@@ -96,7 +102,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         lastPredictionTimeRef.current = 0;
 
         const predict = () => {
-            if (canceled) return;
+            if (canceled || !handTrackingEnabledRef.current) return;
 
             const now = performance.now();
             if (now - lastPredictionTimeRef.current < predictionIntervalMs) {
@@ -138,6 +144,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             } catch (err) {
                 console.error("Hand tracking prediction failed:", err);
                 setHandTrackingError("Hand tracking encountered an error.");
+                    handTrackingEnabledRef.current = false;
                 setHandTrackingEnabledState(false);
                 return;
             }
@@ -152,6 +159,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 setHandTrackingError(
                     "Camera access is not supported in this browser.",
                 );
+            handTrackingEnabledRef.current = false;
                 setHandTrackingEnabledState(false);
                 return;
             }
@@ -180,6 +188,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     setHandTrackingError("Hand tracking failed to initialize.");
                     stream.getTracks().forEach((track) => track.stop());
                     streamRef.current = null;
+                    handTrackingEnabledRef.current = false;
                     setHandTrackingEnabledState(false);
                     return;
                 }
@@ -190,6 +199,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             } catch (err) {
                 console.error("Camera access denied:", err);
                 setHandTrackingError(getCameraErrorMessage(err));
+                handTrackingEnabledRef.current = false;
                 setHandTrackingEnabledState(false);
             }
         };

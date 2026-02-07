@@ -61,6 +61,14 @@ type FormValue = string | boolean;
 function buildInitialValues(
   fields: FormProps["fields"],
 ): Record<string, FormValue> {
+  const seenNames = new Set<string>();
+  for (const field of fields) {
+    if (seenNames.has(field.name)) {
+      console.error(`Form field names must be unique. Duplicate: ${field.name}`);
+    }
+    seenNames.add(field.name);
+  }
+
   const entries = fields.map((field) => {
     switch (field.type) {
       case "checkbox":

@@ -59,7 +59,7 @@ export function detectHandGesture(
     return "thumbsUp";
   }
 
-  if (indexExtended && middleExtended && ringExtended && pinkyExtended) {
+  if (thumbExtended && indexExtended && middleExtended && ringExtended && pinkyExtended) {
     return "openPalm";
   }
 

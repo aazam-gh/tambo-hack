@@ -105,6 +105,7 @@ export function GestureComponentSpawner() {
 
   React.useEffect(() => {
     if (!gestureAction) {
+      lastHandledIdRef.current = null;
       return;
     }
 

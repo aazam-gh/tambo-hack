@@ -30,6 +30,20 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const predictionIntervalMs = 33;
 
+    const getCameraErrorMessage = (err: unknown): string => {
+        if (err instanceof DOMException) {
+            if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                return "Camera access was denied. Enable it in your browser settings.";
+            }
+
+            if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+                return "No camera device was found.";
+            }
+        }
+
+        return "Unable to access the camera.";
+    };
+
     const setHandTrackingEnabled = useCallback(
         (enabled: boolean) => {
             if (!enabled) {
@@ -94,31 +108,40 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
             lastPredictionTimeRef.current = now;
 
-            if (videoRef.current && videoRef.current.readyState >= 2) {
-                const results = service.predict(videoRef.current, now);
-                if (results && results.landmarks && results.landmarks.length > 0) {
-                    const indexFingerTip = results.landmarks[0][8];
+            try {
+                if (videoRef.current && videoRef.current.readyState >= 2) {
+                    const results = service.predict(videoRef.current, now);
+                    if (results && results.landmarks && results.landmarks.length > 0) {
+                        const indexFingerTip = results.landmarks[0][8];
 
-                    // MediaPipe coordinates are normalized 0-1
-                    // We flip X because camera is mirrored
-                    const x = (1 - indexFingerTip.x) * window.innerWidth;
-                    const y = indexFingerTip.y * window.innerHeight;
+                        // MediaPipe coordinates are normalized 0-1
+                        // We flip X because camera is mirrored
+                        const x = (1 - indexFingerTip.x) * window.innerWidth;
+                        const y = indexFingerTip.y * window.innerHeight;
 
-                    setHandPosition({ x, y });
+                        setHandPosition({ x, y });
 
-                    const element = document.elementFromPoint(x, y) as HTMLElement;
-                    if (element) {
-                        setHoveredElement(
-                            (element.closest("[data-interactable]") as HTMLElement) ||
-                            null,
-                        );
+                        const element = document.elementFromPoint(x, y) as HTMLElement;
+                        if (element) {
+                            setHoveredElement(
+                                (element.closest(
+                                    "[data-interactable]",
+                                ) as HTMLElement) ||
+                                null,
+                            );
+                        } else {
+                            setHoveredElement(null);
+                        }
                     } else {
+                        setHandPosition(null);
                         setHoveredElement(null);
                     }
-                } else {
-                    setHandPosition(null);
-                    setHoveredElement(null);
                 }
+            } catch (err) {
+                console.error("Hand tracking prediction failed:", err);
+                setHandTrackingError("Hand tracking encountered an error.");
+                setHandTrackingEnabledState(false);
+                return;
             }
 
             animationFrameRef.current = requestAnimationFrame(predict);
@@ -126,6 +149,14 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         const startCamera = async () => {
             setHandTrackingError(null);
+
+            if (!navigator.mediaDevices?.getUserMedia) {
+                setHandTrackingError(
+                    "Camera access is not supported in this browser.",
+                );
+                setHandTrackingEnabledState(false);
+                return;
+            }
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -144,15 +175,23 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     await videoRef.current.play();
                 }
 
-                await service.initialize();
+                try {
+                    await service.initialize();
+                } catch (err) {
+                    console.error("Hand landmarker initialization failed:", err);
+                    setHandTrackingError("Hand tracking failed to initialize.");
+                    stream.getTracks().forEach((track) => track.stop());
+                    streamRef.current = null;
+                    setHandTrackingEnabledState(false);
+                    return;
+                }
+
                 if (!canceled) {
                     animationFrameRef.current = requestAnimationFrame(predict);
                 }
             } catch (err) {
                 console.error("Camera access denied:", err);
-                setHandTrackingError(
-                    err instanceof Error ? err.message : "Camera access denied",
-                );
+                setHandTrackingError(getCameraErrorMessage(err));
                 setHandTrackingEnabledState(false);
             }
         };

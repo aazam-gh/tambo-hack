@@ -29,6 +29,7 @@ export const SensingStatus: React.FC = () => {
                 <div
                     className={`p-2 rounded-full backdrop-blur-md border ${micClasses} shadow-lg`}
                     title="Voice commands not available yet"
+                    aria-label="Voice commands not available yet"
                 >
                     <Mic size={20} />
                 </div>

@@ -1,5 +1,8 @@
 import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
+const VISION_WASM_URL =
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm";
+
 export class HandLandmarkerService {
     private handLandmarker: HandLandmarker | null = null;
     private static instance: HandLandmarkerService;
@@ -17,7 +20,7 @@ export class HandLandmarkerService {
         if (this.handLandmarker) return;
 
         const vision = await FilesetResolver.forVisionTasks(
-            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm"
+            VISION_WASM_URL
         );
 
         this.handLandmarker = await HandLandmarker.createFromOptions(vision, {

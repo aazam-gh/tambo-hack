@@ -245,7 +245,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       }
 
       try {
-        if (session.target.hasPointerCapture(session.pointerId)) {
+        if (
+          session.target.isConnected &&
+          session.target.hasPointerCapture(session.pointerId)
+        ) {
           session.target.releasePointerCapture(session.pointerId);
         }
       } catch {

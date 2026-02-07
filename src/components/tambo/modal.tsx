@@ -6,6 +6,9 @@ import { z } from "zod/v3";
 type ModalVariant = "default" | "solid" | "bordered";
 type ModalSize = "default" | "sm" | "lg";
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export const modalVariants = cva("w-full", {
   variants: {
     variant: {
@@ -76,15 +79,8 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
     const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
     const wasOpenRef = React.useRef(open);
 
-    React.useEffect(() => {
-      if (!open) {
-        return;
-      }
-
-      const focusableSelector =
-        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-      const onKeyDown = (event: KeyboardEvent) => {
+    const onOverlayKeyDown = React.useCallback(
+      (event: React.KeyboardEvent<HTMLDivElement>) => {
         if (event.key === "Escape") {
           event.preventDefault();
           event.stopPropagation();
@@ -102,7 +98,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         }
 
         const focusables = Array.from(
-          dialog.querySelectorAll<HTMLElement>(focusableSelector),
+          dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
         ).filter((el) => !el.hasAttribute("disabled"));
 
         if (focusables.length === 0) {
@@ -113,9 +109,16 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         const first = focusables[0];
         const last = focusables[focusables.length - 1];
         const active = document.activeElement as HTMLElement | null;
+        const activeInside = !!active && dialog.contains(active);
+
+        if (!activeInside) {
+          (event.shiftKey ? last : first).focus();
+          event.preventDefault();
+          return;
+        }
 
         if (event.shiftKey) {
-          if (!active || active === first) {
+          if (active === first) {
             last.focus();
             event.preventDefault();
           }
@@ -126,9 +129,14 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           first.focus();
           event.preventDefault();
         }
-      };
+      },
+      [],
+    );
 
-      window.addEventListener("keydown", onKeyDown);
+    React.useEffect(() => {
+      if (!open) {
+        return;
+      }
 
       const focusTimer = window.setTimeout(() => {
         closeButtonRef.current?.focus();
@@ -136,7 +144,6 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 
       return () => {
         window.clearTimeout(focusTimer);
-        window.removeEventListener("keydown", onKeyDown);
       };
     }, [open]);
 
@@ -165,6 +172,8 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
+            tabIndex={-1}
+            onKeyDown={onOverlayKeyDown}
             onMouseDown={(event) => {
               if (event.target === event.currentTarget) {
                 setOpen(false);

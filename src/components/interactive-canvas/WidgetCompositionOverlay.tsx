@@ -64,7 +64,12 @@ function CompositionThumbnail({ primitives }: { primitives: readonly MicroPrimit
 }
 
 function domIdForOption(optionId: string, index: number): string {
-  return `composition-${index}-${optionId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const safeId = optionId
+    .split("")
+    .map((ch) => (/^[a-zA-Z0-9_-]$/.test(ch) ? ch : ch.charCodeAt(0).toString(16)))
+    .join("-");
+
+  return `composition-${index}-${safeId}`;
 }
 
 export function WidgetCompositionOverlay({

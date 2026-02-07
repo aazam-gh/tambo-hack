@@ -28,10 +28,32 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function useRefBackedState<T>(
+  initial: T,
+): [T, React.MutableRefObject<T>, (updater: T | ((prev: T) => T)) => void] {
+  const [state, setState] = React.useState(initial);
+  const ref = React.useRef(state);
+
+  const set = React.useCallback((updater: T | ((prev: T) => T)) => {
+    setState((prev) => {
+      const next = typeof updater === "function" ? (updater as (p: T) => T)(prev) : updater;
+      ref.current = next;
+      return next;
+    });
+  }, []);
+
+  return [state, ref, set];
+}
+
 export function InteractiveCanvas({ className }: { className?: string }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const { handGesture, handPosition, hoveredElement } = useSensing();
   const hoveredCanvasItemId = hoveredElement?.dataset.canvasItemId ?? null;
+  const hoveredCanvasItemIdRef = React.useRef<string | null>(hoveredCanvasItemId);
+
+  React.useEffect(() => {
+    hoveredCanvasItemIdRef.current = hoveredCanvasItemId;
+  }, [hoveredCanvasItemId]);
 
   const [view, setViewState] = React.useState<CanvasView>({
     x: 0,
@@ -49,30 +71,16 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     });
   }, []);
 
-  const [items, _setItemsState] = React.useState<CanvasItem[]>([]);
-  const itemsRef = React.useRef(items);
-
-  type CanvasItemsUpdater =
-    | CanvasItem[]
-    | ((prev: CanvasItem[]) => CanvasItem[]);
-
-  // Always use setItems so itemsRef stays in sync for drag interactions.
-  const setItems = React.useCallback((updater: CanvasItemsUpdater) => {
-    _setItemsState((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      itemsRef.current = next;
-      return next;
-    });
-  }, []);
+  const [items, itemsRef, setItems] = useRefBackedState<CanvasItem[]>([]);
 
   const itemDragRef = React.useRef<{
     pointerId: number;
     itemId: string;
+    target: HTMLButtonElement;
     startClientX: number;
     startClientY: number;
     startX: number;
     startY: number;
-    startScale: number;
   } | null>(null);
 
   const handDragRef = React.useRef<{
@@ -102,6 +110,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       }
 
       const currentView = viewRef.current;
+      // If the spawn point is outside the canvas bounds, clamp it to the nearest edge.
       const localX =
         typeof detail.clientX === "number"
           ? clamp(detail.clientX - rect.left, 0, rect.width)
@@ -158,15 +167,17 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         return;
       }
 
+      // Pointer capture ensures we continue receiving drag updates even if the
+      // pointer leaves the handle/button.
       (e.currentTarget as HTMLButtonElement).setPointerCapture(e.pointerId);
       itemDragRef.current = {
         pointerId: e.pointerId,
         itemId,
+        target: e.currentTarget as HTMLButtonElement,
         startClientX: e.clientX,
         startClientY: e.clientY,
         startX: currentItem.x,
         startY: currentItem.y,
-        startScale: viewRef.current.scale,
       };
 
       setItems((prev) => {
@@ -196,7 +207,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       e.preventDefault();
       e.stopPropagation();
 
-      const scale = session.startScale;
+      const scale = viewRef.current.scale;
       const dx = (e.clientX - session.startClientX) / scale;
       const dy = (e.clientY - session.startClientY) / scale;
       const nextX = session.startX + dx;
@@ -227,7 +238,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     }
 
     try {
-      (e.currentTarget as HTMLButtonElement).releasePointerCapture(e.pointerId);
+      session.target.releasePointerCapture(e.pointerId);
     } catch {
       // Ignore if pointer capture was already released.
     }
@@ -361,12 +372,13 @@ export function InteractiveCanvas({ className }: { className?: string }) {
 
     const activeSession = handDragRef.current;
     if (!activeSession) {
-      if (!hoveredCanvasItemId) {
+      const startItemId = hoveredCanvasItemIdRef.current;
+      if (!startItemId) {
         return;
       }
 
       const hoveredItem = itemsRef.current.find(
-        (item) => item.id === hoveredCanvasItemId,
+        (item) => item.id === startItemId,
       );
 
       if (!hoveredItem) {
@@ -374,13 +386,13 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       }
 
       handDragRef.current = {
-        itemId: hoveredCanvasItemId,
+        itemId: startItemId,
         offsetX: worldX - hoveredItem.x,
         offsetY: worldY - hoveredItem.y,
       };
 
       setItems((prev) => {
-        const idx = prev.findIndex((item) => item.id === hoveredCanvasItemId);
+        const idx = prev.findIndex((item) => item.id === startItemId);
         if (idx === -1 || idx === prev.length - 1) {
           return prev;
         }
@@ -415,7 +427,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         item.id === activeSession.itemId ? { ...item, x: nextX, y: nextY } : item,
       ),
     );
-  }, [handGesture, handPosition, hoveredCanvasItemId, setItems]);
+  }, [handGesture, handPosition, setItems]);
 
   return (
     <div
@@ -482,6 +494,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
             key={item.id}
             data-canvas-item="true"
             data-canvas-item-id={item.id}
+            data-canvas-draggable="true"
             data-interactable="true"
             className="absolute pointer-events-auto"
             style={{
@@ -491,7 +504,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
             <div className="relative rounded-2xl border border-border/60 bg-card/80 p-4 text-foreground shadow-xl shadow-black/10 backdrop-blur dark:shadow-black/30">
               <button
                 type="button"
-                aria-label="Move canvas item"
+                aria-label="Drag to move canvas item"
                 onPointerDown={(e) => startItemDrag(item.id, e)}
                 onPointerMove={onItemPointerMove}
                 onPointerUp={endItemDrag}

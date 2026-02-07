@@ -293,29 +293,39 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         const surfaceRect =
                             sensingSurfaceRef.current?.getBoundingClientRect();
 
+                        const left = surfaceRect?.left ?? 0;
+                        const top = surfaceRect?.top ?? 0;
+                        const width = surfaceRect?.width ?? window.innerWidth;
+                        const height = surfaceRect?.height ?? window.innerHeight;
+
                         // MediaPipe coordinates are normalized 0-1
                         // We flip X because camera is mirrored
-                        const clientX =
-                            (surfaceRect?.left ?? 0) +
-                            (1 - indexFingerTip.x) *
-                            (surfaceRect?.width ?? window.innerWidth);
-                        const clientY =
-                            (surfaceRect?.top ?? 0) +
-                            indexFingerTip.y *
-                            (surfaceRect?.height ?? window.innerHeight);
+                        const clientX = left + (1 - indexFingerTip.x) * width;
+                        const clientY = top + indexFingerTip.y * height;
 
                         setHandPosition({ x: clientX, y: clientY });
 
                         const element = document.elementFromPoint(
                             clientX,
                             clientY,
-                        ) as HTMLElement;
-                        const interactable = element
+                        ) as HTMLElement | null;
+
+                        const canvasDraggable = element
                             ? ((element.closest(
-                                  "[data-interactable]",
+                                  '[data-canvas-draggable="true"]',
                               ) as HTMLElement) ||
                                   null)
                             : null;
+
+                        const interactable = canvasDraggable
+                            ? canvasDraggable
+                            : element
+                              ? ((element.closest(
+                                    "[data-interactable]",
+                                ) as HTMLElement) ||
+                                    null)
+                              : null;
+
                         setHoveredElement(interactable);
 
                         const gesture = detectHandGesture(handLandmarks);
@@ -338,8 +348,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                             // Pinch is reserved for dragging existing canvas items.
                             const shouldSuppressAction =
-                                gesture === "pinch" &&
-                                Boolean(interactable?.dataset.canvasItemId);
+                                gesture === "pinch" && Boolean(canvasDraggable);
 
                             if (
                                 gestureMappingEnabledRef.current &&

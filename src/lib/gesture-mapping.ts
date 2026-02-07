@@ -5,8 +5,8 @@ export type GestureAction = {
   id: number;
   gesture: HandGesture;
   at: number;
-  clientX: number;
-  clientY: number;
+  clientX?: number;
+  clientY?: number;
 };
 
 export type GestureSpawnComponent = "Form" | "Graph" | "Modal";

@@ -142,12 +142,32 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         return;
       }
 
+      const onFocusIn = (event: FocusEvent) => {
+        const dialog = dialogRef.current;
+        if (!dialog) {
+          return;
+        }
+
+        if (dialog.contains(event.target as Node)) {
+          return;
+        }
+
+        const focusables = Array.from(
+          dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+        ).filter((el) => !el.hasAttribute("disabled"));
+
+        (focusables[0] ?? closeButtonRef.current)?.focus();
+      };
+
+      document.addEventListener("focusin", onFocusIn);
+
       const focusTimer = window.setTimeout(() => {
         closeButtonRef.current?.focus();
       }, 0);
 
       return () => {
         window.clearTimeout(focusTimer);
+        document.removeEventListener("focusin", onFocusIn);
       };
     }, [open]);
 
@@ -184,7 +204,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           >
             <div
               ref={dialogRef}
-              onKeyDownCapture={onDialogKeyDown}
+              onKeyDown={onDialogKeyDown}
               className={cn(
                 "w-full rounded-2xl border border-border/60 p-4 text-foreground backdrop-blur",
                 modalVariants({ variant, size }),

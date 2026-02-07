@@ -79,7 +79,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
     const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
     const wasOpenRef = React.useRef(open);
 
-    const onOverlayKeyDown = React.useCallback(
+    const onDialogKeyDown = React.useCallback(
       (event: React.KeyboardEvent<HTMLDivElement>) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -172,8 +172,6 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            tabIndex={-1}
-            onKeyDown={onOverlayKeyDown}
             onMouseDown={(event) => {
               if (event.target === event.currentTarget) {
                 setOpen(false);
@@ -182,6 +180,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           >
             <div
               ref={dialogRef}
+              onKeyDown={onDialogKeyDown}
               className={cn(
                 "w-full rounded-2xl border border-border/60 p-4 text-foreground backdrop-blur",
                 modalVariants({ variant, size }),

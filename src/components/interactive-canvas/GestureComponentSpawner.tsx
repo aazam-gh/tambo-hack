@@ -112,7 +112,7 @@ export function GestureComponentSpawner() {
       return;
     }
 
-    const actionKey = `${gestureAction.id}-${Math.round(gestureAction.at)}`;
+    const actionKey = String(gestureAction.id);
     if (lastHandledKeyRef.current === actionKey) {
       return;
     }

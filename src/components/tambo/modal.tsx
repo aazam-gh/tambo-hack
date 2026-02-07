@@ -184,7 +184,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           >
             <div
               ref={dialogRef}
-              onKeyDown={onDialogKeyDown}
+              onKeyDownCapture={onDialogKeyDown}
               className={cn(
                 "w-full rounded-2xl border border-border/60 p-4 text-foreground backdrop-blur",
                 modalVariants({ variant, size }),

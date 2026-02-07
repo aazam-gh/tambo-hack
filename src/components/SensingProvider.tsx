@@ -28,6 +28,7 @@ interface SensingContextType {
     gestureMappingEnabled: boolean;
     setGestureMappingEnabled: (enabled: boolean) => void;
     gestureAction: GestureAction | null;
+    clearGestureAction: () => void;
 }
 
 const SensingContext = createContext<SensingContextType | undefined>(undefined);
@@ -103,6 +104,10 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
         gestureMappingEnabledRef.current = enabled;
         setGestureMappingEnabledState(enabled);
+    }, []);
+
+    const clearGestureAction = useCallback(() => {
+        setGestureAction(null);
     }, []);
 
     const resetGestureDetection = useCallback((now: number) => {
@@ -444,6 +449,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 gestureMappingEnabled,
                 setGestureMappingEnabled,
                 gestureAction,
+                clearGestureAction,
             }}
         >
             {children}

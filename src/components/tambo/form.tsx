@@ -56,6 +56,7 @@ export const formSchema = z.object({
 
 export type FormProps = z.infer<typeof formSchema>;
 
+// Keep this primitive-only: `getFormValuesKey()` depends on stable String() semantics.
 type FormValue = string | boolean;
 
 type FormField = FormProps["fields"][number];
@@ -93,11 +94,24 @@ function buildInitialFormState(fields: FormProps["fields"]): InitialFormState {
   };
 }
 
-function getFormValuesKey(fields: FormField[]): string {
-  // Only key off the field/value *shape* (name + type), so cosmetic changes (like
-  // label/placeholder tweaks) don't wipe user input.
-  return fields
-    .map((field) => JSON.stringify([field.name, field.type]))
+function getFormValuesKey(initialValues: Record<string, FormValue>): string {
+  // Resetting values should be driven by changes to initial values (value shape/defaults),
+  // not by label/placeholder changes that shouldn't wipe user input.
+  // `FormValue` is intentionally primitive, so String() is stable here.
+  return Object.entries(initialValues)
+    .map(([name, value]) => {
+      const valueType = typeof value;
+      if (
+        import.meta.env.DEV &&
+        valueType !== "string" &&
+        valueType !== "boolean"
+      ) {
+        throw new Error(
+          `Unsupported FormValue type for key generation: ${valueType} (field: ${name})`,
+        );
+      }
+      return `${name}:${valueType}:${String(value)}`;
+    })
     .sort()
     .join("|");
 }
@@ -119,9 +133,11 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
 
     const { initial, valuesKey } = React.useMemo(() => {
       const initial = buildInitialFormState(fields);
+      // NOTE: Any change to field shape (names/types/defaults) must result in a different
+      // `initial.initialValues` so `valuesKey` changes and the form resets appropriately.
       return {
         initial,
-        valuesKey: getFormValuesKey(initial.uniqueFields),
+        valuesKey: getFormValuesKey(initial.initialValues),
       };
     }, [fields]);
 
@@ -134,6 +150,8 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
 
     const hasDuplicateNames = initial.duplicateNames.length > 0;
 
+    // Reset form state only when the shape or defaults of the initial values change.
+    // This avoids wiping user input on cosmetic field changes (labels, placeholders, etc.).
     React.useEffect(() => {
       setValues(initial.initialValues);
       setSubmitted(null);

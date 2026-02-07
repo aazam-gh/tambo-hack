@@ -101,10 +101,12 @@ function buildComponentForGesture(action: GestureAction): React.ReactNode {
 }
 
 export function GestureComponentSpawner() {
-  const { gestureAction, clearGestureAction } = useSensing();
+  const { gestureAction, consumeGestureAction } = useSensing();
 
   // Effects run twice in development under React.StrictMode, so we
   // de-dupe by action id to avoid spawning duplicate canvas items.
+  // This component also consumes (clears) each action so it behaves like an event.
+  // `gestureAction` is intended to have a single consumer.
   const lastHandledActionIdRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
@@ -112,27 +114,38 @@ export function GestureComponentSpawner() {
       return;
     }
 
-    const actionId = gestureAction.id;
+    const action = gestureAction;
+    const actionId = action.id;
+
     if (lastHandledActionIdRef.current === actionId) {
-      clearGestureAction();
       return;
     }
 
-    const component = buildComponentForGesture(gestureAction);
-    if (!component) {
-      return;
+    try {
+      const component = buildComponentForGesture(action);
+      if (component) {
+        const messageId = `gesture-${actionId}-${Math.round(action.at)}`;
+
+        emitTamboShowComponent({
+          messageId,
+          component,
+        });
+      } else if (import.meta.env.DEV) {
+        console.warn("Gesture action consumed with no component produced", {
+          action,
+        });
+      }
+    } catch (error) {
+      console.error("Error handling gesture action", {
+        action,
+        error,
+      });
+    } finally {
+      // Consume the action we observed so stale actions don't linger in context.
+      lastHandledActionIdRef.current = actionId;
+      consumeGestureAction(actionId);
     }
-
-    lastHandledActionIdRef.current = actionId;
-
-    const messageId = `gesture-${actionId}-${Math.round(gestureAction.at)}`;
-
-    emitTamboShowComponent({
-      messageId,
-      component,
-    });
-    clearGestureAction();
-  }, [clearGestureAction, gestureAction]);
+  }, [consumeGestureAction, gestureAction]);
 
   return null;
 }

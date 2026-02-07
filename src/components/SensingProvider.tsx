@@ -27,8 +27,17 @@ interface SensingContextType {
     handGesture: HandGesture | null;
     gestureMappingEnabled: boolean;
     setGestureMappingEnabled: (enabled: boolean) => void;
+    /** One-shot gesture event. Intended to be consumed by a single subscriber. */
     gestureAction: GestureAction | null;
-    clearGestureAction: () => void;
+    /**
+     * Marks the current gesture action as consumed for event delivery.
+     *
+     * - Only clears the currently exposed `gestureAction` one-shot event.
+     * - Does not reset or modify internal gesture detection/session refs.
+     * - No-ops when `actionId` does not match the current action (to avoid consuming newer actions).
+     * - Safe to call multiple times; only the matching, latest action (if any) is cleared.
+     */
+    consumeGestureAction: (actionId: number) => void;
 }
 
 const SensingContext = createContext<SensingContextType | undefined>(undefined);
@@ -106,9 +115,20 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGestureMappingEnabledState(enabled);
     }, []);
 
-    // Clears only the last emitted gesture action; does not reset gesture detection state.
-    const clearGestureAction = useCallback(() => {
-        setGestureAction(null);
+    // Marks only the last emitted gesture action as consumed; does not reset gesture detection state.
+    const consumeGestureAction = useCallback((actionId: number) => {
+        setGestureAction((current) => {
+            if (!current || current.id !== actionId) {
+                if (current && import.meta.env.DEV && current.id > actionId) {
+                    console.warn("consumeGestureAction called with stale actionId", {
+                        currentId: current.id,
+                        actionId,
+                    });
+                }
+                return current;
+            }
+            return null;
+        });
     }, []);
 
     const resetGestureDetection = useCallback((now: number) => {
@@ -314,6 +334,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 !session.triggered &&
                                 now - candidate.since >= GESTURE_STABILITY_MS
                             ) {
+                                // `GestureAction.id` is monotonically increasing while the provider is mounted.
                                 gestureActionIdRef.current += 1;
                                 session.triggered = true;
                                 setGestureAction({
@@ -450,7 +471,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 gestureMappingEnabled,
                 setGestureMappingEnabled,
                 gestureAction,
-                clearGestureAction,
+                consumeGestureAction,
             }}
         >
             {children}

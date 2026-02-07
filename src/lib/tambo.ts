@@ -72,7 +72,7 @@ export const components: TamboComponent[] = [
   {
     name: "ComposableGraph",
     description:
-      "A composable graph that renders a chart as micro-primitives (Axis, DataLine, Legend, Tooltip, FilterControl) so the UI can be assembled per intent.",
+      "A composable graph that renders a chart as micro-primitives (Axis, DataLine, Legend, Tooltip, FilterControl). Pass `microPrimitives` to control which parts render, and `incremental` to reveal them in stages.",
     component: ComposableGraph,
     propsSchema: composableGraphSchema,
   },

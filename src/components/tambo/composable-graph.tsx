@@ -16,8 +16,6 @@ type GraphSize = "default" | "sm" | "lg";
 interface GraphErrorBoundaryProps {
   children: React.ReactNode;
   className?: string;
-  variant?: GraphVariant;
-  size?: GraphSize;
 }
 
 class GraphErrorBoundary extends React.Component<
@@ -42,20 +40,15 @@ class GraphErrorBoundary extends React.Component<
       return (
         <div
           className={cn(
-            graphVariants({
-              variant: this.props.variant,
-              size: this.props.size,
-            }),
+            "p-4 flex h-full items-center justify-center",
             this.props.className,
           )}
         >
-          <div className="p-4 flex items-center justify-center h-full">
-            <div className="text-destructive text-center">
-              <p className="font-medium">Error loading chart</p>
-              <p className="text-sm mt-1">
-                An error occurred while rendering. Please try again.
-              </p>
-            </div>
+          <div className="text-destructive text-center">
+            <p className="font-medium">Error loading chart</p>
+            <p className="text-sm mt-1">
+              An error occurred while rendering. Please try again.
+            </p>
           </div>
         </div>
       );
@@ -105,9 +98,9 @@ const defaultColors = [
 ];
 
 const MICRO_PRIMITIVE_REVEAL_ORDER: MicroPrimitive[] = [
-  "FilterControl",
   "Axis",
   "DataLine",
+  "FilterControl",
   "Tooltip",
   "Legend",
 ];
@@ -117,8 +110,15 @@ function useIncrementalMicroPrimitives(
   incremental: boolean,
 ): Set<MicroPrimitive> {
   const ordered = React.useMemo(
-    () =>
-      MICRO_PRIMITIVE_REVEAL_ORDER.filter((primitive) => primitives.includes(primitive)),
+    () => {
+      const baseline = MICRO_PRIMITIVE_REVEAL_ORDER.filter((primitive) =>
+        primitives.includes(primitive),
+      );
+      const extras = primitives.filter(
+        (primitive) => !MICRO_PRIMITIVE_REVEAL_ORDER.includes(primitive),
+      );
+      return [...baseline, ...extras];
+    },
     [primitives],
   );
 
@@ -268,7 +268,6 @@ export const ComposableGraph = React.forwardRef<HTMLDivElement, ComposableGraphP
       title,
       microPrimitives,
       incremental = false,
-      ...props
     },
     ref,
   ) => {
@@ -277,7 +276,6 @@ export const ComposableGraph = React.forwardRef<HTMLDivElement, ComposableGraphP
         <div
           ref={ref}
           className={cn(graphVariants({ variant, size }), className)}
-          {...props}
         >
           <div className="p-4 h-full flex items-center justify-center">
             <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -307,7 +305,6 @@ export const ComposableGraph = React.forwardRef<HTMLDivElement, ComposableGraphP
         <div
           ref={ref}
           className={cn(graphVariants({ variant, size }), className)}
-          {...props}
         >
           <div className="p-4 h-full flex items-center justify-center">
             <div className="text-muted-foreground text-center">
@@ -342,6 +339,11 @@ export const ComposableGraph = React.forwardRef<HTMLDivElement, ComposableGraphP
       () => new Set(validDatasets.map((d) => d.label)),
     );
 
+    const datasetLabelsKey = React.useMemo(
+      () => JSON.stringify(validDatasets.map((d) => d.label)),
+      [data.datasets],
+    );
+
     const availableRanges = React.useMemo(() => {
       const length = data.labels.length;
       return [7, 14, 30].filter((range) => range < length);
@@ -351,7 +353,7 @@ export const ComposableGraph = React.forwardRef<HTMLDivElement, ComposableGraphP
 
     React.useEffect(() => {
       setActiveLabels(new Set(validDatasets.map((d) => d.label)));
-    }, [validDatasets.map((d) => d.label).join("|")]);
+    }, [datasetLabelsKey]);
 
     const filteredDatasets = React.useMemo(() => {
       if (!showFilterControl) {
@@ -596,13 +598,11 @@ export const ComposableGraph = React.forwardRef<HTMLDivElement, ComposableGraphP
       });
     };
 
+    const hasSeriesSelection = !showFilterControl || slicedDatasets.length > 0;
+
     return (
-      <GraphErrorBoundary className={className} variant={variant} size={size}>
-        <div
-          ref={ref}
-          className={cn(graphVariants({ variant, size }), className)}
-          {...props}
-        >
+      <div ref={ref} className={cn(graphVariants({ variant, size }), className)}>
+        <GraphErrorBoundary>
           <div className="p-4 h-full">
             {title && (
               <h3 className="text-lg font-medium mb-4 text-foreground">
@@ -622,13 +622,19 @@ export const ComposableGraph = React.forwardRef<HTMLDivElement, ComposableGraphP
             )}
 
             <div className="w-full h-[calc(100%-2rem)]">
-              <RechartsCore.ResponsiveContainer width="100%" height="100%">
-                {renderChart()}
-              </RechartsCore.ResponsiveContainer>
+              {hasSeriesSelection ? (
+                <RechartsCore.ResponsiveContainer width="100%" height="100%">
+                  {renderChart()}
+                </RechartsCore.ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  No series selected.
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </GraphErrorBoundary>
+        </GraphErrorBoundary>
+      </div>
     );
   },
 );

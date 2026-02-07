@@ -422,16 +422,20 @@ export function GestureIntentOrchestrator() {
     setCompositionOptions([]);
     setCompositionSelectedIndex(0);
     lastCommandActivityAtRef.current = null;
+  }, []);
+
+  const dismissAllTransientOverlays = React.useCallback(() => {
+    dismissCompositionSurface();
     dismissCommandSurface();
-  }, [dismissCommandSurface]);
+  }, [dismissCommandSurface, dismissCompositionSurface]);
 
   const dismissTransientOverlays = React.useCallback(() => {
     if (compositionOpen) {
-      dismissCompositionSurface();
+      dismissAllTransientOverlays();
       return;
     }
     dismissCommandSurface();
-  }, [compositionOpen, dismissCommandSurface, dismissCompositionSurface]);
+  }, [compositionOpen, dismissAllTransientOverlays, dismissCommandSurface]);
 
   const openCommandSurface = React.useCallback(
     (signal: GestureSignal) => {
@@ -515,13 +519,13 @@ export function GestureIntentOrchestrator() {
 
   const confirmSelectedComposition = React.useCallback(() => {
     if (!compositionTarget) {
-      dismissCompositionSurface();
+      dismissAllTransientOverlays();
       return;
     }
 
     const selected = compositionOptions[compositionSelectedIndex];
     if (!selected) {
-      dismissCompositionSurface();
+      dismissAllTransientOverlays();
       return;
     }
 
@@ -551,13 +555,13 @@ export function GestureIntentOrchestrator() {
       `confirm:${compositionTarget.domain}:${compositionTarget.intent}:${selected.id}`,
     );
 
-    dismissCompositionSurface();
+    dismissAllTransientOverlays();
   }, [
     compositionAnchor,
     compositionOptions,
     compositionSelectedIndex,
     compositionTarget,
-    dismissCompositionSurface,
+    dismissAllTransientOverlays,
     interactionContext.activeDomains,
     pushRecentAction,
     setActiveDomains,
@@ -601,7 +605,7 @@ export function GestureIntentOrchestrator() {
 
     if (gestureSignal.type === "summon_ui") {
       if (compositionOpen) {
-        dismissCompositionSurface();
+        dismissAllTransientOverlays();
       } else if (commandOpen) {
         dismissCommandSurface();
       } else {
@@ -615,7 +619,7 @@ export function GestureIntentOrchestrator() {
       lastCommandActivityAtRef.current = performance.now();
 
       if (gestureSignal.type === "dismiss") {
-        dismissCompositionSurface();
+        dismissAllTransientOverlays();
         clearGestureSignal();
         return;
       }
@@ -676,8 +680,8 @@ export function GestureIntentOrchestrator() {
     compositionOpen,
     compositionOptions.length,
     confirmSelectedComposition,
+    dismissAllTransientOverlays,
     dismissCommandSurface,
-    dismissCompositionSurface,
     gestureSignal,
     openCommandSurface,
   ]);
@@ -696,21 +700,23 @@ export function GestureIntentOrchestrator() {
         onConfirm={confirmSelectedOption}
         onDismiss={dismissCommandSurface}
       />
-      <WidgetCompositionOverlay
-        open={compositionOpen}
-        anchor={compositionAnchor}
-        domain={compositionTarget?.domain ?? "infra"}
-        intent={compositionTarget?.intent ?? "inspect"}
-        options={compositionOptions}
-        selectedIndex={compositionSelectedIndex}
-        onSelectIndex={(index) => {
-          setCompositionSelectedIndex(index);
-          lastCommandActivityAtRef.current = performance.now();
-        }}
-        onConfirm={confirmSelectedComposition}
-        onBack={backToCommandSurface}
-        onDismiss={dismissCompositionSurface}
-      />
+      {compositionTarget && (
+        <WidgetCompositionOverlay
+          open={compositionOpen}
+          anchor={compositionAnchor}
+          domain={compositionTarget.domain}
+          intent={compositionTarget.intent}
+          options={compositionOptions}
+          selectedIndex={compositionSelectedIndex}
+          onSelectIndex={(index) => {
+            setCompositionSelectedIndex(index);
+            lastCommandActivityAtRef.current = performance.now();
+          }}
+          onConfirm={confirmSelectedComposition}
+          onBack={backToCommandSurface}
+          onDismiss={dismissAllTransientOverlays}
+        />
+      )}
     </>
   );
 }

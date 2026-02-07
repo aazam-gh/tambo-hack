@@ -29,7 +29,7 @@ export function normalizeMicroPrimitives(
 }
 
 function compositionsForIntent(
-  _domain: DomainId,
+  domain: DomainId,
   intent: DomainIntent,
 ): MicroComposition[] {
   if (intent === "compare") {
@@ -62,26 +62,20 @@ function compositionsForIntent(
     ];
   }
 
-  if (intent === "explain") {
-    return [
-      {
-        id: "explain:annotated",
-        label: "Explain with tooltip",
-        primitives: ["Axis", "DataLine", "Tooltip"],
-      },
-      {
-        id: "explain:summary",
-        label: "Minimal chart",
-        primitives: ["Axis", "DataLine"],
-      },
-    ];
+  if (intent === "explain" || intent === "debug") {
+    return [];
   }
 
-  if (intent === "debug") {
+  if (domain === "infra") {
     return [
       {
-        id: "debug:inspect",
-        label: "Inspect signals",
+        id: "inspect:full",
+        label: "Inspect chart",
+        primitives: ["Axis", "DataLine", "FilterControl", "Tooltip"],
+      },
+      {
+        id: "inspect:compact",
+        label: "Compact",
         primitives: ["Axis", "DataLine", "Tooltip"],
       },
     ];
@@ -105,15 +99,17 @@ export function getMicroCompositions(
   domain: DomainId,
   intent: DomainIntent,
 ): MicroComposition[] | null {
-  if (
-    (domain === "sales" || domain === "infra" || domain === "marketing") &&
-    (intent === "inspect" || intent === "compare" || intent === "filter")
-  ) {
-    return compositionsForIntent(domain, intent).map((composition) => ({
-      ...composition,
-      primitives: normalizeMicroPrimitives(composition.primitives),
-    }));
+  if (domain !== "sales" && domain !== "infra" && domain !== "marketing") {
+    return null;
   }
 
-  return null;
+  const compositions = compositionsForIntent(domain, intent);
+  if (compositions.length === 0) {
+    return null;
+  }
+
+  return compositions.map((composition) => ({
+    ...composition,
+    primitives: normalizeMicroPrimitives(composition.primitives),
+  }));
 }

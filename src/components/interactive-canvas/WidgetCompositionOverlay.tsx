@@ -63,6 +63,10 @@ function CompositionThumbnail({ primitives }: { primitives: readonly MicroPrimit
   );
 }
 
+function domIdForOption(optionId: string, index: number): string {
+  return `composition-${index}-${optionId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
 export function WidgetCompositionOverlay({
   open,
   anchor,
@@ -80,11 +84,26 @@ export function WidgetCompositionOverlay({
   }
 
   const activeOptionId = options[selectedIndex]?.id;
+  const activeOptionDomId = activeOptionId
+    ? domIdForOption(activeOptionId, selectedIndex)
+    : undefined;
 
-  const positionStyle: React.CSSProperties = {
-    left: anchor.x + 18,
-    top: anchor.y + 18,
-  };
+  const overlayWidth = 360;
+  const overlayHeight = 320;
+  const offset = 18;
+  const padding = 12;
+
+  let left = anchor.x + offset;
+  let top = anchor.y + offset;
+
+  if (typeof window !== "undefined") {
+    left = Math.min(left, window.innerWidth - overlayWidth - padding);
+    top = Math.min(top, window.innerHeight - overlayHeight - padding);
+    left = Math.max(padding, left);
+    top = Math.max(padding, top);
+  }
+
+  const positionStyle: React.CSSProperties = { left, top };
 
   return (
     <div
@@ -119,15 +138,16 @@ export function WidgetCompositionOverlay({
         className="space-y-2"
         role="listbox"
         aria-label="Widget layout options"
-        aria-activedescendant={activeOptionId}
+        aria-activedescendant={activeOptionDomId}
       >
         {options.map((opt, idx) => {
           const selected = idx === selectedIndex;
+          const domId = domIdForOption(opt.id, idx);
           return (
             <button
               key={opt.id}
               type="button"
-              id={opt.id}
+              id={domId}
               role="option"
               aria-selected={selected}
               onClick={() => onSelectIndex(idx)}

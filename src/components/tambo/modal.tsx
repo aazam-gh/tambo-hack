@@ -78,6 +78,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
     const dialogRef = React.useRef<HTMLDivElement | null>(null);
     const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
     const wasOpenRef = React.useRef(open);
+    const lastFocusedRef = React.useRef<HTMLElement | null>(null);
 
     const onDialogKeyDown = React.useCallback(
       (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -106,7 +107,6 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         ).filter((el) => !el.hasAttribute("disabled"));
 
         if (focusables.length === 0) {
-          event.preventDefault();
           return;
         }
 
@@ -149,6 +149,12 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         }
 
         if (dialog.contains(event.target as Node)) {
+          return;
+        }
+
+        const lastFocused = lastFocusedRef.current;
+        if (lastFocused && dialog.contains(lastFocused)) {
+          lastFocused.focus();
           return;
         }
 
@@ -200,6 +206,9 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           >
             <div
               ref={dialogRef}
+              onFocusCapture={(event) => {
+                lastFocusedRef.current = event.target as HTMLElement;
+              }}
               onKeyDown={onDialogKeyDown}
               className={cn(
                 "w-full rounded-2xl border border-border/60 p-4 text-foreground backdrop-blur",

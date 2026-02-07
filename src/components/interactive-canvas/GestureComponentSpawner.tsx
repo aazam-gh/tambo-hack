@@ -92,6 +92,10 @@ function buildComponentForGesture(action: GestureAction): React.ReactNode {
     return null;
   }
 
+  if (!mapping.componentName) {
+    return null;
+  }
+
   const builder = componentBuilders[mapping.componentName];
   if (!builder) {
     console.error("No component builder for gesture mapping", { mapping, action });

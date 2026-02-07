@@ -11,11 +11,17 @@ export type GestureAction = {
 
 export type GestureSpawnComponent = "Form" | "Graph" | "Modal";
 
+export type GestureMapping = {
+  label: string;
+  description: string;
+  componentName?: GestureSpawnComponent;
+};
+
 export const gestureMappings = {
   pinch: {
     label: "Pinch",
-    description: "Spawn a form",
-    componentName: "Form",
+    description: "Drag and drop items",
+    componentName: undefined,
   },
   thumbsUp: {
     label: "Thumbs up",
@@ -32,8 +38,4 @@ export const gestureMappings = {
     description: "Spawn a modal",
     componentName: "Modal",
   },
-} as const satisfies Record<HandGesture, {
-  label: string;
-  description: string;
-  componentName: GestureSpawnComponent;
-}>;
+} as const satisfies Record<HandGesture, GestureMapping>;

@@ -8,15 +8,22 @@
  * Read more about Tambo at https://tambo.co/docs
  */
 
+import { AlertList, alertListSchema } from "@/components/tambo/alert-list";
 import { Callout, calloutSchema } from "@/components/tambo/callout";
 import { Checklist, checklistSchema } from "@/components/tambo/checklist";
 import { Form, formSchema } from "@/components/tambo/form";
 import { Graph, graphSchema } from "@/components/tambo/graph";
+import { LogViewer, logViewerSchema } from "@/components/tambo/log-viewer";
 import { MetricCard, metricCardSchema } from "@/components/tambo/metric-card";
 import { Modal, modalSchema } from "@/components/tambo/modal";
+import {
+  PipelineStatus,
+  pipelineStatusSchema,
+} from "@/components/tambo/pipeline-status";
+import { Summary, summarySchema } from "@/components/tambo/summary";
+import { Table, tableSchema } from "@/components/tambo/table";
 import type { TamboComponent } from "@tambo-ai/react";
 import { TamboTool } from "@tambo-ai/react";
-import { z } from "zod/v3";
 
 export const tools: TamboTool[] = [
   // Add tools here
@@ -30,6 +37,13 @@ export const tools: TamboTool[] = [
  * can be controlled by AI to dynamically render UI elements based on user interactions.
  */
 export const components: TamboComponent[] = [
+  {
+    name: "AlertList",
+    description:
+      "A list of alerts with severity levels. Use for infra health overviews and incident summaries.",
+    component: AlertList,
+    propsSchema: alertListSchema,
+  },
   {
     name: "Callout",
     description:
@@ -52,6 +66,13 @@ export const components: TamboComponent[] = [
     propsSchema: graphSchema,
   },
   {
+    name: "LogViewer",
+    description:
+      "A compact log viewer showing timestamped log lines with severity.",
+    component: LogViewer,
+    propsSchema: logViewerSchema,
+  },
+  {
     name: "MetricCard",
     description:
       "A metric card for displaying a labeled value with an optional unit and change indicator. Use `change` to show a positive/negative delta.",
@@ -71,6 +92,27 @@ export const components: TamboComponent[] = [
       "A modal dialog with an open trigger and a dismissible overlay. Useful for confirmations, details panels, and quick callouts.",
     component: Modal,
     propsSchema: modalSchema,
+  },
+  {
+    name: "PipelineStatus",
+    description:
+      "A pipeline status card showing recent runs and step-level states.",
+    component: PipelineStatus,
+    propsSchema: pipelineStatusSchema,
+  },
+  {
+    name: "Summary",
+    description:
+      "A short summary card with a title and bullet points. Use for explanations and key takeaways.",
+    component: Summary,
+    propsSchema: summarySchema,
+  },
+  {
+    name: "Table",
+    description:
+      "A compact table component with explicit columns and row objects.",
+    component: Table,
+    propsSchema: tableSchema,
   },
   // Add more components here
 ];

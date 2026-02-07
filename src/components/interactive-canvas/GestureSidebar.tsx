@@ -58,7 +58,8 @@ function GestureStatusMessage({
   return (
     <div className="text-xs text-muted-foreground">
       Turn this on to request camera access and drive the on-screen hand cursor.
-      Then enable gesture mapping to emit components onto the canvas.
+      Then enable gesture mapping to summon the command surface and confirm
+      intent-driven UI.
     </div>
   );
 }

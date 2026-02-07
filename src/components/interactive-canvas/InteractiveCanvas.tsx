@@ -6,6 +6,11 @@ import {
   TAMBO_SHOW_COMPONENT_EVENT,
   type TamboShowComponentDetail,
 } from "@/lib/tambo-canvas-events";
+import {
+  useInteractionContext,
+  useInteractionContextActions,
+} from "@/lib/interaction-context";
+import type { SurfaceMeta } from "@/lib/surfaces";
 import { cn } from "@/lib/utils";
 
 type CanvasView = {
@@ -19,6 +24,7 @@ type CanvasItem = {
   node: React.ReactNode;
   x: number;
   y: number;
+  surfaceMeta?: SurfaceMeta;
 };
 
 const MIN_SCALE = 0.25;
@@ -48,6 +54,8 @@ function useRefBackedState<T>(
 export function InteractiveCanvas({ className }: { className?: string }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const { handGesture, handPosition, hoveredElement } = useSensing();
+  const { focusedSurface } = useInteractionContext();
+  const { setFocusedSurface } = useInteractionContextActions();
   const hoveredCanvasItemId =
     (hoveredElement?.closest(
       "[data-canvas-item-id]",
@@ -153,12 +161,25 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       setItems((prev) => {
         const existingIndex = prev.findIndex((i) => i.id === detail.messageId);
         if (existingIndex === -1) {
-          return [...prev, { id: detail.messageId, node: detail.component, x, y }];
+          return [
+            ...prev,
+            {
+              id: detail.messageId,
+              node: detail.component,
+              x,
+              y,
+              surfaceMeta: detail.surfaceMeta,
+            },
+          ];
         }
 
         return prev.map((item, idx) =>
           idx === existingIndex
-            ? { ...item, node: detail.component }
+            ? {
+                ...item,
+                node: detail.component,
+                surfaceMeta: detail.surfaceMeta ?? item.surfaceMeta,
+              }
             : item,
         );
       });
@@ -176,6 +197,17 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       window.removeEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);
     };
   }, [onShowComponent]);
+
+  React.useEffect(() => {
+    if (!focusedSurface) {
+      return;
+    }
+
+    const stillExists = items.some((item) => item.id === focusedSurface);
+    if (!stillExists) {
+      setFocusedSurface(undefined);
+    }
+  }, [focusedSurface, items, setFocusedSurface]);
 
   const resetView = React.useCallback(() => {
     setView({ x: 0, y: 0, scale: 1 });
@@ -572,12 +604,23 @@ export function InteractiveCanvas({ className }: { className?: string }) {
             data-canvas-item-id={item.id}
             data-canvas-draggable="true"
             data-interactable="true"
+            data-surface-domain={item.surfaceMeta?.domain}
+            data-surface-intent={item.surfaceMeta?.intent}
             className="absolute pointer-events-auto"
             style={{
               transform: `translate3d(${item.x}px, ${item.y}px, 0)`,
             }}
+            onClick={() => setFocusedSurface(item.id)}
           >
-            <div className="relative rounded-2xl border border-border/60 bg-card/80 p-4 text-foreground shadow-xl shadow-black/10 backdrop-blur dark:shadow-black/30">
+            <div
+              className={cn(
+                "relative rounded-2xl border bg-card/80 p-4 text-foreground shadow-xl shadow-black/10 backdrop-blur",
+                "dark:shadow-black/30",
+                focusedSurface === item.id
+                  ? "border-emerald-500/40 ring-2 ring-emerald-500/40"
+                  : "border-border/60",
+              )}
+            >
               <button
                 type="button"
                 aria-label="Drag to move canvas item"

@@ -21,6 +21,7 @@ import {
 } from "@/lib/interaction-context";
 import type { InteractionContext } from "@/lib/interaction-context";
 import type { GestureSignal } from "@/lib/gesture-signals";
+import { predictIntentHypothesis } from "@/lib/predictive-surfaces";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
 import type { SurfaceMeta } from "@/lib/surfaces";
 import {
@@ -33,6 +34,7 @@ import {
 
 const COMMAND_SURFACE_IDLE_MS = 6500;
 const MAX_COMMAND_OPTIONS = 5;
+const PREDICTIVE_MIN_CONFIDENCE = 0.75;
 
 function dedupeDomains(domains: DomainId[]): DomainId[] {
   return [...new Set(domains)];
@@ -42,7 +44,10 @@ function labelForOption(domain: DomainId, intent: DomainIntent): string {
   const domainLabel = Domains[domain].label;
 
   if (domain === "infra" && intent === "inspect") {
-    return "Check infra health";
+    return "View infra logs";
+  }
+  if (domain === "infra" && intent === "filter") {
+    return "Review infra alerts";
   }
   if (domain === "infra" && intent === "explain") {
     return "Explain error spike";
@@ -69,6 +74,7 @@ function buildCommandOptions(
   context: InteractionContext,
   primaryDomain: DomainId,
   primaryIntent: DomainIntent,
+  suggested: CommandOption[] = [],
 ): CommandOption[] {
   const priority: DomainId[] = [
     ...context.activeDomains,
@@ -82,15 +88,29 @@ function buildCommandOptions(
 
   const ordered = dedupeDomains(priority);
   const options: CommandOption[] = [];
+  const seen = new Set<string>();
 
   const push = (domain: DomainId, intent: DomainIntent) => {
-    options.push({
-      id: `${domain}:${intent}`,
-      domain,
-      intent,
-      label: labelForOption(domain, intent),
-    });
+    const id = `${domain}:${intent}`;
+    if (seen.has(id)) {
+      return;
+    }
+    seen.add(id);
+    options.push({ id, domain, intent, label: labelForOption(domain, intent) });
   };
+
+  for (const opt of suggested) {
+    const id = `${opt.domain}:${opt.intent}`;
+    if (seen.has(id)) {
+      continue;
+    }
+    seen.add(id);
+    options.push({
+      ...opt,
+      id,
+      label: opt.label || labelForOption(opt.domain, opt.intent),
+    });
+  }
 
   push(primaryDomain, primaryIntent);
 
@@ -109,6 +129,39 @@ function buildCommandOptions(
   }
 
   return options.slice(0, MAX_COMMAND_OPTIONS);
+}
+
+function buildSuggestedOptions(context: InteractionContext): CommandOption[] {
+  const hypothesis = predictIntentHypothesis(context);
+  const candidates = hypothesis?.recommendedSurfaces;
+  if (!candidates || candidates.length === 0) {
+    return [];
+  }
+
+  return candidates.map((surface) => ({
+    id: `${surface.domain}:${surface.intent}`,
+    domain: surface.domain,
+    intent: surface.intent,
+    label: labelForOption(surface.domain, surface.intent),
+    suggested: true,
+    suggestedReason: surface.reason,
+    confidence: hypothesis.confidence,
+  }));
+}
+
+function anchorForSurface(surfaceId: string | undefined): { x: number; y: number } | null {
+  if (!surfaceId || typeof document === "undefined") {
+    return null;
+  }
+
+  const escaped = typeof CSS !== "undefined" && "escape" in CSS ? CSS.escape(surfaceId) : surfaceId;
+  const el = document.querySelector(`[data-canvas-item-id="${escaped}"]`) as HTMLElement | null;
+  if (!el) {
+    return null;
+  }
+
+  const rect = el.getBoundingClientRect();
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
 
 function buildSurfaceMeta(domain: DomainId, intent: DomainIntent): SurfaceMeta {
@@ -199,8 +252,16 @@ function buildSurfaceNode(domain: DomainId, intent: DomainIntent): React.ReactNo
       );
     }
 
+    if (intent === "filter") {
+      return (
+        <DomainSurfaceFrame domain={domain} intent={intent} title="Infra alerts">
+          <AlertList title="Alerts" alerts={infra.alerts} />
+        </DomainSurfaceFrame>
+      );
+    }
+
     return (
-      <DomainSurfaceFrame domain={domain} intent={intent} title="Infra health">
+      <DomainSurfaceFrame domain={domain} intent={intent} title="Infra logs">
         <div className="space-y-3">
           <Graph
             title="Error rate (%)"
@@ -219,7 +280,6 @@ function buildSurfaceNode(domain: DomainId, intent: DomainIntent): React.ReactNo
               ],
             }}
           />
-          <AlertList title="Alerts" alerts={infra.alerts} />
           <LogViewer title="Recent logs" lines={infra.logs.slice(-16)} />
         </div>
       </DomainSurfaceFrame>
@@ -304,7 +364,12 @@ export function GestureIntentOrchestrator() {
   // only place that may translate confirmed intent into `tambo:showComponent`.
   const { gestureSignal, clearGestureSignal, handPosition } = useSensing();
   const interactionContext = useInteractionContext();
-  const { setActiveDomains, pushRecentAction } = useInteractionContextActions();
+  const {
+    registerSurfaceMeta,
+    setActiveDomains,
+    setSurfaceDependencies,
+    pushRecentAction,
+  } = useInteractionContextActions();
 
   const [commandOpen, setCommandOpen] = React.useState(false);
   const [commandAnchor, setCommandAnchor] = React.useState<
@@ -314,6 +379,7 @@ export function GestureIntentOrchestrator() {
   const [commandSelectedIndex, setCommandSelectedIndex] = React.useState(0);
   const lastCommandActivityAtRef = React.useRef<number | null>(null);
   const surfaceIdRef = React.useRef(0);
+  const lastPredictiveKeyRef = React.useRef<string | null>(null);
 
   const dismissCommandSurface = React.useCallback(() => {
     setCommandOpen(false);
@@ -338,10 +404,13 @@ export function GestureIntentOrchestrator() {
       const primaryDomain = hypothesis.targetDomain ?? "infra";
       const primaryIntent = domainIntentFromResolvedIntent(hypothesis.primary);
 
+      const suggested = buildSuggestedOptions(interactionContext);
+
       const options = buildCommandOptions(
         interactionContext,
         primaryDomain,
         primaryIntent,
+        suggested,
       );
 
       setCommandAnchor(anchor);
@@ -366,6 +435,10 @@ export function GestureIntentOrchestrator() {
     const meta = buildSurfaceMeta(selected.domain, selected.intent);
     const node = buildSurfaceNode(selected.domain, selected.intent);
 
+    const dependency = interactionContext.focusedSurface
+      ? [interactionContext.focusedSurface]
+      : [];
+
     emitTamboShowComponent({
       messageId: surfaceId,
       component: node,
@@ -373,6 +446,11 @@ export function GestureIntentOrchestrator() {
       clientY: commandAnchor?.y,
       surfaceMeta: meta,
     });
+
+    registerSurfaceMeta(surfaceId, meta);
+    if (dependency.length > 0) {
+      setSurfaceDependencies(surfaceId, dependency);
+    }
 
     setActiveDomains(
       dedupeDomains([selected.domain, ...interactionContext.activeDomains]),
@@ -386,8 +464,66 @@ export function GestureIntentOrchestrator() {
     commandSelectedIndex,
     dismissCommandSurface,
     interactionContext.activeDomains,
+    interactionContext.focusedSurface,
     pushRecentAction,
+    registerSurfaceMeta,
     setActiveDomains,
+    setSurfaceDependencies,
+  ]);
+
+  React.useEffect(() => {
+    if (commandOpen) {
+      return;
+    }
+
+    const hypothesis = predictIntentHypothesis(interactionContext);
+    if (!hypothesis || hypothesis.confidence < PREDICTIVE_MIN_CONFIDENCE) {
+      return;
+    }
+
+    const latestAction = interactionContext.recentActions[0];
+    if (!latestAction?.startsWith("confirm:")) {
+      return;
+    }
+
+    const suggested = buildSuggestedOptions(interactionContext);
+    if (suggested.length === 0) {
+      return;
+    }
+
+    const key = `${latestAction}:${hypothesis.primary}`;
+    if (lastPredictiveKeyRef.current === key) {
+      return;
+    }
+
+    const anchor = handPosition ?? anchorForSurface(interactionContext.focusedSurface);
+    if (!anchor) {
+      return;
+    }
+
+    const primaryDomain = hypothesis.targetDomain ?? suggested[0]?.domain ?? "infra";
+    const primaryIntent = suggested[0]?.intent ?? "inspect";
+    const options = buildCommandOptions(
+      interactionContext,
+      primaryDomain,
+      primaryIntent,
+      suggested,
+    );
+
+    lastPredictiveKeyRef.current = key;
+    setCommandAnchor(anchor);
+    setCommandOptions(options);
+    setCommandSelectedIndex(0);
+    setCommandOpen(true);
+    lastCommandActivityAtRef.current = performance.now();
+    pushRecentAction("command_surface:predictive_open");
+  }, [
+    commandOpen,
+    handPosition,
+    interactionContext,
+    interactionContext.focusedSurface,
+    interactionContext.recentActions,
+    pushRecentAction,
   ]);
 
   React.useEffect(() => {

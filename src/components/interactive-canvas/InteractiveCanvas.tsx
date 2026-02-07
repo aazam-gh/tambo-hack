@@ -55,7 +55,8 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const { handGesture, handPosition, hoveredElement } = useSensing();
   const { focusedSurface } = useInteractionContext();
-  const { setFocusedSurface } = useInteractionContextActions();
+  const { removeSurface, setFocusedSurface, touchSurface } =
+    useInteractionContextActions();
   const hoveredCanvasItemId =
     (hoveredElement?.closest(
       "[data-canvas-item-id]",
@@ -610,7 +611,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
             style={{
               transform: `translate3d(${item.x}px, ${item.y}px, 0)`,
             }}
-            onClick={() => setFocusedSurface(item.id)}
+            onClick={() => {
+              setFocusedSurface(item.id);
+              touchSurface(item.id, item.surfaceMeta);
+            }}
           >
             <div
               className={cn(
@@ -641,9 +645,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
               <button
                 type="button"
                 aria-label="Remove canvas item"
-                onClick={() =>
-                  setItems((prev) => prev.filter((p) => p.id !== item.id))
-                }
+                onClick={() => {
+                  removeSurface(item.id);
+                  setItems((prev) => prev.filter((p) => p.id !== item.id));
+                }}
                 className={cn(
                   "absolute right-2 top-2 rounded-md p-1 text-muted-foreground",
                   "hover:bg-muted/50 hover:text-foreground",

@@ -14,6 +14,7 @@ const PREDICTION_INTERVAL_MS = 33;
 const GESTURE_STABILITY_MS = 350;
 const MAX_CONSECUTIVE_PREDICTION_ERRORS = 3;
 const NO_LANDMARKS_RESET_MS = 200;
+const MISSING_VIDEO_LOG_EVERY_MS = 5000;
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
@@ -61,6 +62,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const predictionErrorCountRef = useRef(0);
     const lastLandmarksTimeRef = useRef(0);
     const missingVideoCountRef = useRef(0);
+    const lastMissingVideoLogAtRef = useRef(0);
     const sensingSurfaceRef = useRef<HTMLElement | null>(null);
 
     const getCameraErrorMessage = (err: unknown): string => {
@@ -127,6 +129,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         predictionErrorCountRef.current = 0;
         lastLandmarksTimeRef.current = 0;
         missingVideoCountRef.current = 0;
+        lastMissingVideoLogAtRef.current = 0;
         gestureActionIdRef.current = 0;
 
         setHandPosition(null);
@@ -184,6 +187,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         predictionErrorCountRef.current = 0;
         lastLandmarksTimeRef.current = 0;
         missingVideoCountRef.current = 0;
+        lastMissingVideoLogAtRef.current = 0;
         sensingSurfaceRef.current = document.querySelector(
             '[data-sensing-surface="true"]',
         );
@@ -209,10 +213,13 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 if (!document.body.contains(video)) {
                     missingVideoCountRef.current += 1;
 
-                    if (
+                    const shouldLog =
                         missingVideoCountRef.current === 1 ||
-                        missingVideoCountRef.current % 10 === 0
-                    ) {
+                        now - lastMissingVideoLogAtRef.current >=
+                            MISSING_VIDEO_LOG_EVERY_MS;
+
+                    if (shouldLog) {
+                        lastMissingVideoLogAtRef.current = now;
                         console.warn(
                             "Hand tracking video element missing from DOM",
                             {
@@ -233,7 +240,10 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     return;
                 }
 
-                missingVideoCountRef.current = 0;
+                if (missingVideoCountRef.current > 0) {
+                    missingVideoCountRef.current = 0;
+                    lastMissingVideoLogAtRef.current = 0;
+                }
 
                 if (video.readyState >= 2) {
                     const results = service.predict(video, now);

@@ -1,21 +1,20 @@
 (function () {
+  const systemPrefersDark = window.matchMedia
+    ? window.matchMedia("(prefers-color-scheme: dark)").matches
+    : false;
+
+  let theme = systemPrefersDark ? "dark" : "light";
+
   try {
     const stored = localStorage.getItem("theme");
-    const systemPrefersDark = window.matchMedia
-      ? window.matchMedia("(prefers-color-scheme: dark)").matches
-      : false;
-
-    const theme =
-      stored === "light" || stored === "dark"
-        ? stored
-        : systemPrefersDark
-          ? "dark"
-          : "light";
-
-    const root = document.documentElement;
-    root.classList.toggle("dark", theme === "dark");
-    root.style.colorScheme = theme === "dark" ? "dark" : "light";
+    if (stored === "light" || stored === "dark") {
+      theme = stored;
+    }
   } catch {
     // Ignore unavailable localStorage access.
   }
+
+  const root = document.documentElement;
+  root.classList.toggle("dark", theme === "dark");
+  root.style.colorScheme = theme;
 })();

@@ -199,8 +199,8 @@ function InteractiveCanvas({ className }: { className?: string }) {
     startY: number;
   } | null>(null);
 
-  React.useEffect(() => {
-    const onShowComponent = (event: Event) => {
+  const onShowComponent = React.useCallback(
+    (event: Event) => {
       const detail = (event as CustomEvent<TamboShowComponentDetail>).detail;
       if (!detail?.messageId || !detail.component) {
         return;
@@ -229,13 +229,16 @@ function InteractiveCanvas({ className }: { className?: string }) {
             : item,
         );
       });
-    };
+    },
+    [setItems],
+  );
 
+  React.useEffect(() => {
     window.addEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);
     return () => {
       window.removeEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);
     };
-  }, []);
+  }, [onShowComponent]);
 
   const resetView = React.useCallback(() => {
     setView({ x: 0, y: 0, scale: 1 });
@@ -297,6 +300,10 @@ function InteractiveCanvas({ className }: { className?: string }) {
     [],
   );
 
+  const onPointerLeave = React.useCallback(() => {
+    panRef.current = null;
+  }, []);
+
   const onWheel = React.useCallback(
     (e: React.WheelEvent<HTMLDivElement>) => {
       const rect = containerRef.current?.getBoundingClientRect();
@@ -304,6 +311,8 @@ function InteractiveCanvas({ className }: { className?: string }) {
         return;
       }
 
+      // This canvas is intended to be the primary full-screen surface.
+      // Capturing the wheel event keeps zooming consistent and prevents page scroll.
       e.preventDefault();
 
       const localX = e.clientX - rect.left;
@@ -339,6 +348,7 @@ function InteractiveCanvas({ className }: { className?: string }) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onLostPointerCapture={onPointerUp}
+      onPointerLeave={onPointerLeave}
       onWheel={onWheel}
       onDoubleClick={resetView}
     >

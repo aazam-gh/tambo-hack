@@ -100,10 +100,12 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 
         const focusables = Array.from(
           dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-        ).filter((el) => !el.hasAttribute("disabled"));
+        ).filter((el) => !el.hasAttribute("disabled") && el.tabIndex >= 0);
 
         if (focusables.length === 0) {
-          (closeButtonRef.current ?? dialog).focus();
+          const fallback = closeButtonRef.current ?? dialog;
+          fallback.focus();
+          lastFocusedRef.current = fallback;
           event.preventDefault();
           return;
         }
@@ -114,7 +116,9 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         const activeInside = !!active && dialog.contains(active);
 
         if (!activeInside) {
-          (event.shiftKey ? last : first).focus();
+          const target = event.shiftKey ? last : first;
+          target.focus();
+          lastFocusedRef.current = target;
           event.preventDefault();
           return;
         }
@@ -122,6 +126,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         if (event.shiftKey) {
           if (active === first) {
             last.focus();
+            lastFocusedRef.current = last;
             event.preventDefault();
           }
           return;
@@ -129,6 +134,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 
         if (active === last) {
           first.focus();
+          lastFocusedRef.current = first;
           event.preventDefault();
         }
       },
@@ -160,12 +166,14 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         }
 
         const lastFocused = lastFocusedRef.current;
-        if (lastFocused && dialog.contains(lastFocused)) {
+        if (lastFocused && dialog.contains(lastFocused) && document.contains(lastFocused)) {
           lastFocused.focus();
           return;
         }
 
-        (closeButtonRef.current ?? dialog).focus();
+        const fallback = closeButtonRef.current ?? dialog;
+        fallback.focus();
+        lastFocusedRef.current = fallback;
       };
 
       document.addEventListener("focusin", onFocusIn);
@@ -220,6 +228,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
               tabIndex={-1}
               className={cn(
                 "w-full rounded-2xl border border-border/60 p-4 text-foreground backdrop-blur",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60",
                 modalVariants({ variant, size }),
               )}
             >

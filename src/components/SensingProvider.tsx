@@ -399,14 +399,9 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                             // Only gestures mapped to a spawnable component emit a
                             // GestureAction.
-                            const mapping = Object.prototype.hasOwnProperty.call(
-                                gestureMappings,
-                                gesture,
-                            )
-                                ? gestureMappings[gesture]
-                                : null;
+                            const mapping = gestureMappings[gesture];
                             const shouldSuppressAction =
-                                !mapping || mapping.componentName === null;
+                                mapping.componentName === null;
 
                             if (
                                 gestureMappingEnabledRef.current &&

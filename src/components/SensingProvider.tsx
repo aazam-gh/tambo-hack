@@ -45,6 +45,10 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     const setHandTrackingEnabled = useCallback((enabled: boolean) => {
+        if (enabled) {
+            setHandTrackingError(null);
+        }
+
         setHandTrackingEnabledState(enabled);
     }, []);
 

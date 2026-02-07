@@ -67,6 +67,12 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const missingVideoClearedRef = useRef(false);
     const sensingSurfaceRef = useRef<HTMLElement | null>(null);
 
+    const resetMissingVideoTracking = useCallback(() => {
+        lastMissingVideoLogAtRef.current = 0;
+        missingVideoSinceRef.current = null;
+        missingVideoClearedRef.current = false;
+    }, []);
+
     const getCameraErrorMessage = (err: unknown): string => {
         if (err instanceof DOMException) {
             if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
@@ -130,15 +136,13 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         predictionErrorCountRef.current = 0;
         lastLandmarksTimeRef.current = 0;
-        lastMissingVideoLogAtRef.current = 0;
-        missingVideoSinceRef.current = null;
-        missingVideoClearedRef.current = false;
+        resetMissingVideoTracking();
 
         setHandPosition(null);
         setHoveredElement(null);
         resetGestureDetection(now);
         setGestureAction(null);
-    }, [resetGestureDetection]);
+    }, [resetGestureDetection, resetMissingVideoTracking]);
 
     const disableHandTracking = useCallback(
         (message: string) => {
@@ -188,18 +192,10 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         lastPredictionTimeRef.current = 0;
         predictionErrorCountRef.current = 0;
         lastLandmarksTimeRef.current = 0;
-        lastMissingVideoLogAtRef.current = 0;
-        missingVideoSinceRef.current = null;
-        missingVideoClearedRef.current = false;
+        resetMissingVideoTracking();
         sensingSurfaceRef.current = document.querySelector(
             '[data-sensing-surface="true"]',
         );
-
-        const resetMissingVideoTracking = () => {
-            lastMissingVideoLogAtRef.current = 0;
-            missingVideoSinceRef.current = null;
-            missingVideoClearedRef.current = false;
-        };
 
         const handleMissingVideo = (now: number) => {
             const isFirstMissingFrame = missingVideoSinceRef.current === null;
@@ -433,7 +429,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             canceled = true;
             stopHandTracking();
         };
-    }, [disableHandTracking, handTrackingEnabled, stopHandTracking]);
+    }, [disableHandTracking, handTrackingEnabled, resetMissingVideoTracking, stopHandTracking]);
 
     return (
         <SensingContext.Provider

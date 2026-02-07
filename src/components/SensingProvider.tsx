@@ -83,6 +83,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     useEffect(() => {
         return () => {
             stopHandTracking();
+            HandLandmarkerService.getInstance().dispose();
         };
     }, [stopHandTracking]);
 

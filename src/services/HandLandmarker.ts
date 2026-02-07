@@ -37,4 +37,9 @@ export class HandLandmarkerService {
         if (!this.handLandmarker) return null;
         return this.handLandmarker.detectForVideo(videoElement, timestamp);
     }
+
+    public dispose() {
+        this.handLandmarker?.close();
+        this.handLandmarker = null;
+    }
 }

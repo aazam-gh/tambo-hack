@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { useSensing } from "@/components/SensingProvider";
+import { gestureMappings } from "@/lib/gesture-mapping";
 import { cn } from "@/lib/utils";
 
 export type GestureSidebarProps = {
@@ -22,7 +23,15 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
     setHandTrackingEnabled,
     handTrackingInitializing,
     handTrackingError,
+    handGesture,
+    gestureMappingEnabled,
+    setGestureMappingEnabled,
   } = useSensing();
+
+  const currentGestureMapping =
+    handGesture && handGesture in gestureMappings
+      ? gestureMappings[handGesture]
+      : null;
 
   return (
     <aside
@@ -107,8 +116,10 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   <span className="text-foreground">Gesture mapping</span>
                   <input
                     type="checkbox"
-                    disabled
-                    aria-label="Gesture mapping (coming soon)"
+                    checked={gestureMappingEnabled}
+                    onChange={(e) => setGestureMappingEnabled(e.target.checked)}
+                    disabled={handTrackingInitializing || !handTrackingEnabled}
+                    aria-label="Gesture mapping"
                     className="h-4 w-4 accent-emerald-500"
                   />
                 </label>
@@ -133,6 +144,34 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   <div className="text-xs text-muted-foreground">
                     Turn this on to request camera access and drive the
                     on-screen hand cursor.
+                  </div>
+                )}
+
+                {gestureMappingEnabled && (
+                  <div className="mt-3 rounded-xl border border-border/50 bg-background/40 p-3 text-xs">
+                    <div className="mb-2 font-semibold uppercase tracking-wider text-muted-foreground">
+                      Gestures
+                    </div>
+                    <div className="space-y-1 text-muted-foreground">
+                      {Object.entries(gestureMappings).map(([gesture, mapping]) => (
+                        <div key={gesture}>
+                          <span className="font-mono text-foreground">
+                            {mapping.label}
+                          </span>{" "}
+                          → {mapping.description}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-muted-foreground">
+                      Current:{" "}
+                      {currentGestureMapping ? (
+                        <span className="font-mono text-foreground">
+                          {currentGestureMapping.label}
+                        </span>
+                      ) : (
+                        <span className="font-mono">none</span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

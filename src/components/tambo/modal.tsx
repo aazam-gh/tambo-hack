@@ -72,6 +72,23 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
     const [open, setOpen] = React.useState(defaultOpen);
     const titleId = React.useId();
 
+    React.useEffect(() => {
+      if (!open) {
+        return;
+      }
+
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          setOpen(false);
+        }
+      };
+
+      window.addEventListener("keydown", onKeyDown);
+      return () => {
+        window.removeEventListener("keydown", onKeyDown);
+      };
+    }, [open]);
+
     return (
       <div ref={ref} className={cn("w-full", className)} {...props}>
         <button

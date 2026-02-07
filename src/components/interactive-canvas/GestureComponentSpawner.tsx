@@ -4,6 +4,7 @@ import { useSensing } from "@/components/SensingProvider";
 import { Form } from "@/components/tambo/form";
 import { Graph } from "@/components/tambo/graph";
 import { Modal } from "@/components/tambo/modal";
+import type { HandGesture } from "@/lib/hand-gestures";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
 
 function buildDemoChart(actionId: number) {
@@ -74,8 +75,28 @@ function buildDemoModal(actionId: number) {
   );
 }
 
+type GestureAction = {
+  id: number;
+  gesture: HandGesture;
+};
+
+function buildComponentForGesture(action: GestureAction): React.ReactNode {
+  if (action.gesture === "pinch") {
+    return buildDemoForm(action.id);
+  }
+
+  if (action.gesture === "thumbsUp") {
+    return buildDemoChart(action.id);
+  }
+
+  return buildDemoModal(action.id);
+}
+
 export function GestureComponentSpawner() {
   const { gestureAction } = useSensing();
+
+  // Effects run twice in development under React.StrictMode, so we
+  // de-dupe by action id to avoid spawning duplicate canvas items.
   const lastHandledIdRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
@@ -91,25 +112,9 @@ export function GestureComponentSpawner() {
 
     const messageId = `gesture-${gestureAction.id}`;
 
-    if (gestureAction.gesture === "pinch") {
-      emitTamboShowComponent({
-        messageId,
-        component: buildDemoForm(gestureAction.id),
-      });
-      return;
-    }
-
-    if (gestureAction.gesture === "thumbsUp") {
-      emitTamboShowComponent({
-        messageId,
-        component: buildDemoChart(gestureAction.id),
-      });
-      return;
-    }
-
     emitTamboShowComponent({
       messageId,
-      component: buildDemoModal(gestureAction.id),
+      component: buildComponentForGesture(gestureAction),
     });
   }, [gestureAction]);
 

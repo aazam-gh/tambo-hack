@@ -56,7 +56,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const sensingSurfaceRef = useRef<HTMLElement | null>(null);
 
     const predictionIntervalMs = 33;
-    const gestureStabilityMs = 350;
+    const gestureStabilityMs = 350; // How long a gesture must remain stable before firing.
 
     const getCameraErrorMessage = (err: unknown): string => {
         if (err instanceof DOMException) {
@@ -82,6 +82,12 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGestureMappingEnabledState(enabled);
     }, []);
 
+    const resetGestureDetection = useCallback((now: number) => {
+        gestureCandidateRef.current = { gesture: null, since: now };
+        gestureSessionRef.current = { gesture: null, triggered: false };
+        setHandGesture(null);
+    }, []);
+
     const stopHandTracking = useCallback(() => {
         if (animationFrameRef.current !== null) {
             cancelAnimationFrame(animationFrameRef.current);
@@ -103,14 +109,11 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             streamRef.current = null;
         }
 
-        gestureCandidateRef.current = { gesture: null, since: 0 };
-        gestureSessionRef.current = { gesture: null, triggered: false };
-
         setHandPosition(null);
         setHoveredElement(null);
-        setHandGesture(null);
+        resetGestureDetection(0);
         setGestureAction(null);
-    }, []);
+    }, [resetGestureDetection]);
 
     const disableHandTracking = useCallback(
         (message: string) => {
@@ -181,9 +184,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         if (!indexFingerTip) {
                             setHandPosition(null);
                             setHoveredElement(null);
-                            setHandGesture(null);
-                            gestureCandidateRef.current = { gesture: null, since: now };
-                            gestureSessionRef.current = { gesture: null, triggered: false };
+                            resetGestureDetection(now);
                             animationFrameRef.current = requestAnimationFrame(predict);
                             return;
                         }
@@ -247,9 +248,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     } else {
                         setHandPosition(null);
                         setHoveredElement(null);
-                        setHandGesture(null);
-                        gestureCandidateRef.current = { gesture: null, since: now };
-                        gestureSessionRef.current = { gesture: null, triggered: false };
+                        resetGestureDetection(now);
                     }
                 }
             } catch (err) {
@@ -315,7 +314,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             canceled = true;
             stopHandTracking();
         };
-    }, [disableHandTracking, handTrackingEnabled, stopHandTracking]);
+    }, [disableHandTracking, handTrackingEnabled, resetGestureDetection, stopHandTracking]);
 
     return (
         <SensingContext.Provider

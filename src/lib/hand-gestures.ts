@@ -6,6 +6,11 @@ export type NormalizedLandmark = {
 
 export type HandGesture = "pinch" | "openPalm" | "thumbsUp";
 
+// Gesture heuristics are based on MediaPipe's normalized landmark coordinates.
+// These thresholds are intentionally simple to keep the demo lightweight.
+const PINCH_DISTANCE_THRESHOLD = 0.055;
+const FINGER_EXTENSION_MARGIN_Y = 0.02;
+
 function distance2D(a: NormalizedLandmark, b: NormalizedLandmark): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
@@ -23,7 +28,7 @@ function isFingerExtended(
 
   // MediaPipe's normalized Y increases downward, so an extended finger (pointing
   // up toward the camera top) will usually have a smaller Y at the tip.
-  return tip.y < pip.y - 0.02;
+  return tip.y < pip.y - FINGER_EXTENSION_MARGIN_Y;
 }
 
 export function detectHandGesture(
@@ -40,7 +45,7 @@ export function detectHandGesture(
   }
 
   const pinchDistance = distance2D(thumbTip, indexTip);
-  if (pinchDistance < 0.055) {
+  if (pinchDistance < PINCH_DISTANCE_THRESHOLD) {
     return "pinch";
   }
 

@@ -58,8 +58,10 @@ export type FormProps = z.infer<typeof formSchema>;
 
 type FormValue = string | boolean;
 
+type FormField = FormProps["fields"][number];
+
 type InitialFormState = {
-  uniqueFields: FormProps["fields"];
+  uniqueFields: FormField[];
   initialValues: Record<string, FormValue>;
   duplicateNames: string[];
 };
@@ -68,7 +70,7 @@ function buildInitialFormState(fields: FormProps["fields"]): InitialFormState {
   const seenNames = new Set<string>();
   const duplicateNames: string[] = [];
   const entries: Array<[string, FormValue]> = [];
-  const uniqueFields: FormProps["fields"] = [];
+  const uniqueFields: FormField[] = [];
 
   for (const field of fields) {
     if (seenNames.has(field.name)) {
@@ -120,7 +122,7 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
     React.useEffect(() => {
       setValues(initial.initialValues);
       setSubmitted(null);
-    }, [initial]);
+    }, [fields]);
 
     return (
       <div

@@ -19,6 +19,7 @@ export type MicroComposition = {
   incremental?: boolean;
 };
 
+// Max primitives per composition to keep widget density/layout manageable.
 const MAX_MICRO_PRIMITIVES = 5;
 
 export function normalizeMicroPrimitives(
@@ -110,6 +111,7 @@ export function getMicroCompositions(
 
   return compositions.map((composition) => ({
     ...composition,
+    incremental: composition.incremental ?? true,
     primitives: normalizeMicroPrimitives(composition.primitives),
   }));
 }

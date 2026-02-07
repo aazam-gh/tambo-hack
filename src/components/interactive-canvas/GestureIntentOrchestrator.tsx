@@ -131,15 +131,17 @@ function buildSurfaceMeta(domain: DomainId, intent: DomainIntent): SurfaceMeta {
   };
 }
 
-type GraphSurfaceComposition = {
-  graphPrimitives: MicroPrimitive[];
+type SurfaceComposition = {
+  kind: "graph";
+  primitives: MicroPrimitive[];
   incremental: boolean;
 };
 
+// `composition` is currently only applied to the primary graph widget inside a surface.
 function buildSurfaceNode(
   domain: DomainId,
   intent: DomainIntent,
-  composition?: GraphSurfaceComposition,
+  composition?: SurfaceComposition,
 ): React.ReactNode {
   if (domain === "sales") {
     const sales = fetchSalesData();
@@ -163,13 +165,13 @@ function buildSurfaceNode(
     return (
       <DomainSurfaceFrame domain={domain} intent={intent} title="Sales performance">
         <div className="space-y-3">
-          {composition ? (
+          {composition?.kind === "graph" ? (
             <ComposableGraph
               title="Revenue"
               variant="solid"
               size="sm"
               incremental={composition.incremental}
-              microPrimitives={composition.graphPrimitives}
+              microPrimitives={composition.primitives}
               data={{
                 type: "line",
                 labels: sales.revenue.labels,
@@ -239,13 +241,13 @@ function buildSurfaceNode(
     return (
       <DomainSurfaceFrame domain={domain} intent={intent} title="Infra health">
         <div className="space-y-3">
-          {composition ? (
+          {composition?.kind === "graph" ? (
             <ComposableGraph
               title="Error rate (%)"
               variant="solid"
               size="sm"
               incremental={composition.incremental}
-              microPrimitives={composition.graphPrimitives}
+              microPrimitives={composition.primitives}
               data={{
                 type: "line",
                 labels: infra.errorRate.labels,
@@ -314,13 +316,13 @@ function buildSurfaceNode(
     return (
       <DomainSurfaceFrame domain={domain} intent={intent} title="Marketing performance">
         <div className="space-y-3">
-          {composition ? (
+          {composition?.kind === "graph" ? (
             <ComposableGraph
               title="CTR (%)"
               variant="solid"
               size="sm"
               incremental={composition.incremental}
-              microPrimitives={composition.graphPrimitives}
+              microPrimitives={composition.primitives}
               data={{
                 type: "line",
                 labels: marketing.ctr.labels,
@@ -533,8 +535,9 @@ export function GestureIntentOrchestrator() {
     const surfaceId = `surface-${surfaceIdRef.current}-${Date.now()}`;
     const meta = buildSurfaceMeta(compositionTarget.domain, compositionTarget.intent);
     const node = buildSurfaceNode(compositionTarget.domain, compositionTarget.intent, {
-      graphPrimitives: selected.primitives,
-      incremental: selected.incremental ?? true,
+      kind: "graph",
+      primitives: selected.primitives,
+      incremental: selected.incremental ?? false,
     });
 
     emitTamboShowComponent({

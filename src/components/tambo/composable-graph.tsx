@@ -133,7 +133,7 @@ function useIncrementalMicroPrimitives(
     }
 
     setVisibleCount(0);
-    if (ordered.length === 0) {
+    if (ordered.length === 0 || typeof window === "undefined") {
       return;
     }
 
@@ -170,6 +170,10 @@ function useIncrementalMicroPrimitives(
 }
 
 function buildRechartsData(labels: string[], datasets: GraphDataType["datasets"]) {
+  if (labels.length === 0 || datasets.length === 0) {
+    return [];
+  }
+
   const maxDataPoints = Math.min(
     labels.length,
     Math.min(...datasets.map((d) => d.data.length)),
@@ -341,7 +345,7 @@ export const ComposableGraph = React.forwardRef<HTMLDivElement, ComposableGraphP
 
     const datasetLabelsKey = React.useMemo(
       () => JSON.stringify(validDatasets.map((d) => d.label)),
-      [data.datasets],
+      [validDatasets],
     );
 
     const availableRanges = React.useMemo(() => {

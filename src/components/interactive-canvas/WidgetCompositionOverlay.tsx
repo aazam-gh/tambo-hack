@@ -84,7 +84,44 @@ export function WidgetCompositionOverlay({
   onBack,
   onDismiss,
 }: WidgetCompositionOverlayProps) {
-  if (!open || !anchor) {
+  const overlayWidth = 360;
+  const overlayHeight = 320;
+  const offset = 18;
+  const padding = 12;
+
+  const [positionStyle, setPositionStyle] = React.useState<
+    React.CSSProperties | null
+  >(() => {
+    if (!open || !anchor) {
+      return null;
+    }
+
+    return {
+      left: anchor.x + offset,
+      top: anchor.y + offset,
+    };
+  });
+
+  React.useEffect(() => {
+    if (!open || !anchor) {
+      setPositionStyle(null);
+      return;
+    }
+
+    let left = anchor.x + offset;
+    let top = anchor.y + offset;
+
+    if (typeof window !== "undefined") {
+      left = Math.min(left, window.innerWidth - overlayWidth - padding);
+      top = Math.min(top, window.innerHeight - overlayHeight - padding);
+      left = Math.max(padding, left);
+      top = Math.max(padding, top);
+    }
+
+    setPositionStyle({ left, top });
+  }, [anchor, open, offset, overlayHeight, overlayWidth, padding]);
+
+  if (!open || !anchor || !positionStyle) {
     return null;
   }
 
@@ -92,23 +129,6 @@ export function WidgetCompositionOverlay({
   const activeOptionDomId = activeOptionId
     ? domIdForOption(activeOptionId, selectedIndex)
     : undefined;
-
-  const overlayWidth = 360;
-  const overlayHeight = 320;
-  const offset = 18;
-  const padding = 12;
-
-  let left = anchor.x + offset;
-  let top = anchor.y + offset;
-
-  if (typeof window !== "undefined") {
-    left = Math.min(left, window.innerWidth - overlayWidth - padding);
-    top = Math.min(top, window.innerHeight - overlayHeight - padding);
-    left = Math.max(padding, left);
-    top = Math.max(padding, top);
-  }
-
-  const positionStyle: React.CSSProperties = { left, top };
 
   return (
     <div

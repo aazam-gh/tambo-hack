@@ -232,14 +232,13 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   );
 
   const clearItemDragSession = React.useCallback(
-    (expected?: { pointerId: number; itemId: string }) => {
+    (expected: { pointerId: number; itemId: string }) => {
       const session = itemDragRef.current;
       if (!session) {
         return;
       }
 
       if (
-        expected &&
         (session.pointerId !== expected.pointerId || session.itemId !== expected.itemId)
       ) {
         return;
@@ -276,11 +275,11 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       return;
     }
 
-    if (items.some((item) => item.id === session.itemId)) {
-      return;
+    const itemStillExists = items.some((item) => item.id === session.itemId);
+    const targetStillInDom = session.target.isConnected;
+    if (!itemStillExists || !targetStillInDom) {
+      clearItemDragSession({ pointerId: session.pointerId, itemId: session.itemId });
     }
-
-    clearItemDragSession({ pointerId: session.pointerId, itemId: session.itemId });
   }, [clearItemDragSession, items]);
 
   const onPointerDown = React.useCallback(

@@ -92,6 +92,17 @@ function buildComponentForGesture(action: GestureAction): React.ReactNode {
     return null;
   }
 
+  if (!mapping.componentName) {
+    const message =
+      "Gesture mapping has no componentName; no component will be spawned";
+    if (import.meta.env.DEV) {
+      console.warn(message, { action, mapping });
+    } else {
+      console.error(message, { gesture: action.gesture, id: action.id });
+    }
+    return null;
+  }
+
   const builder = componentBuilders[mapping.componentName];
   if (!builder) {
     console.error("No component builder for gesture mapping", { mapping, action });

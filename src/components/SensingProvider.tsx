@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { HandLandmarkerService } from "../services/HandLandmarker";
 import { detectHandGesture, type HandGesture } from "@/lib/hand-gestures";
-import type { GestureAction } from "@/lib/gesture-mapping";
+import { gestureMappings, type GestureAction } from "@/lib/gesture-mapping";
 
 const PREDICTION_INTERVAL_MS = 33;
 const GESTURE_STABILITY_MS = 350;
@@ -52,6 +52,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const gestureMappingEnabledRef = useRef(gestureMappingEnabled);
     const [gestureAction, setGestureAction] = useState<GestureAction | null>(null);
     const gestureActionIdRef = useRef(0);
+    const missingGestureMappingLoggedRef = useRef<Set<HandGesture>>(new Set());
 
     // Gesture detection is intentionally conservative:
     // - `gestureCandidateRef` tracks the most recent detected gesture + when it started.
@@ -397,9 +398,25 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 session.triggered = false;
                             }
 
-                            // Pinch is reserved for dragging existing canvas items.
+                            // Only gestures mapped to a spawnable component emit a
+                            // GestureAction.
+                            const mapping = Object.prototype.hasOwnProperty.call(
+                                gestureMappings,
+                                gesture,
+                            )
+                                ? gestureMappings[gesture]
+                                : null;
+
+                            if (import.meta.env.DEV && !mapping) {
+                                const logged = missingGestureMappingLoggedRef.current;
+                                if (!logged.has(gesture)) {
+                                    logged.add(gesture);
+                                    console.warn("Missing gesture mapping", { gesture });
+                                }
+                            }
+
                             const shouldSuppressAction =
-                                gesture === "pinch" && isOverCanvasDraggable;
+                                !mapping || mapping.componentName === null;
 
                             if (
                                 gestureMappingEnabledRef.current &&

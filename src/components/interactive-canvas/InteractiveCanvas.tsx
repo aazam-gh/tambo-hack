@@ -52,11 +52,6 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     (hoveredElement?.closest(
       "[data-canvas-item-id]",
     ) as HTMLElement | null)?.dataset.canvasItemId ?? null;
-  const hoveredCanvasItemIdRef = React.useRef<string | null>(hoveredCanvasItemId);
-
-  React.useEffect(() => {
-    hoveredCanvasItemIdRef.current = hoveredCanvasItemId;
-  }, [hoveredCanvasItemId]);
 
   const [view, setViewState] = React.useState<CanvasView>({
     x: 0,
@@ -449,22 +444,8 @@ export function InteractiveCanvas({ className }: { className?: string }) {
 
     const activeSession = handDragRef.current;
     if (!activeSession) {
-      const hoveredItemAtPoint = (() => {
-        const maxHitTestX = Math.max(0, window.innerWidth - 1);
-        const maxHitTestY = Math.max(0, window.innerHeight - 1);
-        const hitTestX = clamp(handPosition.x, 0, maxHitTestX);
-        const hitTestY = clamp(handPosition.y, 0, maxHitTestY);
-        const el = document.elementFromPoint(
-          hitTestX,
-          hitTestY,
-        ) as HTMLElement | null;
-        const canvasItem = el?.closest(
-          "[data-canvas-item-id]",
-        ) as HTMLElement | null;
-        return canvasItem?.dataset.canvasItemId ?? null;
-      })();
-
-      const startItemId = hoveredCanvasItemIdRef.current ?? hoveredItemAtPoint;
+      // Pinch-drag begins only when the hand cursor is hovering a canvas item.
+      const startItemId = hoveredCanvasItemId;
       if (!startItemId) {
         return;
       }
@@ -522,7 +503,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     if (handDragRafRef.current === null) {
       handDragRafRef.current = requestAnimationFrame(flushHandDragUpdate);
     }
-  }, [flushHandDragUpdate, handGesture, handPosition, setItems]);
+  }, [flushHandDragUpdate, handGesture, handPosition, hoveredCanvasItemId, setItems]);
 
   return (
     <div

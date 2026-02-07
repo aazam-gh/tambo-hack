@@ -87,7 +87,7 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <GripVertical className="h-4 w-4 text-emerald-400" />
-                  <span>Pinch or drag the handle to move items</span>
+                  <span>Pinch while hovering an item (or drag the handle) to move it</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <ZoomIn className="h-4 w-4 text-emerald-400" />

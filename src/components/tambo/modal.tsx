@@ -7,7 +7,37 @@ type ModalVariant = "default" | "solid" | "bordered";
 type ModalSize = "default" | "sm" | "lg";
 
 const FOCUSABLE_SELECTOR =
-  'a[href], button, textarea, input, select, [tabindex]';
+  [
+    "a[href]",
+    "button",
+    "textarea",
+    "input",
+    "select",
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(", ");
+
+const MODAL_SELECTOR = "[role=dialog][aria-modal=true]";
+
+function getTopmostModal(): HTMLElement | null {
+  const dialogs = document.querySelectorAll<HTMLElement>(MODAL_SELECTOR);
+  return dialogs.length ? dialogs[dialogs.length - 1] : null;
+}
+
+function shouldTrapFocus(dialog: HTMLElement, target: Element | null): boolean {
+  const owningModal = dialog.closest(MODAL_SELECTOR);
+  const targetModal = target?.closest(MODAL_SELECTOR);
+  const topmostModal = getTopmostModal();
+
+  if (owningModal && topmostModal && owningModal !== topmostModal) {
+    return false;
+  }
+
+  if (targetModal && owningModal && targetModal !== owningModal) {
+    return false;
+  }
+
+  return true;
+}
 
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
@@ -142,7 +172,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           event.preventDefault();
         }
       },
-      [],
+      [setOpen],
     );
 
     React.useEffect(() => {
@@ -156,19 +186,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           return;
         }
 
-        const MODAL_SELECTOR = "[role=dialog][aria-modal=true]";
-        const owningModal = dialog.closest(MODAL_SELECTOR);
-        const targetModal = (event.target as Element | null)?.closest(MODAL_SELECTOR);
-
-        const topmostModal = Array.from(
-          document.querySelectorAll<HTMLElement>(MODAL_SELECTOR),
-        ).at(-1);
-
-        if (owningModal && topmostModal && owningModal !== topmostModal) {
-          return;
-        }
-
-        if (targetModal && owningModal && targetModal !== owningModal) {
+        if (!shouldTrapFocus(dialog, event.target as Element | null)) {
           return;
         }
 

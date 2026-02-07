@@ -12,7 +12,7 @@ function applyTheme(theme: Theme) {
 
   const root = document.documentElement;
   root.classList.toggle("dark", theme === "dark");
-  root.style.colorScheme = theme === "dark" ? "dark" : "light";
+  root.style.colorScheme = theme;
 }
 
 function persistTheme(theme: Theme) {

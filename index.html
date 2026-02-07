@@ -3,29 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script>
-      (function () {
-        try {
-          const stored = localStorage.getItem("theme");
-          const systemPrefersDark = window.matchMedia
-            ? window.matchMedia("(prefers-color-scheme: dark)").matches
-            : false;
-
-          const theme =
-            stored === "light" || stored === "dark"
-              ? stored
-              : systemPrefersDark
-                ? "dark"
-                : "light";
-
-          const root = document.documentElement;
-          root.classList.toggle("dark", theme === "dark");
-          root.style.colorScheme = theme === "dark" ? "dark" : "light";
-        } catch {
-          // Ignore unavailable localStorage access.
-        }
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
     <title>Tambo AI Template</title>
     <link rel="icon" href="/favicon.ico" />
   </head>

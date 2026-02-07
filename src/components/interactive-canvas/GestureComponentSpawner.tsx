@@ -177,6 +177,7 @@ export function GestureComponentSpawner() {
 
     const component = buildComponentForGesture(gestureAction);
     if (!component) {
+      clearGestureAction();
       return;
     }
 

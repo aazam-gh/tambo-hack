@@ -1,8 +1,4 @@
-export type NormalizedLandmark = {
-  x: number;
-  y: number;
-  z?: number;
-};
+import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 export type HandGesture = "pinch" | "openPalm" | "thumbsUp" | "peaceSign";
 

@@ -5,6 +5,7 @@ import {
   Hand,
   MousePointer2,
   RotateCcw,
+  X,
   ZoomIn,
 } from "lucide-react";
 
@@ -172,15 +173,21 @@ function GestureSidebar({
 function InteractiveCanvas({ className }: { className?: string }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
-  const [view, setView] = React.useState<CanvasView>({
+  const [view, setViewState] = React.useState<CanvasView>({
     x: 0,
     y: 0,
     scale: 1,
   });
   const viewRef = React.useRef(view);
-  React.useEffect(() => {
-    viewRef.current = view;
-  }, [view]);
+
+  type CanvasViewUpdater = CanvasView | ((prev: CanvasView) => CanvasView);
+  const setView = React.useCallback((updater: CanvasViewUpdater) => {
+    setViewState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      viewRef.current = next;
+      return next;
+    });
+  }, []);
 
   const [items, setItems] = React.useState<CanvasItem[]>([]);
 
@@ -267,7 +274,11 @@ function InteractiveCanvas({ className }: { className?: string }) {
       const dx = e.clientX - panRef.current.startClientX;
       const dy = e.clientY - panRef.current.startClientY;
 
-      setView((v) => ({ ...v, x: panRef.current!.startX + dx, y: panRef.current!.startY + dy }));
+      setView((v) => ({
+        ...v,
+        x: panRef.current!.startX + dx,
+        y: panRef.current!.startY + dy,
+      }));
     },
     [],
   );
@@ -327,6 +338,7 @@ function InteractiveCanvas({ className }: { className?: string }) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onLostPointerCapture={onPointerUp}
       onWheel={onWheel}
       onDoubleClick={resetView}
     >
@@ -394,7 +406,7 @@ function InteractiveCanvas({ className }: { className?: string }) {
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60",
                 )}
               >
-                ×
+                <X aria-hidden="true" className="h-4 w-4" />
               </button>
               {item.node}
             </div>

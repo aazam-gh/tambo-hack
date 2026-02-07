@@ -27,7 +27,7 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
   return (
     <aside
       className={cn(
-        "relative shrink-0 border-r border-white/10 bg-zinc-950/60 backdrop-blur transition-[width] duration-200",
+        "relative shrink-0 border-r border-border/50 bg-card/60 backdrop-blur transition-[width] duration-200",
         open ? "w-80" : "w-12",
       )}
     >
@@ -36,8 +36,8 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
         onClick={onToggle}
         aria-label={open ? "Collapse gesture controls" : "Expand gesture controls"}
         className={cn(
-          "absolute top-4 -right-3 z-10 grid h-6 w-6 place-items-center rounded-full border border-white/10 bg-zinc-950 text-white shadow",
-          "hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60",
+          "absolute top-4 -right-3 z-10 grid h-6 w-6 place-items-center rounded-full border border-border/50 bg-background text-foreground shadow",
+          "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60",
         )}
       >
         {open ? (
@@ -59,18 +59,18 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   <div className="text-sm font-semibold tracking-tight">
                     Gesture Controls
                   </div>
-                  <div className="text-xs text-zinc-400">
+                  <div className="text-xs text-muted-foreground">
                     Toggle MediaPipe hand tracking
                   </div>
                 </div>
               </div>
             </div>
 
-            <section className="rounded-2xl border border-white/10 bg-zinc-900/30 p-4">
-              <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <section className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+              <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Canvas navigation
               </div>
-              <div className="space-y-2 text-sm text-zinc-200">
+              <div className="space-y-2 text-sm text-foreground">
                 <div className="flex items-center gap-2">
                   <MousePointer2 className="h-4 w-4 text-emerald-400" />
                   <span>Drag to pan</span>
@@ -86,14 +86,14 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-white/10 bg-zinc-900/30 p-4">
-              <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            <section className="rounded-2xl border border-border/50 bg-muted/20 p-4">
+              <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Gesture settings
               </div>
 
               <div className="space-y-3 text-sm">
                 <label className="flex items-center justify-between gap-3">
-                  <span className="text-zinc-200">Hand tracking</span>
+                  <span className="text-foreground">Hand tracking</span>
                   <input
                     type="checkbox"
                     checked={handTrackingEnabled}
@@ -104,7 +104,7 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   />
                 </label>
                 <label className="flex items-center justify-between gap-3">
-                  <span className="text-zinc-200">Gesture mapping</span>
+                  <span className="text-foreground">Gesture mapping</span>
                   <input
                     type="checkbox"
                     disabled
@@ -113,7 +113,7 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   />
                 </label>
                 <label className="flex items-center justify-between gap-3">
-                  <span className="text-zinc-200">Voice commands</span>
+                  <span className="text-foreground">Voice commands</span>
                   <input
                     type="checkbox"
                     disabled
@@ -126,11 +126,11 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                     {handTrackingError}
                   </div>
                 ) : handTrackingInitializing ? (
-                  <div className="text-xs text-zinc-500">
+                  <div className="text-xs text-muted-foreground">
                     Requesting camera access...
                   </div>
                 ) : (
-                  <div className="text-xs text-zinc-500">
+                  <div className="text-xs text-muted-foreground">
                     Turn this on to request camera access and drive the
                     on-screen hand cursor.
                   </div>
@@ -139,7 +139,7 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
             </section>
           </div>
         ) : (
-          <div className="flex h-full flex-col items-center gap-3 pt-12 text-zinc-400">
+          <div className="flex h-full flex-col items-center gap-3 pt-12 text-muted-foreground">
             <Hand className="h-5 w-5" />
             <div className="h-1 w-1 rounded-full bg-emerald-500/60" />
             <div className="h-1 w-1 rounded-full bg-emerald-500/30" />

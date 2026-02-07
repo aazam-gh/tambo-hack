@@ -3,6 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        try {
+          const stored = localStorage.getItem("theme");
+          const mql =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)");
+          const systemPrefersDark = mql ? mql.matches : false;
+
+          const theme =
+            stored === "light" || stored === "dark"
+              ? stored
+              : systemPrefersDark
+                ? "dark"
+                : "light";
+
+          if (theme === "dark") {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+          }
+        } catch {
+          // Ignore unavailable localStorage access.
+        }
+      })();
+    </script>
     <title>Tambo AI Template</title>
     <link rel="icon" href="/favicon.ico" />
   </head>

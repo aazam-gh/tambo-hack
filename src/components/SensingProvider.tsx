@@ -397,7 +397,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 session.triggered = false;
                             }
 
-                            // Pinch is reserved for dragging/dropping existing canvas items.
+                            // Pinch is reserved for drag/drop only and should never emit a
+                            // GestureAction for component spawning.
                             const shouldSuppressAction = gesture === "pinch";
 
                             if (

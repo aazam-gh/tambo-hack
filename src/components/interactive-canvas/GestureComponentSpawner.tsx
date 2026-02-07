@@ -93,6 +93,10 @@ function buildComponentForGesture(action: GestureAction): React.ReactNode {
   }
 
   if (!mapping.componentName) {
+    console.warn(
+      "Gesture mapping has no componentName; no component will be spawned",
+      { action, mapping },
+    );
     return null;
   }
 

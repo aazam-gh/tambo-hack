@@ -6,6 +6,7 @@ import type { DomainId } from "@/lib/domains";
 export type InteractionContext = {
   route: string;
   focusedSurface?: string;
+  commandSurfaceOpen: boolean;
   activeDomains: DomainId[];
   recentActions: string[];
   userRole?: string;
@@ -13,6 +14,7 @@ export type InteractionContext = {
 
 export type InteractionContextActions = {
   setFocusedSurface: (surfaceId: string | undefined) => void;
+  setCommandSurfaceOpen: (open: boolean) => void;
   setActiveDomains: (domains: DomainId[]) => void;
   pushRecentAction: (action: string) => void;
   setUserRole: (role: string | undefined) => void;
@@ -41,6 +43,7 @@ export function InteractionContextProvider({
   const [focusedSurface, setFocusedSurface] = React.useState<string | undefined>(
     undefined,
   );
+  const [commandSurfaceOpen, setCommandSurfaceOpen] = React.useState(false);
   const [activeDomains, setActiveDomainsState] = React.useState<DomainId[]>([]);
   const [recentActions, setRecentActions] = React.useState<string[]>([]);
   const [userRole, setUserRole] = React.useState<string | undefined>(undefined);
@@ -48,6 +51,7 @@ export function InteractionContextProvider({
   const actions = React.useMemo<InteractionContextActions>(
     () => ({
       setFocusedSurface,
+      setCommandSurfaceOpen,
       setActiveDomains: (domains) => setActiveDomainsState(dedupeDomains(domains)),
       pushRecentAction: (action) => {
         setRecentActions((prev) => {
@@ -65,11 +69,12 @@ export function InteractionContextProvider({
     () => ({
       route,
       focusedSurface,
+      commandSurfaceOpen,
       activeDomains,
       recentActions,
       userRole,
     }),
-    [activeDomains, focusedSurface, recentActions, route, userRole],
+    [activeDomains, commandSurfaceOpen, focusedSurface, recentActions, route, userRole],
   );
 
   return (

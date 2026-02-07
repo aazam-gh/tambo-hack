@@ -4,6 +4,7 @@ import {
   ChevronRight,
   GripVertical,
   Hand,
+  Maximize2,
   MousePointer2,
   RotateCcw,
   ZoomIn,
@@ -145,6 +146,10 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                 <div className="flex items-center gap-2">
                   <GripVertical className="h-4 w-4 text-emerald-400" />
                   <span>Pinch while hovering an item (or drag the handle) to move it</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Maximize2 className="h-4 w-4 text-emerald-400" />
+                  <span>Pinch or drag the corner icon to resize a surface (thumbs up to confirm)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <ZoomIn className="h-4 w-4 text-emerald-400" />

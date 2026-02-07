@@ -304,7 +304,8 @@ export function GestureIntentOrchestrator() {
   // only place that may translate confirmed intent into `tambo:showComponent`.
   const { gestureSignal, clearGestureSignal, handPosition } = useSensing();
   const interactionContext = useInteractionContext();
-  const { setActiveDomains, pushRecentAction } = useInteractionContextActions();
+  const { setActiveDomains, pushRecentAction, setCommandSurfaceOpen } =
+    useInteractionContextActions();
 
   const [commandOpen, setCommandOpen] = React.useState(false);
   const [commandAnchor, setCommandAnchor] = React.useState<
@@ -321,7 +322,8 @@ export function GestureIntentOrchestrator() {
     setCommandOptions([]);
     setCommandSelectedIndex(0);
     lastCommandActivityAtRef.current = null;
-  }, []);
+    setCommandSurfaceOpen(false);
+  }, [setCommandSurfaceOpen]);
 
   const openCommandSurface = React.useCallback(
     (signal: GestureSignal) => {
@@ -348,10 +350,11 @@ export function GestureIntentOrchestrator() {
       setCommandOptions(options);
       setCommandSelectedIndex(0);
       setCommandOpen(true);
+      setCommandSurfaceOpen(true);
       lastCommandActivityAtRef.current = performance.now();
       pushRecentAction("command_surface:open");
     },
-    [handPosition, interactionContext, pushRecentAction],
+    [handPosition, interactionContext, pushRecentAction, setCommandSurfaceOpen],
   );
 
   const confirmSelectedOption = React.useCallback(() => {
@@ -427,7 +430,6 @@ export function GestureIntentOrchestrator() {
     }
 
     if (!commandOpen) {
-      clearGestureSignal();
       return;
     }
 

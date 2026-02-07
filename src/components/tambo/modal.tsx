@@ -107,6 +107,8 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         ).filter((el) => !el.hasAttribute("disabled"));
 
         if (focusables.length === 0) {
+          (closeButtonRef.current ?? dialog).focus();
+          event.preventDefault();
           return;
         }
 
@@ -145,6 +147,15 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
       const onFocusIn = (event: FocusEvent) => {
         const dialog = dialogRef.current;
         if (!dialog) {
+          return;
+        }
+
+        const owningModal = dialog.closest("[role=dialog][aria-modal=true]");
+        const targetModal = (event.target as Element | null)?.closest(
+          "[role=dialog][aria-modal=true]",
+        );
+
+        if (targetModal && owningModal && targetModal !== owningModal) {
           return;
         }
 
@@ -210,6 +221,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
                 lastFocusedRef.current = event.target as HTMLElement;
               }}
               onKeyDown={onDialogKeyDown}
+              tabIndex={-1}
               className={cn(
                 "w-full rounded-2xl border border-border/60 p-4 text-foreground backdrop-blur",
                 modalVariants({ variant, size }),

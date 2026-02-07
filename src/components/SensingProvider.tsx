@@ -21,6 +21,10 @@ const HIT_TEST_CACHE_EPSILON_PX = 2;
 // Keep the hover state fresh even if the cursor is stationary.
 const HIT_TEST_CACHE_MAX_AGE_MS = 100;
 
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+}
+
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
     hoveredElement: HTMLElement | null;
@@ -314,10 +318,17 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                         // MediaPipe coordinates are normalized 0-1
                         // We flip X because camera is mirrored
-                        const clientX = left + (1 - indexFingerTip.x) * width;
-                        const clientY = top + indexFingerTip.y * height;
+                        const normalizedX = clamp(1 - indexFingerTip.x, 0, 1);
+                        const normalizedY = clamp(indexFingerTip.y, 0, 1);
+                        const clientX = left + normalizedX * width;
+                        const clientY = top + normalizedY * height;
 
                         setHandPosition({ x: clientX, y: clientY });
+
+                        const maxHitTestX = Math.max(0, window.innerWidth - 1);
+                        const maxHitTestY = Math.max(0, window.innerHeight - 1);
+                        const hitTestX = clamp(clientX, 0, maxHitTestX);
+                        const hitTestY = clamp(clientY, 0, maxHitTestY);
 
                         const cachedHit = hitTestCacheRef.current;
                         const cachedInteractable = cachedHit?.interactable ?? null;
@@ -327,7 +338,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                             cachedHit !== null &&
                             now - cachedHit.at < HIT_TEST_CACHE_MAX_AGE_MS &&
                             (!cachedInteractable || cachedInteractable.isConnected) &&
-                            Math.hypot(clientX - cachedHit.x, clientY - cachedHit.y) <
+                            Math.hypot(hitTestX - cachedHit.x, hitTestY - cachedHit.y) <
                                 HIT_TEST_CACHE_EPSILON_PX;
 
                         let interactable = cachedInteractable;
@@ -335,16 +346,9 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                         if (!canReuseCachedHit) {
                             const element = document.elementFromPoint(
-                                clientX,
-                                clientY,
+                                hitTestX,
+                                hitTestY,
                             ) as HTMLElement | null;
-
-                            const canvasDraggable = element
-                                ? ((element.closest(
-                                      '[data-canvas-draggable="true"]',
-                                  ) as HTMLElement) ||
-                                      null)
-                                : null;
 
                             const canvasItem = element
                                 ? ((element.closest(
@@ -353,7 +357,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                       null)
                                 : null;
 
-                            isOverCanvasDraggable = Boolean(canvasDraggable);
+                            isOverCanvasDraggable = Boolean(canvasItem);
 
                             interactable = canvasItem
                                 ? canvasItem
@@ -365,8 +369,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                   : null;
 
                             hitTestCacheRef.current = {
-                                x: clientX,
-                                y: clientY,
+                                x: hitTestX,
+                                y: hitTestY,
                                 at: now,
                                 interactable,
                                 isOverCanvasDraggable,

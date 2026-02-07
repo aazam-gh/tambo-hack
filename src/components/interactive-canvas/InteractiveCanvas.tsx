@@ -48,7 +48,10 @@ function useRefBackedState<T>(
 export function InteractiveCanvas({ className }: { className?: string }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const { handGesture, handPosition, hoveredElement } = useSensing();
-  const hoveredCanvasItemId = hoveredElement?.dataset.canvasItemId ?? null;
+  const hoveredCanvasItemId =
+    (hoveredElement?.closest(
+      "[data-canvas-item-id]",
+    ) as HTMLElement | null)?.dataset.canvasItemId ?? null;
   const hoveredCanvasItemIdRef = React.useRef<string | null>(hoveredCanvasItemId);
 
   React.useEffect(() => {
@@ -88,6 +91,36 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     offsetX: number;
     offsetY: number;
   } | null>(null);
+
+  const pendingHandDragUpdateRef = React.useRef<{
+    itemId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const handDragRafRef = React.useRef<number | null>(null);
+
+  const flushHandDragUpdate = React.useCallback(() => {
+    handDragRafRef.current = null;
+    const pending = pendingHandDragUpdateRef.current;
+    if (!pending) {
+      return;
+    }
+    pendingHandDragUpdateRef.current = null;
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === pending.itemId ? { ...item, x: pending.x, y: pending.y } : item,
+      ),
+    );
+  }, [setItems]);
+
+  React.useEffect(() => {
+    return () => {
+      if (handDragRafRef.current !== null) {
+        cancelAnimationFrame(handDragRafRef.current);
+        handDragRafRef.current = null;
+      }
+    };
+  }, []);
 
   const panRef = React.useRef<{
     pointerId: number;
@@ -394,6 +427,11 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   React.useEffect(() => {
     if (handGesture !== "pinch" || !handPosition) {
       handDragRef.current = null;
+      pendingHandDragUpdateRef.current = null;
+      if (handDragRafRef.current !== null) {
+        cancelAnimationFrame(handDragRafRef.current);
+        handDragRafRef.current = null;
+      }
       return;
     }
 
@@ -411,7 +449,22 @@ export function InteractiveCanvas({ className }: { className?: string }) {
 
     const activeSession = handDragRef.current;
     if (!activeSession) {
-      const startItemId = hoveredCanvasItemIdRef.current;
+      const hoveredItemAtPoint = (() => {
+        const maxHitTestX = Math.max(0, window.innerWidth - 1);
+        const maxHitTestY = Math.max(0, window.innerHeight - 1);
+        const hitTestX = clamp(handPosition.x, 0, maxHitTestX);
+        const hitTestY = clamp(handPosition.y, 0, maxHitTestY);
+        const el = document.elementFromPoint(
+          hitTestX,
+          hitTestY,
+        ) as HTMLElement | null;
+        const canvasItem = el?.closest(
+          "[data-canvas-item-id]",
+        ) as HTMLElement | null;
+        return canvasItem?.dataset.canvasItemId ?? null;
+      })();
+
+      const startItemId = hoveredCanvasItemIdRef.current ?? hoveredItemAtPoint;
       if (!startItemId) {
         return;
       }
@@ -461,12 +514,15 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       return;
     }
 
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === activeSession.itemId ? { ...item, x: nextX, y: nextY } : item,
-      ),
-    );
-  }, [handGesture, handPosition, setItems]);
+    pendingHandDragUpdateRef.current = {
+      itemId: activeSession.itemId,
+      x: nextX,
+      y: nextY,
+    };
+    if (handDragRafRef.current === null) {
+      handDragRafRef.current = requestAnimationFrame(flushHandDragUpdate);
+    }
+  }, [flushHandDragUpdate, handGesture, handPosition, setItems]);
 
   return (
     <div

@@ -246,6 +246,27 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     itemDragRef.current = null;
   }, []);
 
+  React.useEffect(() => {
+    const session = itemDragRef.current;
+    if (!session) {
+      return;
+    }
+
+    if (items.some((item) => item.id === session.itemId)) {
+      return;
+    }
+
+    try {
+      if (session.target.hasPointerCapture(session.pointerId)) {
+        session.target.releasePointerCapture(session.pointerId);
+      }
+    } catch {
+      // Ignore if pointer capture was already released.
+    }
+
+    itemDragRef.current = null;
+  }, [items]);
+
   const onPointerDown = React.useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.button !== 0) {

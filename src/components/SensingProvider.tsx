@@ -195,6 +195,49 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             '[data-sensing-surface="true"]',
         );
 
+        const resetMissingVideoTracking = () => {
+            lastMissingVideoLogAtRef.current = 0;
+            missingVideoSinceRef.current = null;
+            missingVideoClearedRef.current = false;
+        };
+
+        const handleMissingVideo = (now: number) => {
+            const isFirstMissingFrame = missingVideoSinceRef.current === null;
+            if (isFirstMissingFrame) {
+                missingVideoSinceRef.current = now;
+                missingVideoClearedRef.current = false;
+            }
+
+            const isLogIntervalElapsed =
+                now - lastMissingVideoLogAtRef.current >=
+                MISSING_VIDEO_LOG_EVERY_MS;
+            const shouldLog = isFirstMissingFrame || isLogIntervalElapsed;
+
+            if (shouldLog) {
+                lastMissingVideoLogAtRef.current = now;
+                console.warn("Hand tracking video element missing from DOM", {
+                    missingForMs: missingVideoSinceRef.current
+                        ? Math.round(now - missingVideoSinceRef.current)
+                        : 0,
+                });
+            }
+
+            // If the video node is missing for a while, clear gesture/cursor
+            // state so the UI doesn't show stale information.
+            const missingSince = missingVideoSinceRef.current;
+            const shouldClearState =
+                !missingVideoClearedRef.current &&
+                missingSince !== null &&
+                now - missingSince >= MISSING_VIDEO_CLEAR_STATE_AFTER_MS;
+
+            if (shouldClearState) {
+                missingVideoClearedRef.current = true;
+                setHandPosition(null);
+                setHoveredElement(null);
+                resetGestureDetection(now);
+            }
+        };
+
         const predict = () => {
             if (canceled || !handTrackingEnabledRef.current) return;
 
@@ -214,52 +257,14 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 }
 
                 if (!document.body.contains(video)) {
-                    const isFirstMissingFrame = missingVideoSinceRef.current === null;
-                    if (isFirstMissingFrame) {
-                        missingVideoSinceRef.current = now;
-                        missingVideoClearedRef.current = false;
-                    }
-
-                    const isLogIntervalElapsed =
-                        now - lastMissingVideoLogAtRef.current >=
-                        MISSING_VIDEO_LOG_EVERY_MS;
-                    const shouldLog = isFirstMissingFrame || isLogIntervalElapsed;
-
-                    if (shouldLog) {
-                        lastMissingVideoLogAtRef.current = now;
-                        console.warn(
-                            "Hand tracking video element missing from DOM",
-                            {
-                                missingForMs: missingVideoSinceRef.current
-                                    ? Math.round(now - missingVideoSinceRef.current)
-                                    : 0,
-                            },
-                        );
-                    }
-
-                    // If the video node is missing for a while, clear gesture/cursor
-                    // state so the UI doesn't show stale information.
-                    const missingSince = missingVideoSinceRef.current;
-                    const shouldClearState =
-                        !missingVideoClearedRef.current &&
-                        missingSince !== null &&
-                        now - missingSince >= MISSING_VIDEO_CLEAR_STATE_AFTER_MS;
-
-                    if (shouldClearState) {
-                        missingVideoClearedRef.current = true;
-                        setHandPosition(null);
-                        setHoveredElement(null);
-                        resetGestureDetection(now);
-                    }
+                    handleMissingVideo(now);
 
                     animationFrameRef.current = requestAnimationFrame(predict);
                     return;
                 }
 
                 if (missingVideoSinceRef.current !== null) {
-                    lastMissingVideoLogAtRef.current = 0;
-                    missingVideoSinceRef.current = null;
-                    missingVideoClearedRef.current = false;
+                    resetMissingVideoTracking();
                 }
 
                 if (video.readyState >= 2) {

@@ -1,0 +1,399 @@
+import * as React from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Hand,
+  MousePointer2,
+  RotateCcw,
+  ZoomIn,
+} from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+type CanvasView = {
+  x: number;
+  y: number;
+  scale: number;
+};
+
+type CanvasItem = {
+  id: string;
+  node: React.ReactNode;
+  x: number;
+  y: number;
+};
+
+type TamboShowComponentDetail = {
+  messageId: string;
+  component: React.ReactNode;
+};
+
+const MIN_SCALE = 0.25;
+const MAX_SCALE = 4;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function InteractiveCanvasWorkspace() {
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+
+  return (
+    <div className="flex h-screen w-full overflow-hidden">
+      <GestureSidebar
+        open={sidebarOpen}
+        onToggle={() => setSidebarOpen((v) => !v)}
+      />
+      <InteractiveCanvas className="flex-1" />
+    </div>
+  );
+}
+
+function GestureSidebar({
+  open,
+  onToggle,
+}: {
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <aside
+      className={cn(
+        "relative shrink-0 border-r border-white/10 bg-zinc-950/60 backdrop-blur transition-[width] duration-200",
+        open ? "w-80" : "w-12",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={open ? "Collapse gesture controls" : "Expand gesture controls"}
+        className={cn(
+          "absolute top-4 -right-3 z-10 grid h-6 w-6 place-items-center rounded-full border border-white/10 bg-zinc-950 text-white shadow",
+          "hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60",
+        )}
+      >
+        {open ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+      </button>
+
+      <div className={cn("h-full", open ? "p-6" : "p-3")}>
+        {open ? (
+          <div className="flex h-full flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500 text-zinc-950 shadow shadow-emerald-500/20">
+                  <Hand className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold tracking-tight">
+                    Gesture Controls
+                  </div>
+                  <div className="text-xs text-zinc-400">
+                    UI scaffold (no gesture logic yet)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <section className="rounded-2xl border border-white/10 bg-zinc-900/30 p-4">
+              <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                Canvas navigation
+              </div>
+              <div className="space-y-2 text-sm text-zinc-200">
+                <div className="flex items-center gap-2">
+                  <MousePointer2 className="h-4 w-4 text-emerald-400" />
+                  <span>Drag to pan</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ZoomIn className="h-4 w-4 text-emerald-400" />
+                  <span>Scroll to zoom</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RotateCcw className="h-4 w-4 text-emerald-400" />
+                  <span>Double-click to reset</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-zinc-900/30 p-4">
+              <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                Gesture settings
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <label className="flex items-center justify-between gap-3">
+                  <span className="text-zinc-200">Hand tracking</span>
+                  <input
+                    type="checkbox"
+                    disabled
+                    aria-label="Hand tracking (coming soon)"
+                    className="h-4 w-4 accent-emerald-500"
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-3">
+                  <span className="text-zinc-200">Gesture mapping</span>
+                  <input
+                    type="checkbox"
+                    disabled
+                    aria-label="Gesture mapping (coming soon)"
+                    className="h-4 w-4 accent-emerald-500"
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-3">
+                  <span className="text-zinc-200">Voice commands</span>
+                  <input
+                    type="checkbox"
+                    disabled
+                    aria-label="Voice commands (coming soon)"
+                    className="h-4 w-4 accent-emerald-500"
+                  />
+                </label>
+                <div className="text-xs text-zinc-500">
+                  These controls are placeholders. Gesture recognition will be
+                  wired up in a follow-up.
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : (
+          <div className="flex h-full flex-col items-center gap-3 pt-12 text-zinc-400">
+            <Hand className="h-5 w-5" />
+            <div className="h-1 w-1 rounded-full bg-emerald-500/60" />
+            <div className="h-1 w-1 rounded-full bg-emerald-500/30" />
+            <div className="h-1 w-1 rounded-full bg-emerald-500/20" />
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function InteractiveCanvas({ className }: { className?: string }) {
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+  const [view, setView] = React.useState<CanvasView>({
+    x: 0,
+    y: 0,
+    scale: 1,
+  });
+  const viewRef = React.useRef(view);
+  React.useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  const [items, setItems] = React.useState<CanvasItem[]>([]);
+
+  const panRef = React.useRef<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
+
+  React.useEffect(() => {
+    const onShowComponent = (event: Event) => {
+      const detail = (event as CustomEvent<TamboShowComponentDetail>).detail;
+      if (!detail?.messageId || !detail.component) {
+        return;
+      }
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) {
+        return;
+      }
+
+      const currentView = viewRef.current;
+      const centerScreenX = rect.width / 2;
+      const centerScreenY = rect.height / 2;
+      const x = (centerScreenX - currentView.x) / currentView.scale;
+      const y = (centerScreenY - currentView.y) / currentView.scale;
+
+      setItems((prev) => {
+        const existingIndex = prev.findIndex((i) => i.id === detail.messageId);
+        if (existingIndex === -1) {
+          return [...prev, { id: detail.messageId, node: detail.component, x, y }];
+        }
+
+        return prev.map((item, idx) =>
+          idx === existingIndex
+            ? { ...item, node: detail.component }
+            : item,
+        );
+      });
+    };
+
+    window.addEventListener("tambo:showComponent", onShowComponent);
+    return () => {
+      window.removeEventListener("tambo:showComponent", onShowComponent);
+    };
+  }, []);
+
+  const resetView = React.useCallback(() => {
+    setView({ x: 0, y: 0, scale: 1 });
+  }, []);
+
+  const onPointerDown = React.useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) {
+        return;
+      }
+
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-canvas-item="true"]')) {
+        return;
+      }
+
+      (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+
+      panRef.current = {
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startX: viewRef.current.x,
+        startY: viewRef.current.y,
+      };
+    },
+    [],
+  );
+
+  const onPointerMove = React.useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!panRef.current || panRef.current.pointerId !== e.pointerId) {
+        return;
+      }
+
+      const dx = e.clientX - panRef.current.startClientX;
+      const dy = e.clientY - panRef.current.startClientY;
+
+      setView((v) => ({ ...v, x: panRef.current!.startX + dx, y: panRef.current!.startY + dy }));
+    },
+    [],
+  );
+
+  const onPointerUp = React.useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (panRef.current?.pointerId === e.pointerId) {
+        panRef.current = null;
+      }
+    },
+    [],
+  );
+
+  const onWheel = React.useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) {
+        return;
+      }
+
+      e.preventDefault();
+
+      const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+
+      setView((prev) => {
+        const zoomFactor = Math.exp(-e.deltaY * 0.001);
+        const nextScale = clamp(prev.scale * zoomFactor, MIN_SCALE, MAX_SCALE);
+
+        const worldX = (localX - prev.x) / prev.scale;
+        const worldY = (localY - prev.y) / prev.scale;
+
+        const nextX = localX - worldX * nextScale;
+        const nextY = localY - worldY * nextScale;
+
+        return { x: nextX, y: nextY, scale: nextScale };
+      });
+    },
+    [],
+  );
+
+  return (
+    <div
+      ref={containerRef}
+      data-canvas-space="true"
+      className={cn(
+        "relative h-full w-full select-none overflow-hidden bg-zinc-950",
+        "touch-none",
+        className,
+      )}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onWheel={onWheel}
+      onDoubleClick={resetView}
+    >
+      <div
+        aria-hidden
+        className={cn(
+          "absolute inset-0",
+          "bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.08)_1px,transparent_0)]",
+          "bg-[size:32px_32px]",
+        )}
+      />
+
+      <div
+        className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2 text-xs text-zinc-200 backdrop-blur"
+        role="status"
+      >
+        <span className="text-zinc-400">Zoom</span>
+        <span className="font-mono">{Math.round(view.scale * 100)}%</span>
+        <span className="text-zinc-500">•</span>
+        <button
+          type="button"
+          onClick={resetView}
+          className="inline-flex items-center gap-1 text-zinc-200 hover:text-white"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset
+        </button>
+      </div>
+
+      {items.length === 0 && (
+        <div className="absolute inset-0 grid place-items-center text-center">
+          <div className="max-w-sm rounded-2xl border border-white/10 bg-zinc-950/50 px-5 py-4 text-sm text-zinc-300 backdrop-blur">
+            Pan and zoom around the canvas. Tambo-rendered components will
+            appear here when they’re emitted.
+          </div>
+        </div>
+      )}
+
+      <div
+        className="absolute inset-0"
+        style={{
+          transform: `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`,
+          transformOrigin: "0 0",
+        }}
+      >
+        {items.map((item) => (
+          <div
+            key={item.id}
+            data-canvas-item="true"
+            className="absolute pointer-events-auto"
+            style={{
+              transform: `translate3d(${item.x}px, ${item.y}px, 0)`,
+            }}
+          >
+            <div className="relative rounded-2xl border border-white/10 bg-zinc-950/70 p-4 text-white shadow-xl shadow-black/30 backdrop-blur">
+              <button
+                type="button"
+                aria-label="Remove canvas item"
+                onClick={() =>
+                  setItems((prev) => prev.filter((p) => p.id !== item.id))
+                }
+                className={cn(
+                  "absolute right-2 top-2 rounded-md px-2 py-1 text-xs text-zinc-300",
+                  "hover:bg-white/10 hover:text-white",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60",
+                )}
+              >
+                ×
+              </button>
+              {item.node}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

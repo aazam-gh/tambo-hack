@@ -89,8 +89,15 @@ function buildCommandOptions(
   const ordered = dedupeDomains(priority);
   const options: CommandOption[] = [];
   const seen = new Set<string>();
+  const primaryId = `${primaryDomain}:${primaryIntent}`;
+  const reserveForPrimary = !suggested.some(
+    (opt) => `${opt.domain}:${opt.intent}` === primaryId,
+  );
 
   const push = (domain: DomainId, intent: DomainIntent) => {
+    if (options.length >= MAX_COMMAND_OPTIONS) {
+      return;
+    }
     const id = `${domain}:${intent}`;
     if (seen.has(id)) {
       return;
@@ -100,6 +107,16 @@ function buildCommandOptions(
   };
 
   for (const opt of suggested) {
+    if (
+      reserveForPrimary &&
+      options.length >= Math.max(0, MAX_COMMAND_OPTIONS - 1)
+    ) {
+      break;
+    }
+    if (!reserveForPrimary && options.length >= MAX_COMMAND_OPTIONS) {
+      break;
+    }
+
     const id = `${opt.domain}:${opt.intent}`;
     if (seen.has(id)) {
       continue;
@@ -114,25 +131,36 @@ function buildCommandOptions(
 
   push(primaryDomain, primaryIntent);
 
+  if (options.length >= MAX_COMMAND_OPTIONS) {
+    return options;
+  }
+
   const primaryDef = Domains[primaryDomain];
   const secondaryIntent = primaryDef.intents.find((i) => i !== primaryIntent);
   if (secondaryIntent) {
     push(primaryDomain, secondaryIntent);
   }
 
+  if (options.length >= MAX_COMMAND_OPTIONS) {
+    return options;
+  }
+
   for (const domain of ordered) {
-    if (options.length >= MAX_COMMAND_OPTIONS) break;
+    if (options.length >= MAX_COMMAND_OPTIONS) {
+      break;
+    }
     if (domain === primaryDomain) continue;
 
     const firstIntent = Domains[domain].intents[0] ?? "inspect";
     push(domain, firstIntent);
   }
 
-  return options.slice(0, MAX_COMMAND_OPTIONS);
+  return options;
 }
 
-function buildSuggestedOptions(context: InteractionContext): CommandOption[] {
-  const hypothesis = predictIntentHypothesis(context);
+function buildSuggestedOptions(
+  hypothesis: ReturnType<typeof predictIntentHypothesis>,
+): CommandOption[] {
   const candidates = hypothesis?.recommendedSurfaces;
   if (!candidates || candidates.length === 0) {
     return [];
@@ -410,7 +438,8 @@ export function GestureIntentOrchestrator() {
       const primaryDomain = hypothesis.targetDomain ?? "infra";
       const primaryIntent = domainIntentFromResolvedIntent(hypothesis.primary);
 
-      const suggested = buildSuggestedOptions(interactionContext);
+      const predictiveHypothesis = predictIntentHypothesis(interactionContext);
+      const suggested = buildSuggestedOptions(predictiveHypothesis);
 
       const options = buildCommandOptions(
         interactionContext,
@@ -492,7 +521,7 @@ export function GestureIntentOrchestrator() {
       return;
     }
 
-    const suggested = buildSuggestedOptions(interactionContext);
+    const suggested = buildSuggestedOptions(hypothesis);
     if (suggested.length === 0) {
       return;
     }

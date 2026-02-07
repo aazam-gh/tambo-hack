@@ -15,7 +15,7 @@ const GESTURE_STABILITY_MS = 350;
 const MAX_CONSECUTIVE_PREDICTION_ERRORS = 3;
 const NO_LANDMARKS_RESET_MS = 200;
 const MISSING_VIDEO_LOG_EVERY_MS = 5000;
-const MISSING_VIDEO_CLEAR_STATE_AFTER_FRAMES = 60;
+const MISSING_VIDEO_CLEAR_STATE_AFTER_MS = 2000;
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
@@ -64,6 +64,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const lastLandmarksTimeRef = useRef(0);
     const missingVideoCountRef = useRef(0);
     const lastMissingVideoLogAtRef = useRef(0);
+    const missingVideoSinceRef = useRef<number | null>(null);
+    const missingVideoClearedRef = useRef(false);
     const sensingSurfaceRef = useRef<HTMLElement | null>(null);
 
     const getCameraErrorMessage = (err: unknown): string => {
@@ -131,6 +133,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         lastLandmarksTimeRef.current = 0;
         missingVideoCountRef.current = 0;
         lastMissingVideoLogAtRef.current = 0;
+        missingVideoSinceRef.current = null;
+        missingVideoClearedRef.current = false;
         gestureActionIdRef.current = 0;
 
         setHandPosition(null);
@@ -189,6 +193,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         lastLandmarksTimeRef.current = 0;
         missingVideoCountRef.current = 0;
         lastMissingVideoLogAtRef.current = 0;
+        missingVideoSinceRef.current = null;
+        missingVideoClearedRef.current = false;
         sensingSurfaceRef.current = document.querySelector(
             '[data-sensing-surface="true"]',
         );
@@ -215,6 +221,11 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     missingVideoCountRef.current += 1;
 
                     const isFirstMissingFrame = missingVideoCountRef.current === 1;
+                    if (isFirstMissingFrame) {
+                        missingVideoSinceRef.current = now;
+                        missingVideoClearedRef.current = false;
+                    }
+
                     const isLogIntervalElapsed =
                         now - lastMissingVideoLogAtRef.current >=
                         MISSING_VIDEO_LOG_EVERY_MS;
@@ -232,10 +243,14 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                     // If the video node is missing for a while, clear gesture/cursor
                     // state so the UI doesn't show stale information.
-                    if (
-                        missingVideoCountRef.current ===
-                        MISSING_VIDEO_CLEAR_STATE_AFTER_FRAMES
-                    ) {
+                    const missingSince = missingVideoSinceRef.current;
+                    const shouldClearState =
+                        !missingVideoClearedRef.current &&
+                        missingSince !== null &&
+                        now - missingSince >= MISSING_VIDEO_CLEAR_STATE_AFTER_MS;
+
+                    if (shouldClearState) {
+                        missingVideoClearedRef.current = true;
                         setHandPosition(null);
                         setHoveredElement(null);
                         resetGestureDetection(now);
@@ -248,6 +263,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 if (missingVideoCountRef.current > 0) {
                     missingVideoCountRef.current = 0;
                     lastMissingVideoLogAtRef.current = 0;
+                    missingVideoSinceRef.current = null;
+                    missingVideoClearedRef.current = false;
                 }
 
                 if (video.readyState >= 2) {

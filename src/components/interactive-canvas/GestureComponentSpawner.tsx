@@ -4,7 +4,11 @@ import { useSensing } from "@/components/SensingProvider";
 import { Form } from "@/components/tambo/form";
 import { Graph } from "@/components/tambo/graph";
 import { Modal } from "@/components/tambo/modal";
-import { gestureMappings, type GestureAction } from "@/lib/gesture-mapping";
+import {
+  gestureMappings,
+  type GestureAction,
+  type GestureSpawnComponent,
+} from "@/lib/gesture-mapping";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
 
 function buildDemoChart(actionId: number) {
@@ -75,6 +79,12 @@ function buildDemoModal(actionId: number) {
   );
 }
 
+const componentBuilders: Record<GestureSpawnComponent, (id: number) => React.ReactNode> = {
+  Form: buildDemoForm,
+  Graph: buildDemoChart,
+  Modal: buildDemoModal,
+};
+
 function buildComponentForGesture(action: GestureAction): React.ReactNode {
   const mapping = gestureMappings[action.gesture];
   if (!mapping) {
@@ -82,45 +92,34 @@ function buildComponentForGesture(action: GestureAction): React.ReactNode {
     return null;
   }
 
-  const componentName = mapping.componentName;
-
-  switch (componentName) {
-    case "Form":
-      return buildDemoForm(action.id);
-    case "Graph":
-      return buildDemoChart(action.id);
-    case "Modal":
-      return buildDemoModal(action.id);
-    default: {
-      const exhaustiveCheck: never = componentName;
-      console.error("Unhandled gesture component mapping", {
-        componentName: exhaustiveCheck,
-        action,
-      });
-      return null;
-    }
+  const builder = componentBuilders[mapping.componentName];
+  if (!builder) {
+    console.error("No component builder for gesture mapping", { mapping, action });
+    return null;
   }
+  return builder(action.id);
 }
 
 export function GestureComponentSpawner() {
   const { gestureAction } = useSensing();
 
   // Effects run twice in development under React.StrictMode, so we
-  // de-dupe by action id to avoid spawning duplicate canvas items.
-  const lastHandledIdRef = React.useRef<number | null>(null);
+  // de-dupe by action key to avoid spawning duplicate canvas items.
+  const lastHandledKeyRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (!gestureAction) {
       return;
     }
 
-    if (lastHandledIdRef.current === gestureAction.id) {
+    const actionKey = `${gestureAction.gesture}-${gestureAction.at}`;
+    if (lastHandledKeyRef.current === actionKey) {
       return;
     }
 
-    lastHandledIdRef.current = gestureAction.id;
+    lastHandledKeyRef.current = actionKey;
 
-    const messageId = `gesture-${gestureAction.id}`;
+    const messageId = `gesture-${gestureAction.id}-${Math.round(gestureAction.at)}`;
 
     const component = buildComponentForGesture(gestureAction);
     if (!component) {

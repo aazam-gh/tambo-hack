@@ -58,33 +58,33 @@ export type FormProps = z.infer<typeof formSchema>;
 
 type FormValue = string | boolean;
 
-function buildInitialValues(
-  fields: FormProps["fields"],
-): Record<string, FormValue> {
+type InitialFormState = {
+  initialValues: Record<string, FormValue>;
+  duplicateNames: string[];
+};
+
+function buildInitialFormState(fields: FormProps["fields"]): InitialFormState {
   const seenNames = new Set<string>();
-  const uniqueFields: FormProps["fields"] = [];
+  const duplicateNames: string[] = [];
+  const entries: Array<[string, FormValue]> = [];
+
   for (const field of fields) {
     if (seenNames.has(field.name)) {
-      const message = `Form field names must be unique. Duplicate: ${field.name}`;
-      if (import.meta.env.DEV) {
-        throw new Error(message);
-      }
-      console.error(message);
+      duplicateNames.push(field.name);
       continue;
     }
+
     seenNames.add(field.name);
-    uniqueFields.push(field);
+
+    const initialValue: FormValue =
+      field.type === "checkbox" ? false : "";
+    entries.push([field.name, initialValue]);
   }
 
-  const entries = uniqueFields.map((field) => {
-    switch (field.type) {
-      case "checkbox":
-        return [field.name, false] as const;
-      default:
-        return [field.name, ""] as const;
-    }
-  });
-  return Object.fromEntries(entries);
+  return {
+    initialValues: Object.fromEntries(entries),
+    duplicateNames,
+  };
 }
 
 export const Form = React.forwardRef<HTMLDivElement, FormProps>(
@@ -101,15 +101,35 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
     ref,
   ) => {
     const formId = React.useId();
+
     const [values, setValues] = React.useState<Record<string, FormValue>>(() =>
-      buildInitialValues(fields),
+      buildInitialFormState(fields).initialValues,
+    );
+    const [duplicateNames, setDuplicateNames] = React.useState<string[]>(() =>
+      buildInitialFormState(fields).duplicateNames,
     );
     const [submitted, setSubmitted] = React.useState<Record<string, FormValue> | null>(
       null,
     );
 
+    const hasDuplicateNames = duplicateNames.length > 0;
+
+    const uniqueFields = React.useMemo(() => {
+      const seen = new Set<string>();
+      return fields.filter((field) => {
+        if (seen.has(field.name)) {
+          return false;
+        }
+
+        seen.add(field.name);
+        return true;
+      });
+    }, [fields]);
+
     React.useEffect(() => {
-      setValues(buildInitialValues(fields));
+      const next = buildInitialFormState(fields);
+      setValues(next.initialValues);
+      setDuplicateNames(next.duplicateNames);
       setSubmitted(null);
     }, [fields]);
 
@@ -126,6 +146,13 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
           </div>
         </div>
 
+        {hasDuplicateNames && (
+          <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+            Form is misconfigured. Only the first field for each name will be used.
+            Duplicates: {duplicateNames.join(", ")}
+          </div>
+        )}
+
         <form
           className="space-y-3"
           onSubmit={(e) => {
@@ -133,7 +160,7 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
             setSubmitted(values);
           }}
         >
-          {fields.map((field) => {
+          {uniqueFields.map((field) => {
             const inputId = `${formId}-${field.name}`;
 
             if (field.type === "checkbox") {
@@ -211,7 +238,13 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
           <div className="pt-1">
             <button
               type="submit"
-              className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-zinc-950 shadow shadow-emerald-500/20 hover:bg-emerald-400"
+              disabled={hasDuplicateNames}
+              className={cn(
+                "inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium shadow",
+                hasDuplicateNames
+                  ? "cursor-not-allowed bg-muted/50 text-muted-foreground"
+                  : "bg-emerald-500 text-zinc-950 shadow-emerald-500/20 hover:bg-emerald-400",
+              )}
             >
               {submitLabel}
             </button>

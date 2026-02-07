@@ -86,7 +86,10 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 
       const onKeyDown = (event: KeyboardEvent) => {
         if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
           setOpen(false);
+          return;
         }
 
         if (event.key !== "Tab") {

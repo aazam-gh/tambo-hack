@@ -3,6 +3,7 @@ import type { HandGesture } from "@/lib/hand-gestures";
 export type GestureAction = {
   id: number;
   gesture: HandGesture;
+  at: number;
 };
 
 export type GestureSpawnComponent = "Form" | "Graph" | "Modal";

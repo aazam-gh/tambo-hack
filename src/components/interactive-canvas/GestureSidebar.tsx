@@ -118,7 +118,7 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                     type="checkbox"
                     checked={gestureMappingEnabled}
                     onChange={(e) => setGestureMappingEnabled(e.target.checked)}
-                    disabled={handTrackingInitializing}
+                    disabled={handTrackingInitializing || !handTrackingEnabled}
                     aria-label="Gesture mapping"
                     className="h-4 w-4 accent-emerald-500"
                   />

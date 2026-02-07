@@ -13,6 +13,7 @@ import type { GestureAction } from "@/lib/gesture-mapping";
 const PREDICTION_INTERVAL_MS = 33;
 const GESTURE_STABILITY_MS = 350;
 const MAX_CONSECUTIVE_PREDICTION_ERRORS = 3;
+const NO_LANDMARKS_RESET_MS = 200;
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
@@ -36,7 +37,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [handTrackingInitializing, setHandTrackingInitializing] = useState(false);
     const [handTrackingError, setHandTrackingError] = useState<string | null>(null);
     const [handGesture, setHandGesture] = useState<HandGesture | null>(null);
-    const [gestureMappingEnabled, setGestureMappingEnabledState] = useState(true);
+    const [gestureMappingEnabled, setGestureMappingEnabledState] = useState(false);
     const gestureMappingEnabledRef = useRef(gestureMappingEnabled);
     const [gestureAction, setGestureAction] = useState<GestureAction | null>(null);
     const gestureActionIdRef = useRef(0);
@@ -58,6 +59,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const animationFrameRef = useRef<number | null>(null);
     const lastPredictionTimeRef = useRef(0);
     const predictionErrorCountRef = useRef(0);
+    const lastLandmarksTimeRef = useRef(0);
+    const missingVideoCountRef = useRef(0);
     const sensingSurfaceRef = useRef<HTMLElement | null>(null);
 
     const getCameraErrorMessage = (err: unknown): string => {
@@ -77,9 +80,17 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const setHandTrackingEnabledSynced = useCallback((enabled: boolean) => {
         handTrackingEnabledRef.current = enabled;
         setHandTrackingEnabledState(enabled);
+
+        if (!enabled) {
+            gestureMappingEnabledRef.current = false;
+            setGestureMappingEnabledState(false);
+        }
     }, []);
 
     const setGestureMappingEnabled = useCallback((enabled: boolean) => {
+        if (!handTrackingEnabledRef.current) {
+            return;
+        }
         gestureMappingEnabledRef.current = enabled;
         setGestureMappingEnabledState(enabled);
     }, []);
@@ -114,6 +125,9 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
 
         predictionErrorCountRef.current = 0;
+        lastLandmarksTimeRef.current = 0;
+        missingVideoCountRef.current = 0;
+        gestureActionIdRef.current = 0;
 
         setHandPosition(null);
         setHoveredElement(null);
@@ -155,6 +169,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }, [stopHandTracking]);
 
     useEffect(() => {
+        // This effect owns the camera + prediction loop lifecycle.
+        // Avoid adding new dependencies that could cause unnecessary restarts.
         if (!handTrackingEnabled) {
             setHandTrackingInitializing(false);
             stopHandTracking();
@@ -166,6 +182,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         lastPredictionTimeRef.current = 0;
         predictionErrorCountRef.current = 0;
+        lastLandmarksTimeRef.current = 0;
+        missingVideoCountRef.current = 0;
         sensingSurfaceRef.current = document.querySelector(
             '[data-sensing-surface="true"]',
         );
@@ -182,8 +200,43 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             lastPredictionTimeRef.current = now;
 
             try {
-                if (videoRef.current && videoRef.current.readyState >= 2) {
-                    const results = service.predict(videoRef.current, now);
+                const video = videoRef.current;
+                if (!video) {
+                    animationFrameRef.current = requestAnimationFrame(predict);
+                    return;
+                }
+
+                if (!document.body.contains(video)) {
+                    missingVideoCountRef.current += 1;
+
+                    if (
+                        missingVideoCountRef.current === 1 ||
+                        missingVideoCountRef.current % 10 === 0
+                    ) {
+                        console.warn(
+                            "Hand tracking video element missing from DOM",
+                            {
+                                count: missingVideoCountRef.current,
+                            },
+                        );
+                    }
+
+                    // If the video node is missing for a while, clear gesture/cursor
+                    // state so the UI doesn't show stale information.
+                    if (missingVideoCountRef.current === 60) {
+                        setHandPosition(null);
+                        setHoveredElement(null);
+                        resetGestureDetection(now);
+                    }
+
+                    animationFrameRef.current = requestAnimationFrame(predict);
+                    return;
+                }
+
+                missingVideoCountRef.current = 0;
+
+                if (video.readyState >= 2) {
+                    const results = service.predict(video, now);
                     if (results && results.landmarks && results.landmarks.length > 0) {
                         const handLandmarks = results.landmarks[0];
                         const indexFingerTip = handLandmarks[8];
@@ -191,10 +244,18 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         if (!indexFingerTip) {
                             setHandPosition(null);
                             setHoveredElement(null);
-                            resetGestureDetection(now);
+                            setHandGesture(null);
+                            if (
+                                now - lastLandmarksTimeRef.current >
+                                NO_LANDMARKS_RESET_MS
+                            ) {
+                                resetGestureDetection(now);
+                            }
                             animationFrameRef.current = requestAnimationFrame(predict);
                             return;
                         }
+
+                        lastLandmarksTimeRef.current = now;
 
                         const gesture = detectHandGesture(handLandmarks);
                         setHandGesture(gesture);
@@ -224,6 +285,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 setGestureAction({
                                     id: gestureActionIdRef.current,
                                     gesture,
+                                    at: now,
                                 });
                             }
                         }
@@ -258,7 +320,13 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     } else {
                         setHandPosition(null);
                         setHoveredElement(null);
-                        resetGestureDetection(now);
+                        setHandGesture(null);
+                        if (
+                            now - lastLandmarksTimeRef.current >
+                            NO_LANDMARKS_RESET_MS
+                        ) {
+                            resetGestureDetection(now);
+                        }
                     }
                 }
 
@@ -333,7 +401,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             canceled = true;
             stopHandTracking();
         };
-    }, [disableHandTracking, handTrackingEnabled, resetGestureDetection, stopHandTracking]);
+    }, [disableHandTracking, handTrackingEnabled, stopHandTracking]);
 
     return (
         <SensingContext.Provider

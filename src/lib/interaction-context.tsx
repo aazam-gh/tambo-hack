@@ -17,7 +17,7 @@ export type InteractionContext = {
 };
 
 export type InteractionContextActions = {
-  setFocusedSurface: (surfaceId: string | undefined) => void;
+  setFocusedSurface: (surfaceId: string | undefined, meta?: SurfaceMeta) => void;
   setActiveDomains: (domains: DomainId[]) => void;
   pushRecentAction: (action: string) => void;
   pushRecentDomain: (domain: DomainId) => void;
@@ -56,7 +56,9 @@ export function InteractionContextProvider({
 }) {
   const route = useRouterState({ select: (s) => s.location.pathname });
 
-  const [focusedSurface, setFocusedSurface] = React.useState<string | undefined>(
+  const [focusedSurface, setFocusedSurfaceState] = React.useState<
+    string | undefined
+  >(
     undefined,
   );
   const [activeDomains, setActiveDomainsState] = React.useState<DomainId[]>([]);
@@ -93,7 +95,12 @@ export function InteractionContextProvider({
 
   const actions = React.useMemo<InteractionContextActions>(
     () => ({
-      setFocusedSurface,
+      setFocusedSurface: (surfaceId, meta) => {
+        setFocusedSurfaceState(surfaceId);
+        if (surfaceId) {
+          touchSurface(surfaceId, meta ?? surfaceMetaById[surfaceId]);
+        }
+      },
       setActiveDomains: (domains) => setActiveDomainsState(dedupeDomains(domains)),
       pushRecentAction: (action) => {
         setRecentActions((prev) => {
@@ -106,7 +113,6 @@ export function InteractionContextProvider({
       pushRecentIntent: (intent) =>
         setRecentIntents((prev) => pushRecentUnique(prev, intent, MAX_RECENT_INTENTS)),
       registerSurfaceMeta: (surfaceId, meta) => {
-        setSurfaceMetaById((prev) => ({ ...prev, [surfaceId]: meta }));
         touchSurface(surfaceId, meta);
       },
       setSurfaceDependencies: (surfaceId, dependencies) => {
@@ -139,14 +145,14 @@ export function InteractionContextProvider({
           return next;
         });
 
-        if (focusedSurface === surfaceId) {
-          setFocusedSurface(undefined);
-        }
+        setFocusedSurfaceState((current) =>
+          current === surfaceId ? undefined : current,
+        );
       },
       setUserRole,
       clearRecentActions: () => setRecentActions([]),
     }),
-    [focusedSurface, touchSurface],
+    [surfaceMetaById, touchSurface],
   );
 
   const value = React.useMemo<InteractionContext>(

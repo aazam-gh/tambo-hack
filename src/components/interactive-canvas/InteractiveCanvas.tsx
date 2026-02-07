@@ -55,8 +55,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const { handGesture, handPosition, hoveredElement } = useSensing();
   const { focusedSurface } = useInteractionContext();
-  const { removeSurface, setFocusedSurface, touchSurface } =
-    useInteractionContextActions();
+  const { removeSurface, setFocusedSurface } = useInteractionContextActions();
   const hoveredCanvasItemId =
     (hoveredElement?.closest(
       "[data-canvas-item-id]",
@@ -611,10 +610,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
             style={{
               transform: `translate3d(${item.x}px, ${item.y}px, 0)`,
             }}
-            onClick={() => {
-              setFocusedSurface(item.id);
-              touchSurface(item.id, item.surfaceMeta);
-            }}
+            onClick={() => setFocusedSurface(item.id, item.surfaceMeta)}
           >
             <div
               className={cn(

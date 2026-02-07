@@ -34,7 +34,7 @@ import {
 
 const COMMAND_SURFACE_IDLE_MS = 6500;
 const MAX_COMMAND_OPTIONS = 5;
-const PREDICTIVE_MIN_CONFIDENCE = 0.75;
+const PREDICTIVE_AUTO_OPEN_MIN_CONFIDENCE = 0.75;
 
 function dedupeDomains(domains: DomainId[]): DomainId[] {
   return [...new Set(domains)];
@@ -154,8 +154,14 @@ function anchorForSurface(surfaceId: string | undefined): { x: number; y: number
     return null;
   }
 
-  const escaped = typeof CSS !== "undefined" && "escape" in CSS ? CSS.escape(surfaceId) : surfaceId;
-  const el = document.querySelector(`[data-canvas-item-id="${escaped}"]`) as HTMLElement | null;
+  const escapeFn =
+    typeof CSS !== "undefined" && typeof CSS.escape === "function"
+      ? CSS.escape
+      : (value: string) => value;
+  const escaped = escapeFn(surfaceId);
+  const el = document.querySelector<HTMLElement>(
+    `[data-canvas-item-id="${escaped}"]`,
+  );
   if (!el) {
     return null;
   }
@@ -477,7 +483,7 @@ export function GestureIntentOrchestrator() {
     }
 
     const hypothesis = predictIntentHypothesis(interactionContext);
-    if (!hypothesis || hypothesis.confidence < PREDICTIVE_MIN_CONFIDENCE) {
+    if (!hypothesis || hypothesis.confidence < PREDICTIVE_AUTO_OPEN_MIN_CONFIDENCE) {
       return;
     }
 

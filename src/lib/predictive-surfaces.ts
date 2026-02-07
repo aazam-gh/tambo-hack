@@ -25,7 +25,7 @@ function parseConfirmAction(action: string): ConfirmAction | null {
   }
 
   const parts = action.split(":");
-  if (parts.length !== 3) {
+  if (parts.length < 3) {
     return null;
   }
 

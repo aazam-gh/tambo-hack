@@ -3,17 +3,32 @@ import { useSensing } from "./SensingProvider";
 import { Mic, Hand, Camera } from "lucide-react";
 
 export const SensingStatus: React.FC = () => {
-    const { handPosition, handTrackingEnabled } = useSensing();
+    const {
+        handPosition,
+        handTrackingEnabled,
+        handTrackingInitializing,
+        handTrackingError,
+    } = useSensing();
 
-    const handClasses = handTrackingEnabled
-        ? handPosition
-            ? "bg-green-500/20 border-green-500 text-green-500"
-            : "bg-yellow-500/15 border-yellow-500/60 text-yellow-300"
-        : "bg-gray-500/20 border-gray-500 text-gray-500";
+    const hasError = Boolean(handTrackingError);
 
-    const cameraClasses = handTrackingEnabled
-        ? "bg-green-500/20 border-green-500 text-green-500"
-        : "bg-gray-500/20 border-gray-500 text-gray-500";
+    const handClasses = hasError
+        ? "bg-rose-500/15 border-rose-500/60 text-rose-300"
+        : handTrackingInitializing
+            ? "bg-yellow-500/15 border-yellow-500/60 text-yellow-300"
+            : handTrackingEnabled
+                ? handPosition
+                    ? "bg-green-500/20 border-green-500 text-green-500"
+                    : "bg-yellow-500/15 border-yellow-500/60 text-yellow-300"
+                : "bg-gray-500/20 border-gray-500 text-gray-500";
+
+    const cameraClasses = hasError
+        ? "bg-rose-500/15 border-rose-500/60 text-rose-300"
+        : handTrackingInitializing
+            ? "bg-yellow-500/15 border-yellow-500/60 text-yellow-300"
+            : handTrackingEnabled
+                ? "bg-green-500/20 border-green-500 text-green-500"
+                : "bg-gray-500/20 border-gray-500 text-gray-500";
 
     const micClasses = "bg-gray-500/10 border-dashed border-gray-500 text-gray-500";
 

@@ -96,6 +96,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 return;
             }
 
+            setHandTrackingError(null);
+            setHandTrackingInitializing(false);
             setHandTrackingEnabledSynced(false);
             stopHandTracking();
         },

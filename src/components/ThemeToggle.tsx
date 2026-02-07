@@ -6,6 +6,10 @@ import { cn } from "@/lib/utils";
 type Theme = "light" | "dark";
 
 function applyTheme(theme: Theme) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
   if (theme === "dark") {
     document.documentElement.classList.add("dark");
   } else {

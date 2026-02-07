@@ -17,7 +17,7 @@ function RootComponent() {
       tamboUrl={import.meta.env.VITE_TAMBO_URL}
     >
       <div className="relative min-h-screen bg-background text-foreground selection:bg-emerald-500/30 transition-colors antialiased font-[family-name:var(--font-geist-sans)]">
-        <ThemeToggle className="fixed right-4 top-4 z-50" />
+        <ThemeToggle className="fixed right-4 top-4 z-20" />
         <Outlet />
       </div>
     </TamboProvider>

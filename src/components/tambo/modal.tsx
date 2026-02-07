@@ -41,7 +41,11 @@ function shouldTrapFocus(dialog: HTMLElement, target: Element | null): boolean {
 
 function getTabbableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)).filter(
-    (el) => !el.hasAttribute("disabled") && el.tabIndex >= 0,
+    (el) =>
+      !el.hasAttribute("disabled") &&
+      el.tabIndex >= 0 &&
+      el.getAttribute("aria-hidden") !== "true" &&
+      el.getClientRects().length > 0,
   );
 }
 
@@ -118,6 +122,11 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
 
     const onDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.key === "Escape") {
+        const dialog = dialogRef.current;
+        if (dialog && !shouldTrapFocus(dialog, event.target as Element | null)) {
+          return;
+        }
+
         event.preventDefault();
         event.stopPropagation();
         setOpen(false);

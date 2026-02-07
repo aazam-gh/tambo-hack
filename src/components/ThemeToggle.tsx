@@ -5,6 +5,35 @@ import { cn } from "@/lib/utils";
 
 type Theme = "light" | "dark";
 
+function resolveTheme(stored: string | null): Theme {
+  if (stored === "light" || stored === "dark") {
+    return stored;
+  }
+
+  let systemPrefersDark = false;
+  try {
+    systemPrefersDark =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
+  } catch {
+    systemPrefersDark = false;
+  }
+  return systemPrefersDark ? "dark" : "light";
+}
+
+function getStoredTheme(): Theme | null {
+  try {
+    const stored = localStorage.getItem("theme");
+    if (stored === "light" || stored === "dark") {
+      return stored;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function applyTheme(theme: Theme) {
   if (typeof document === "undefined") {
     return;
@@ -40,16 +69,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         return;
       }
 
-      if (e.newValue === "dark" || e.newValue === "light") {
-        applyTheme(e.newValue);
-        setTheme(e.newValue);
-        return;
-      }
-
-      const systemDark = window.matchMedia
-        ? window.matchMedia("(prefers-color-scheme: dark)").matches
-        : false;
-      const next: Theme = systemDark ? "dark" : "light";
+      const next = resolveTheme(e.newValue);
       applyTheme(next);
       setTheme(next);
     };
@@ -59,19 +79,19 @@ export function ThemeToggle({ className }: { className?: string }) {
   }, []);
 
   React.useEffect(() => {
-    if (!window.matchMedia) {
+    if (typeof window.matchMedia !== "function" || getStoredTheme() !== null) {
       return;
     }
 
-    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    let mql: MediaQueryList;
+    try {
+      mql = window.matchMedia("(prefers-color-scheme: dark)");
+    } catch {
+      return;
+    }
 
     const onChange = () => {
-      try {
-        const stored = localStorage.getItem("theme");
-        if (stored === "light" || stored === "dark") {
-          return;
-        }
-      } catch {
+      if (getStoredTheme() !== null) {
         return;
       }
 

@@ -1,20 +1,31 @@
+function resolveTheme(stored, systemPrefersDark) {
+  if (stored === "light" || stored === "dark") {
+    return stored;
+  }
+
+  return systemPrefersDark ? "dark" : "light";
+}
+
 (function () {
-  const systemPrefersDark = window.matchMedia
-    ? window.matchMedia("(prefers-color-scheme: dark)").matches
-    : false;
+  let systemPrefersDark = false;
+  try {
+    systemPrefersDark =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
+  } catch {
+    systemPrefersDark = false;
+  }
 
   let theme = systemPrefersDark ? "dark" : "light";
 
   try {
     const stored = localStorage.getItem("theme");
-    if (stored === "light" || stored === "dark") {
-      theme = stored;
-    }
+    theme = resolveTheme(stored, systemPrefersDark);
   } catch {
     // Ignore unavailable localStorage access.
   }
 
   const root = document.documentElement;
   root.classList.toggle("dark", theme === "dark");
-  root.style.colorScheme = theme;
+  root.style.colorScheme = theme === "dark" ? "dark" : "light";
 })();

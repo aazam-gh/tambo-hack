@@ -14,6 +14,8 @@ export type PredictedIntentHypothesis = {
   recommendedSurfaces?: SurfaceTemplate[];
 };
 
+export type PredictiveContext = Pick<InteractionContext, "recentActions" | "recentDomains">;
+
 type ConfirmAction = {
   domain: DomainId;
   intent: DomainIntent;
@@ -49,7 +51,7 @@ function parseConfirmAction(action: string): ConfirmAction | null {
 }
 
 export function predictIntentHypothesis(
-  context: InteractionContext,
+  context: PredictiveContext,
 ): PredictedIntentHypothesis | null {
   const latestAction = context.recentActions[0];
   const confirm = latestAction ? parseConfirmAction(latestAction) : null;

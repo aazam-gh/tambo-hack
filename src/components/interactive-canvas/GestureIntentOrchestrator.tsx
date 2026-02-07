@@ -19,7 +19,6 @@ import {
   useInteractionContext,
   useInteractionContextActions,
 } from "@/lib/interaction-context";
-import type { InteractionContext } from "@/lib/interaction-context";
 import type { GestureSignal } from "@/lib/gesture-signals";
 import { predictIntentHypothesis } from "@/lib/predictive-surfaces";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
@@ -44,7 +43,7 @@ function labelForOption(domain: DomainId, intent: DomainIntent): string {
   const domainLabel = Domains[domain].label;
 
   if (domain === "infra" && intent === "inspect") {
-    return "View infra logs";
+    return "Check infra health";
   }
   if (domain === "infra" && intent === "filter") {
     return "Review infra alerts";
@@ -71,13 +70,13 @@ function labelForOption(domain: DomainId, intent: DomainIntent): string {
 }
 
 function buildCommandOptions(
-  context: InteractionContext,
+  activeDomains: DomainId[],
   primaryDomain: DomainId,
   primaryIntent: DomainIntent,
   suggested: CommandOption[] = [],
 ): CommandOption[] {
   const priority: DomainId[] = [
-    ...context.activeDomains,
+    ...activeDomains,
     primaryDomain,
     "infra",
     "sales",
@@ -295,7 +294,7 @@ function buildSurfaceNode(domain: DomainId, intent: DomainIntent): React.ReactNo
     }
 
     return (
-      <DomainSurfaceFrame domain={domain} intent={intent} title="Infra logs">
+      <DomainSurfaceFrame domain={domain} intent={intent} title="Infra health">
         <div className="space-y-3">
           <Graph
             title="Error rate (%)"
@@ -399,6 +398,12 @@ export function GestureIntentOrchestrator() {
   const { gestureSignal, clearGestureSignal, handPosition } = useSensing();
   const interactionContext = useInteractionContext();
   const {
+    activeDomains: activeDomainsSnapshot,
+    focusedSurface: focusedSurfaceSnapshot,
+    recentActions: recentActionsSnapshot,
+    recentDomains: recentDomainsSnapshot,
+  } = interactionContext;
+  const {
     registerSurfaceMeta,
     setActiveDomains,
     setSurfaceDependencies,
@@ -442,7 +447,7 @@ export function GestureIntentOrchestrator() {
       const suggested = buildSuggestedOptions(predictiveHypothesis);
 
       const options = buildCommandOptions(
-        interactionContext,
+        interactionContext.activeDomains,
         primaryDomain,
         primaryIntent,
         suggested,
@@ -511,12 +516,15 @@ export function GestureIntentOrchestrator() {
       return;
     }
 
-    const hypothesis = predictIntentHypothesis(interactionContext);
+    const hypothesis = predictIntentHypothesis({
+      recentActions: recentActionsSnapshot,
+      recentDomains: recentDomainsSnapshot,
+    });
     if (!hypothesis || hypothesis.confidence < PREDICTIVE_AUTO_OPEN_MIN_CONFIDENCE) {
       return;
     }
 
-    const latestAction = interactionContext.recentActions[0];
+    const latestAction = recentActionsSnapshot[0];
     if (!latestAction?.startsWith("confirm:")) {
       return;
     }
@@ -531,7 +539,7 @@ export function GestureIntentOrchestrator() {
       return;
     }
 
-    const anchor = handPosition ?? anchorForSurface(interactionContext.focusedSurface);
+    const anchor = handPosition ?? anchorForSurface(focusedSurfaceSnapshot);
     if (!anchor) {
       return;
     }
@@ -539,7 +547,7 @@ export function GestureIntentOrchestrator() {
     const primaryDomain = hypothesis.targetDomain ?? suggested[0]?.domain ?? "infra";
     const primaryIntent = suggested[0]?.intent ?? "inspect";
     const options = buildCommandOptions(
-      interactionContext,
+      activeDomainsSnapshot,
       primaryDomain,
       primaryIntent,
       suggested,
@@ -555,9 +563,10 @@ export function GestureIntentOrchestrator() {
   }, [
     commandOpen,
     handPosition,
-    interactionContext,
-    interactionContext.focusedSurface,
-    interactionContext.recentActions,
+    activeDomainsSnapshot,
+    focusedSurfaceSnapshot,
+    recentActionsSnapshot,
+    recentDomainsSnapshot,
     pushRecentAction,
   ]);
 

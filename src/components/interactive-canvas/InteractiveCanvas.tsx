@@ -610,7 +610,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
             style={{
               transform: `translate3d(${item.x}px, ${item.y}px, 0)`,
             }}
-            onClick={() => setFocusedSurface(item.id, item.surfaceMeta)}
+            onClick={() => setFocusedSurface(item.id)}
           >
             <div
               className={cn(

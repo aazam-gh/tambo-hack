@@ -17,7 +17,7 @@ export type InteractionContext = {
 };
 
 export type InteractionContextActions = {
-  setFocusedSurface: (surfaceId: string | undefined, meta?: SurfaceMeta) => void;
+  setFocusedSurface: (surfaceId: string | undefined) => void;
   setActiveDomains: (domains: DomainId[]) => void;
   pushRecentAction: (action: string) => void;
   pushRecentDomain: (domain: DomainId) => void;
@@ -95,10 +95,10 @@ export function InteractionContextProvider({
 
   const actions = React.useMemo<InteractionContextActions>(
     () => ({
-      setFocusedSurface: (surfaceId, meta) => {
+      setFocusedSurface: (surfaceId) => {
         setFocusedSurfaceState(surfaceId);
         if (surfaceId) {
-          touchSurface(surfaceId, meta ?? surfaceMetaById[surfaceId]);
+          touchSurface(surfaceId, surfaceMetaById[surfaceId]);
         }
       },
       setActiveDomains: (domains) => setActiveDomainsState(dedupeDomains(domains)),
@@ -124,11 +124,25 @@ export function InteractionContextProvider({
       touchSurface,
       removeSurface: (surfaceId) => {
         setSurfaceDependenciesState((prev) => {
-          if (!(surfaceId in prev)) {
-            return prev;
+          let changed = false;
+          const { [surfaceId]: _ignored, ...rest } = prev;
+          const next: Record<string, string[]> = {};
+
+          if (surfaceId in prev) {
+            changed = true;
           }
-          const { [surfaceId]: _ignored, ...next } = prev;
-          return next;
+
+          for (const [id, dependencies] of Object.entries(rest)) {
+            const pruned = dependencies.filter((dep) => dep !== surfaceId);
+            if (pruned.length !== dependencies.length) {
+              changed = true;
+            }
+            if (pruned.length > 0) {
+              next[id] = pruned;
+            }
+          }
+
+          return changed ? next : prev;
         });
         setLastInteractionTimestamps((prev) => {
           if (!(surfaceId in prev)) {

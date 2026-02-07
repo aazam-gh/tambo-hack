@@ -231,20 +231,44 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     [setItems],
   );
 
-  const endItemDrag = React.useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
-    const session = itemDragRef.current;
-    if (!session || session.pointerId !== e.pointerId) {
-      return;
-    }
+  const clearItemDragSession = React.useCallback(
+    (expected?: { pointerId: number; itemId: string }) => {
+      const session = itemDragRef.current;
+      if (!session) {
+        return;
+      }
 
-    try {
-      session.target.releasePointerCapture(e.pointerId);
-    } catch {
-      // Ignore if pointer capture was already released.
-    }
+      if (
+        expected &&
+        (session.pointerId !== expected.pointerId || session.itemId !== expected.itemId)
+      ) {
+        return;
+      }
 
-    itemDragRef.current = null;
-  }, []);
+      try {
+        if (session.target.hasPointerCapture(session.pointerId)) {
+          session.target.releasePointerCapture(session.pointerId);
+        }
+      } catch {
+        // Ignore if pointer capture was already released.
+      }
+
+      itemDragRef.current = null;
+    },
+    [],
+  );
+
+  const endItemDrag = React.useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      const session = itemDragRef.current;
+      if (!session || session.pointerId !== e.pointerId) {
+        return;
+      }
+
+      clearItemDragSession({ pointerId: session.pointerId, itemId: session.itemId });
+    },
+    [clearItemDragSession],
+  );
 
   React.useEffect(() => {
     const session = itemDragRef.current;
@@ -256,16 +280,8 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       return;
     }
 
-    try {
-      if (session.target.hasPointerCapture(session.pointerId)) {
-        session.target.releasePointerCapture(session.pointerId);
-      }
-    } catch {
-      // Ignore if pointer capture was already released.
-    }
-
-    itemDragRef.current = null;
-  }, [items]);
+    clearItemDragSession({ pointerId: session.pointerId, itemId: session.itemId });
+  }, [clearItemDragSession, items]);
 
   const onPointerDown = React.useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {

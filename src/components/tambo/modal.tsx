@@ -152,11 +152,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           return;
         }
 
-        const focusables = Array.from(
-          dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-        ).filter((el) => !el.hasAttribute("disabled"));
-
-        (focusables[0] ?? closeButtonRef.current)?.focus();
+        closeButtonRef.current?.focus();
       };
 
       document.addEventListener("focusin", onFocusIn);

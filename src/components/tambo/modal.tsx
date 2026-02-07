@@ -19,6 +19,10 @@ const TABBABLE_SELECTOR =
 const MODAL_SELECTOR = "[role=dialog][aria-modal=true]";
 
 function getTopmostModal(): HTMLElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
   const dialogs = document.querySelectorAll<HTMLElement>(MODAL_SELECTOR);
   return dialogs.length ? dialogs[dialogs.length - 1] : null;
 }
@@ -123,7 +127,14 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
     const onDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.key === "Escape") {
         const dialog = dialogRef.current;
-        if (dialog && !shouldTrapFocus(dialog, event.target as Element | null)) {
+        if (!dialog) {
+          return;
+        }
+
+        const topmostModal = getTopmostModal();
+        const owningModal = dialog.closest(MODAL_SELECTOR);
+
+        if (topmostModal && owningModal && topmostModal !== owningModal) {
           return;
         }
 
@@ -256,6 +267,16 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
             aria-labelledby={titleId}
             onMouseDown={(event) => {
               if (event.target === event.currentTarget) {
+                const dialog = dialogRef.current;
+                if (dialog) {
+                  const topmostModal = getTopmostModal();
+                  const owningModal = dialog.closest(MODAL_SELECTOR);
+
+                  if (topmostModal && owningModal && topmostModal !== owningModal) {
+                    return;
+                  }
+                }
+
                 setOpen(false);
               }
             }}

@@ -192,14 +192,6 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                       setGestureMappingEnabled(enabled);
                     }}
                     disabled={handTrackingInitializing}
-                    onChange={(e) => {
-                      const enabled = e.target.checked;
-                      if (enabled && !handTrackingEnabled) {
-                        setHandTrackingEnabled(true);
-                      }
-                      setGestureMappingEnabled(enabled);
-                    }}
-                    disabled={handTrackingInitializing}
                     aria-label="Gesture mapping"
                     className="h-4 w-4 accent-emerald-500"
                   />

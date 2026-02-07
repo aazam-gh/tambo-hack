@@ -7,6 +7,12 @@ import React, {
     useState,
 } from "react";
 import { HandLandmarkerService } from "../services/HandLandmarker";
+import { detectHandGesture, type HandGesture } from "@/lib/hand-gestures";
+
+type GestureAction = {
+    id: number;
+    gesture: HandGesture;
+};
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
@@ -15,6 +21,10 @@ interface SensingContextType {
     setHandTrackingEnabled: (enabled: boolean) => void;
     handTrackingInitializing: boolean;
     handTrackingError: string | null;
+    handGesture: HandGesture | null;
+    gestureMappingEnabled: boolean;
+    setGestureMappingEnabled: (enabled: boolean) => void;
+    gestureAction: GestureAction | null;
 }
 
 const SensingContext = createContext<SensingContextType | undefined>(undefined);
@@ -25,6 +35,19 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [handTrackingEnabled, setHandTrackingEnabledState] = useState(false);
     const [handTrackingInitializing, setHandTrackingInitializing] = useState(false);
     const [handTrackingError, setHandTrackingError] = useState<string | null>(null);
+    const [handGesture, setHandGesture] = useState<HandGesture | null>(null);
+    const [gestureMappingEnabled, setGestureMappingEnabledState] = useState(true);
+    const gestureMappingEnabledRef = useRef(gestureMappingEnabled);
+    const [gestureAction, setGestureAction] = useState<GestureAction | null>(null);
+    const gestureActionIdRef = useRef(0);
+    const gestureCandidateRef = useRef<{ gesture: HandGesture | null; since: number }>({
+        gesture: null,
+        since: 0,
+    });
+    const gestureSessionRef = useRef<{ gesture: HandGesture | null; triggered: boolean }>({
+        gesture: null,
+        triggered: false,
+    });
     const handTrackingEnabledRef = useRef(handTrackingEnabled);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
@@ -33,6 +56,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const sensingSurfaceRef = useRef<HTMLElement | null>(null);
 
     const predictionIntervalMs = 33;
+    const gestureStabilityMs = 350;
 
     const getCameraErrorMessage = (err: unknown): string => {
         if (err instanceof DOMException) {
@@ -51,6 +75,11 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const setHandTrackingEnabledSynced = useCallback((enabled: boolean) => {
         handTrackingEnabledRef.current = enabled;
         setHandTrackingEnabledState(enabled);
+    }, []);
+
+    const setGestureMappingEnabled = useCallback((enabled: boolean) => {
+        gestureMappingEnabledRef.current = enabled;
+        setGestureMappingEnabledState(enabled);
     }, []);
 
     const stopHandTracking = useCallback(() => {
@@ -74,8 +103,13 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             streamRef.current = null;
         }
 
+        gestureCandidateRef.current = { gesture: null, since: 0 };
+        gestureSessionRef.current = { gesture: null, triggered: false };
+
         setHandPosition(null);
         setHoveredElement(null);
+        setHandGesture(null);
+        setGestureAction(null);
     }, []);
 
     const disableHandTracking = useCallback(
@@ -141,7 +175,33 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 if (videoRef.current && videoRef.current.readyState >= 2) {
                     const results = service.predict(videoRef.current, now);
                     if (results && results.landmarks && results.landmarks.length > 0) {
-                        const indexFingerTip = results.landmarks[0][8];
+                        const handLandmarks = results.landmarks[0];
+                        const indexFingerTip = handLandmarks[8];
+
+                        if (!indexFingerTip) {
+                            setHandPosition(null);
+                            setHoveredElement(null);
+                            setHandGesture(null);
+                            gestureCandidateRef.current = { gesture: null, since: now };
+                            gestureSessionRef.current = { gesture: null, triggered: false };
+                            animationFrameRef.current = requestAnimationFrame(predict);
+                            return;
+                        }
+
+                        const gesture = detectHandGesture(handLandmarks);
+                        setHandGesture(gesture);
+
+                        const candidate = gestureCandidateRef.current;
+                        if (candidate.gesture !== gesture) {
+                            candidate.gesture = gesture;
+                            candidate.since = now;
+                        }
+
+                        const session = gestureSessionRef.current;
+                        if (session.gesture !== gesture) {
+                            session.gesture = gesture;
+                            session.triggered = false;
+                        }
 
                         const surfaceRect =
                             sensingSurfaceRef.current?.getBoundingClientRect();
@@ -159,6 +219,20 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                         setHandPosition({ x, y });
 
+                        if (
+                            gesture &&
+                            gestureMappingEnabledRef.current &&
+                            !session.triggered &&
+                            now - candidate.since >= gestureStabilityMs
+                        ) {
+                            gestureActionIdRef.current += 1;
+                            session.triggered = true;
+                            setGestureAction({
+                                id: gestureActionIdRef.current,
+                                gesture,
+                            });
+                        }
+
                         const element = document.elementFromPoint(x, y) as HTMLElement;
                         if (element) {
                             setHoveredElement(
@@ -173,6 +247,9 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     } else {
                         setHandPosition(null);
                         setHoveredElement(null);
+                        setHandGesture(null);
+                        gestureCandidateRef.current = { gesture: null, since: now };
+                        gestureSessionRef.current = { gesture: null, triggered: false };
                     }
                 }
             } catch (err) {
@@ -249,6 +326,10 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 setHandTrackingEnabled,
                 handTrackingInitializing,
                 handTrackingError,
+                handGesture,
+                gestureMappingEnabled,
+                setGestureMappingEnabled,
+                gestureAction,
             }}
         >
             {children}

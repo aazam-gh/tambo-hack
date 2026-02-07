@@ -9,6 +9,8 @@
  */
 
 import { Graph, graphSchema } from "@/components/tambo/graph";
+import { Form, formSchema } from "@/components/tambo/form";
+import { Modal, modalSchema } from "@/components/tambo/modal";
 import type { TamboComponent } from "@tambo-ai/react";
 import { TamboTool } from "@tambo-ai/react";
 import { z } from "zod/v3";
@@ -31,6 +33,20 @@ export const components: TamboComponent[] = [
       "A component that renders various types of charts (bar, line, pie) using Recharts. Supports customizable data visualization with labels, datasets, and styling options.",
     component: Graph,
     propsSchema: graphSchema,
+  },
+  {
+    name: "Form",
+    description:
+      "A dynamic, schema-driven form component that renders text inputs, textareas, numbers, emails, and checkboxes. Submits locally and shows the payload for demo/prototyping.",
+    component: Form,
+    propsSchema: formSchema,
+  },
+  {
+    name: "Modal",
+    description:
+      "A modal dialog with an open trigger and a dismissible overlay. Useful for confirmations, details panels, and quick callouts.",
+    component: Modal,
+    propsSchema: modalSchema,
   },
   // Add more components here
 ];

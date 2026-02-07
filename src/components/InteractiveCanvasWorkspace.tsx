@@ -1,5 +1,6 @@
 import * as React from "react";
 
+import { GestureComponentSpawner } from "@/components/interactive-canvas/GestureComponentSpawner";
 import { GestureSidebar } from "@/components/interactive-canvas/GestureSidebar";
 import { InteractiveCanvas } from "@/components/interactive-canvas/InteractiveCanvas";
 import { SensingProvider } from "@/components/SensingProvider";
@@ -24,6 +25,7 @@ export function InteractiveCanvasWorkspace({
           onToggle={() => setSidebarOpen((v) => !v)}
         />
         <InteractiveCanvas className="flex-1" />
+        <GestureComponentSpawner />
       </div>
       <VirtualCursor />
       <SensingStatus />

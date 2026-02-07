@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { HandLandmarkerService } from "../services/HandLandmarker";
 import { detectHandGesture, type HandGesture } from "@/lib/hand-gestures";
-import type { GestureAction } from "@/lib/gesture-mapping";
+import { gestureMappings, type GestureAction } from "@/lib/gesture-mapping";
 
 const PREDICTION_INTERVAL_MS = 33;
 const GESTURE_STABILITY_MS = 350;
@@ -397,9 +397,16 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 session.triggered = false;
                             }
 
-                            // Pinch is reserved for drag/drop only and should never emit a
-                            // GestureAction for component spawning.
-                            const shouldSuppressAction = gesture === "pinch";
+                            // Only gestures mapped to a spawnable component emit a
+                            // GestureAction.
+                            const mapping = Object.prototype.hasOwnProperty.call(
+                                gestureMappings,
+                                gesture,
+                            )
+                                ? gestureMappings[gesture]
+                                : null;
+                            const shouldSuppressAction =
+                                !mapping || mapping.componentName === null;
 
                             if (
                                 gestureMappingEnabledRef.current &&

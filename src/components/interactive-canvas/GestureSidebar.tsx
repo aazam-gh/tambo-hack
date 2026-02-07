@@ -20,6 +20,7 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
   const {
     handTrackingEnabled,
     setHandTrackingEnabled,
+    handTrackingInitializing,
     handTrackingError,
   } = useSensing();
 
@@ -97,6 +98,7 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                     type="checkbox"
                     checked={handTrackingEnabled}
                     onChange={(e) => setHandTrackingEnabled(e.target.checked)}
+                    disabled={handTrackingInitializing}
                     aria-label="Hand tracking"
                     className="h-4 w-4 accent-emerald-500"
                   />
@@ -122,6 +124,10 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                 {handTrackingError ? (
                   <div className="text-xs text-rose-400">
                     {handTrackingError}
+                  </div>
+                ) : handTrackingInitializing ? (
+                  <div className="text-xs text-zinc-500">
+                    Requesting camera access...
                   </div>
                 ) : (
                   <div className="text-xs text-zinc-500">

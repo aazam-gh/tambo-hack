@@ -13,6 +13,7 @@ interface SensingContextType {
     hoveredElement: HTMLElement | null;
     handTrackingEnabled: boolean;
     setHandTrackingEnabled: (enabled: boolean) => void;
+    handTrackingInitializing: boolean;
     handTrackingError: string | null;
 }
 
@@ -22,6 +23,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [handPosition, setHandPosition] = useState<{ x: number; y: number } | null>(null);
     const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
     const [handTrackingEnabled, setHandTrackingEnabledState] = useState(false);
+    const [handTrackingInitializing, setHandTrackingInitializing] = useState(false);
     const [handTrackingError, setHandTrackingError] = useState<string | null>(null);
     const handTrackingEnabledRef = useRef(handTrackingEnabled);
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -78,6 +80,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const disableHandTracking = useCallback(
         (message: string) => {
             setHandTrackingError(message);
+            setHandTrackingInitializing(false);
             setHandTrackingEnabledSynced(false);
             stopHandTracking();
         },
@@ -107,6 +110,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     useEffect(() => {
         if (!handTrackingEnabled) {
+            setHandTrackingInitializing(false);
             stopHandTracking();
             return;
         }
@@ -175,6 +179,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 return;
             }
 
+            setHandTrackingInitializing(true);
+
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { width: 1280, height: 720 },
@@ -206,6 +212,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             } catch (err) {
                 console.error("Camera access denied:", err);
                 disableHandTracking(getCameraErrorMessage(err));
+            } finally {
+                setHandTrackingInitializing(false);
             }
         };
 
@@ -224,6 +232,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 hoveredElement,
                 handTrackingEnabled,
                 setHandTrackingEnabled,
+                handTrackingInitializing,
                 handTrackingError,
             }}
         >

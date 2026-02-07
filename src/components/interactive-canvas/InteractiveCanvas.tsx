@@ -216,7 +216,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       ref={containerRef}
       data-canvas-space="true"
       className={cn(
-        "relative h-full w-full select-none overflow-hidden bg-zinc-950",
+        "relative h-full w-full select-none overflow-hidden bg-background",
         "touch-none",
         className,
       )}
@@ -232,22 +232,23 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         aria-hidden
         className={cn(
           "absolute inset-0",
-          "bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.08)_1px,transparent_0)]",
+          "bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.06)_1px,transparent_0)]",
+          "dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.08)_1px,transparent_0)]",
           "bg-[size:32px_32px]",
         )}
       />
 
       <div
-        className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/60 px-3 py-2 text-xs text-zinc-200 backdrop-blur"
+        className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-xl border border-border/50 bg-card/70 px-3 py-2 text-xs text-foreground backdrop-blur"
         role="status"
       >
-        <span className="text-zinc-400">Zoom</span>
+        <span className="text-muted-foreground">Zoom</span>
         <span className="font-mono">{Math.round(view.scale * 100)}%</span>
-        <span className="text-zinc-500">•</span>
+        <span className="text-muted-foreground/70">•</span>
         <button
           type="button"
           onClick={resetView}
-          className="inline-flex items-center gap-1 text-zinc-200 hover:text-white"
+          className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Reset
@@ -256,7 +257,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
 
       {items.length === 0 && (
         <div className="absolute inset-0 grid place-items-center text-center">
-          <div className="max-w-sm rounded-2xl border border-white/10 bg-zinc-950/50 px-5 py-4 text-sm text-zinc-300 backdrop-blur">
+          <div className="max-w-sm rounded-2xl border border-border/50 bg-card/60 px-5 py-4 text-sm text-muted-foreground backdrop-blur">
             Pan and zoom around the canvas. Tambo-rendered components will
             appear here when they’re emitted.
           </div>
@@ -279,7 +280,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
               transform: `translate3d(${item.x}px, ${item.y}px, 0)`,
             }}
           >
-            <div className="relative rounded-2xl border border-white/10 bg-zinc-950/70 p-4 text-white shadow-xl shadow-black/30 backdrop-blur">
+            <div className="relative rounded-2xl border border-border/60 bg-card/80 p-4 text-foreground shadow-xl shadow-black/10 backdrop-blur dark:shadow-black/30">
               <button
                 type="button"
                 aria-label="Remove canvas item"
@@ -287,8 +288,8 @@ export function InteractiveCanvas({ className }: { className?: string }) {
                   setItems((prev) => prev.filter((p) => p.id !== item.id))
                 }
                 className={cn(
-                  "absolute right-2 top-2 rounded-md p-1 text-zinc-300",
-                  "hover:bg-white/10 hover:text-white",
+                  "absolute right-2 top-2 rounded-md p-1 text-muted-foreground",
+                  "hover:bg-muted/50 hover:text-foreground",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60",
                 )}
               >

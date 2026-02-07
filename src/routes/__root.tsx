@@ -1,4 +1,5 @@
 import { components, tools } from "@/lib/tambo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { TamboProvider } from "@tambo-ai/react";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import "../styles/globals.css";
@@ -15,7 +16,8 @@ function RootComponent() {
       tools={tools}
       tamboUrl={import.meta.env.VITE_TAMBO_URL}
     >
-      <div className="antialiased font-[family-name:var(--font-geist-sans)] min-h-screen bg-zinc-950 text-white selection:bg-emerald-500/30">
+      <div className="relative min-h-screen bg-background text-foreground selection:bg-emerald-500/30 transition-colors antialiased font-[family-name:var(--font-geist-sans)]">
+        <ThemeToggle className="fixed right-4 top-4 z-20" />
         <Outlet />
       </div>
     </TamboProvider>

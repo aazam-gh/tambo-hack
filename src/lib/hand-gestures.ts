@@ -10,6 +10,11 @@ export type HandGesture = "pinch" | "openPalm" | "thumbsUp" | "peaceSign";
 // These thresholds are intentionally simple to keep the demo lightweight.
 const PINCH_DISTANCE_THRESHOLD = 0.055;
 const FINGER_EXTENSION_MARGIN_Y = 0.02;
+// Chosen empirically so the V gap is visually obvious at arm's length, while
+// still being tolerant of slight camera distance changes.
+//
+// This is the minimum normalized separation between index + middle fingertips
+// to treat the pose as a "V" (peace sign) rather than a single finger.
 const PEACE_FINGER_SEPARATION_THRESHOLD = 0.035;
 
 function distance2D(a: NormalizedLandmark, b: NormalizedLandmark): number {
@@ -41,7 +46,8 @@ export function detectHandGesture(
 
   const thumbTip = landmarks[4];
   const indexTip = landmarks[8];
-  if (!thumbTip || !indexTip) {
+  const middleTip = landmarks[12];
+  if (!thumbTip || !indexTip || !middleTip) {
     return null;
   }
 
@@ -56,9 +62,21 @@ export function detectHandGesture(
   const pinkyExtended = isFingerExtended(landmarks, 20, 18);
   const thumbExtended = isFingerExtended(landmarks, 4, 3);
 
-  if (indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
-    const middleTip = landmarks[12];
-    if (middleTip && distance2D(indexTip, middleTip) >= PEACE_FINGER_SEPARATION_THRESHOLD) {
+  if (
+    indexExtended &&
+    middleExtended &&
+    !ringExtended &&
+    !pinkyExtended
+  ) {
+    // Peace sign thumb posture varies a lot in practice, so we intentionally
+    // don't require a specific thumb state here.
+    const wrist = landmarks[0];
+    if (
+      wrist &&
+      distance2D(indexTip, middleTip) >= PEACE_FINGER_SEPARATION_THRESHOLD &&
+      indexTip.y < wrist.y - FINGER_EXTENSION_MARGIN_Y &&
+      middleTip.y < wrist.y - FINGER_EXTENSION_MARGIN_Y
+    ) {
       return "peaceSign";
     }
   }

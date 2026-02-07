@@ -26,6 +26,9 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    const lastPredictionTimeRef = useRef(0);
+
+    const predictionIntervalMs = 33;
 
     const setHandTrackingEnabled = useCallback(
         (enabled: boolean) => {
@@ -78,11 +81,21 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const service = HandLandmarkerService.getInstance();
         let canceled = false;
 
+        lastPredictionTimeRef.current = 0;
+
         const predict = () => {
             if (canceled) return;
 
+            const now = performance.now();
+            if (now - lastPredictionTimeRef.current < predictionIntervalMs) {
+                animationFrameRef.current = requestAnimationFrame(predict);
+                return;
+            }
+
+            lastPredictionTimeRef.current = now;
+
             if (videoRef.current && videoRef.current.readyState >= 2) {
-                const results = service.predict(videoRef.current, performance.now());
+                const results = service.predict(videoRef.current, now);
                 if (results && results.landmarks && results.landmarks.length > 0) {
                     const indexFingerTip = results.landmarks[0][8];
 

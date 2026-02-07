@@ -28,6 +28,11 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
     setGestureMappingEnabled,
   } = useSensing();
 
+  const currentGestureMapping =
+    handGesture && handGesture in gestureMappings
+      ? gestureMappings[handGesture]
+      : null;
+
   return (
     <aside
       className={cn(
@@ -148,8 +153,8 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                       Gestures
                     </div>
                     <div className="space-y-1 text-muted-foreground">
-                      {Object.values(gestureMappings).map((mapping) => (
-                        <div key={mapping.componentName}>
+                      {Object.entries(gestureMappings).map(([gesture, mapping]) => (
+                        <div key={gesture}>
                           <span className="font-mono text-foreground">
                             {mapping.label}
                           </span>{" "}
@@ -159,9 +164,9 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                     </div>
                     <div className="mt-2 text-muted-foreground">
                       Current:{" "}
-                      {handGesture ? (
+                      {currentGestureMapping ? (
                         <span className="font-mono text-foreground">
-                          {gestureMappings[handGesture].label}
+                          {currentGestureMapping.label}
                         </span>
                       ) : (
                         <span className="font-mono">none</span>

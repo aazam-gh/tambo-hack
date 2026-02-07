@@ -76,7 +76,13 @@ function buildDemoModal(actionId: number) {
 }
 
 function buildComponentForGesture(action: GestureAction): React.ReactNode {
-  const componentName = gestureMappings[action.gesture].componentName;
+  const mapping = gestureMappings[action.gesture];
+  if (!mapping) {
+    console.error("Missing gesture mapping", { action });
+    return null;
+  }
+
+  const componentName = mapping.componentName;
 
   switch (componentName) {
     case "Form":
@@ -105,7 +111,6 @@ export function GestureComponentSpawner() {
 
   React.useEffect(() => {
     if (!gestureAction) {
-      lastHandledIdRef.current = null;
       return;
     }
 
@@ -117,9 +122,14 @@ export function GestureComponentSpawner() {
 
     const messageId = `gesture-${gestureAction.id}`;
 
+    const component = buildComponentForGesture(gestureAction);
+    if (!component) {
+      return;
+    }
+
     emitTamboShowComponent({
       messageId,
-      component: buildComponentForGesture(gestureAction),
+      component,
     });
   }, [gestureAction]);
 

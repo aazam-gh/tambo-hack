@@ -72,6 +72,8 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
     const [open, setOpen] = React.useState(defaultOpen);
     const titleId = React.useId();
     const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+    const dialogRef = React.useRef<HTMLDivElement | null>(null);
+    const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
     const wasOpenRef = React.useRef(open);
 
     React.useEffect(() => {
@@ -79,14 +81,58 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         return;
       }
 
+      const focusableSelector =
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
       const onKeyDown = (event: KeyboardEvent) => {
         if (event.key === "Escape") {
           setOpen(false);
         }
+
+        if (event.key !== "Tab") {
+          return;
+        }
+
+        const dialog = dialogRef.current;
+        if (!dialog) {
+          return;
+        }
+
+        const focusables = Array.from(
+          dialog.querySelectorAll<HTMLElement>(focusableSelector),
+        ).filter((el) => !el.hasAttribute("disabled"));
+
+        if (focusables.length === 0) {
+          event.preventDefault();
+          return;
+        }
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+
+        if (event.shiftKey) {
+          if (!active || active === first) {
+            last.focus();
+            event.preventDefault();
+          }
+          return;
+        }
+
+        if (active === last) {
+          first.focus();
+          event.preventDefault();
+        }
       };
 
       window.addEventListener("keydown", onKeyDown);
+
+      const focusTimer = window.setTimeout(() => {
+        closeButtonRef.current?.focus();
+      }, 0);
+
       return () => {
+        window.clearTimeout(focusTimer);
         window.removeEventListener("keydown", onKeyDown);
       };
     }, [open]);
@@ -123,6 +169,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
             }}
           >
             <div
+              ref={dialogRef}
               className={cn(
                 "w-full rounded-2xl border border-border/60 p-4 text-foreground backdrop-blur",
                 modalVariants({ variant, size }),
@@ -140,6 +187,7 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
+                  ref={closeButtonRef}
                   className="shrink-0 rounded-lg border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-foreground hover:bg-muted/40"
                 >
                   {closeLabel}

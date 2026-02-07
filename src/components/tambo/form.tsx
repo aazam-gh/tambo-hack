@@ -62,14 +62,21 @@ function buildInitialValues(
   fields: FormProps["fields"],
 ): Record<string, FormValue> {
   const seenNames = new Set<string>();
+  const uniqueFields: FormProps["fields"] = [];
   for (const field of fields) {
     if (seenNames.has(field.name)) {
-      console.error(`Form field names must be unique. Duplicate: ${field.name}`);
+      const message = `Form field names must be unique. Duplicate: ${field.name}`;
+      if (import.meta.env.DEV) {
+        throw new Error(message);
+      }
+      console.error(message);
+      continue;
     }
     seenNames.add(field.name);
+    uniqueFields.push(field);
   }
 
-  const entries = fields.map((field) => {
+  const entries = uniqueFields.map((field) => {
     switch (field.type) {
       case "checkbox":
         return [field.name, false] as const;

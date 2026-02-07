@@ -7,14 +7,19 @@ import React, {
     useState,
 } from "react";
 import { HandLandmarkerService } from "../services/HandLandmarker";
+import { detectHandGesture, type HandGesture } from "@/lib/hand-gestures";
+import { GESTURE_STABILITY_MS } from "@/lib/gesture-timing";
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
     hoveredElement: HTMLElement | null;
+    handGesture: HandGesture | null;
     handTrackingEnabled: boolean;
     setHandTrackingEnabled: (enabled: boolean) => void;
     handTrackingInitializing: boolean;
     handTrackingError: string | null;
+    gestureMappingEnabled: boolean;
+    setGestureMappingEnabled: (enabled: boolean) => void;
 }
 
 const SensingContext = createContext<SensingContextType | undefined>(undefined);
@@ -22,10 +27,15 @@ const SensingContext = createContext<SensingContextType | undefined>(undefined);
 export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [handPosition, setHandPosition] = useState<{ x: number; y: number } | null>(null);
     const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
+    const [handGesture, setHandGestureState] = useState<HandGesture | null>(null);
     const [handTrackingEnabled, setHandTrackingEnabledState] = useState(false);
     const [handTrackingInitializing, setHandTrackingInitializing] = useState(false);
     const [handTrackingError, setHandTrackingError] = useState<string | null>(null);
+    const [gestureMappingEnabled, setGestureMappingEnabledState] = useState(false);
     const handTrackingEnabledRef = useRef(handTrackingEnabled);
+    const handGestureRef = useRef<HandGesture | null>(handGesture);
+    const gestureCandidateRef = useRef<HandGesture | null>(null);
+    const gestureCandidateSinceRef = useRef<number | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const animationFrameRef = useRef<number | null>(null);
@@ -53,6 +63,55 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setHandTrackingEnabledState(enabled);
     }, []);
 
+    const setHandGestureSynced = useCallback((gesture: HandGesture | null) => {
+        handGestureRef.current = gesture;
+        setHandGestureState(gesture);
+    }, []);
+
+    const resetGestureState = useCallback(() => {
+        setHandGestureSynced(null);
+        gestureCandidateRef.current = null;
+        gestureCandidateSinceRef.current = null;
+    }, [setHandGestureSynced]);
+
+    // `gestureMappingEnabled` is only consumed in React render/effects (not inside the
+    // prediction loop), so it doesn't need a ref-backed mirror like hand tracking.
+    const setGestureMappingEnabled = useCallback((enabled: boolean) => {
+        setGestureMappingEnabledState(enabled);
+    }, []);
+
+    // Gesture smoothing state machine:
+    // - When `detectedGesture` changes, start (or restart) a candidate window.
+    // - Once the candidate remains unchanged for `GESTURE_STABILITY_MS`, promote it
+    //   to `handGesture`.
+    const updateGestureStability = useCallback(
+        (detectedGesture: HandGesture | null, now: number) => {
+            // Invariant: `gestureCandidateSinceRef` marks when we first observed
+            // `gestureCandidateRef.current` (including `null`, which represents
+            // "no gesture" / "no hand" and is also smoothed).
+            if (detectedGesture !== gestureCandidateRef.current) {
+                gestureCandidateRef.current = detectedGesture;
+                gestureCandidateSinceRef.current = now;
+                return;
+            }
+
+            // Candidate gesture is unchanged; start the stability window if needed.
+            if (gestureCandidateSinceRef.current === null) {
+                gestureCandidateSinceRef.current = now;
+                return;
+            }
+
+            if (now - gestureCandidateSinceRef.current < GESTURE_STABILITY_MS) {
+                return;
+            }
+
+            if (detectedGesture !== handGestureRef.current) {
+                setHandGestureSynced(detectedGesture);
+            }
+        },
+        [setHandGestureSynced],
+    );
+
     const stopHandTracking = useCallback(() => {
         if (animationFrameRef.current !== null) {
             cancelAnimationFrame(animationFrameRef.current);
@@ -76,7 +135,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         setHandPosition(null);
         setHoveredElement(null);
-    }, []);
+        resetGestureState();
+    }, [resetGestureState]);
 
     const disableHandTracking = useCallback(
         (message: string) => {
@@ -125,6 +185,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         sensingSurfaceRef.current = document.querySelector(
             '[data-sensing-surface="true"]',
         );
+        resetGestureState();
 
         const predict = () => {
             if (canceled || !handTrackingEnabledRef.current) return;
@@ -170,9 +231,17 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         } else {
                             setHoveredElement(null);
                         }
+
+                        updateGestureStability(
+                            detectHandGesture(results.landmarks[0]),
+                            now,
+                        );
                     } else {
                         setHandPosition(null);
                         setHoveredElement(null);
+                        // Treat `null` as a candidate as well, so we only clear the
+                        // stable gesture after `GESTURE_STABILITY_MS` of no hand/gesture.
+                        updateGestureStability(null, now);
                     }
                 }
             } catch (err) {
@@ -238,17 +307,26 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             canceled = true;
             stopHandTracking();
         };
-    }, [disableHandTracking, handTrackingEnabled, stopHandTracking]);
+    }, [
+        disableHandTracking,
+        handTrackingEnabled,
+        resetGestureState,
+        stopHandTracking,
+        updateGestureStability,
+    ]);
 
     return (
         <SensingContext.Provider
             value={{
                 handPosition,
                 hoveredElement,
+                handGesture,
                 handTrackingEnabled,
                 setHandTrackingEnabled,
                 handTrackingInitializing,
                 handTrackingError,
+                gestureMappingEnabled,
+                setGestureMappingEnabled,
             }}
         >
             {children}

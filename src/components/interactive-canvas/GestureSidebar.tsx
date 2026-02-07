@@ -16,13 +16,70 @@ export type GestureSidebarProps = {
   onToggle: () => void;
 };
 
+function GestureStatusMessage({
+  handTrackingError,
+  handTrackingInitializing,
+  handTrackingEnabled,
+  gestureMappingEnabled,
+  gestureLabel,
+}: {
+  handTrackingError: string | null;
+  handTrackingInitializing: boolean;
+  handTrackingEnabled: boolean;
+  gestureMappingEnabled: boolean;
+  gestureLabel: string;
+}) {
+  if (handTrackingError) {
+    return <div className="text-xs text-rose-400">{handTrackingError}</div>;
+  }
+
+  if (handTrackingInitializing) {
+    return (
+      <div className="text-xs text-muted-foreground">
+        Requesting camera access...
+      </div>
+    );
+  }
+
+  if (gestureMappingEnabled) {
+    return handTrackingEnabled ? (
+      <div className="text-xs text-muted-foreground">
+        Current gesture: <span className="font-mono">{gestureLabel}</span>
+      </div>
+    ) : (
+      <div className="text-xs text-muted-foreground">
+        Enable hand tracking to start mapping gestures to canvas components.
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-xs text-muted-foreground">
+      Turn this on to request camera access and drive the on-screen hand cursor.
+      Then enable gesture mapping to emit components onto the canvas.
+    </div>
+  );
+}
+
 export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
   const {
+    handPosition,
     handTrackingEnabled,
     setHandTrackingEnabled,
     handTrackingInitializing,
     handTrackingError,
+    handGesture,
+    gestureMappingEnabled,
+    setGestureMappingEnabled,
   } = useSensing();
+
+  const gestureLabel = !handTrackingEnabled
+    ? "Off"
+    : !handPosition
+      ? "No hand"
+      : handGesture
+        ? handGesture.replace(/_/g, " ")
+        : "No gesture";
 
   return (
     <aside
@@ -107,8 +164,16 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   <span className="text-foreground">Gesture mapping</span>
                   <input
                     type="checkbox"
-                    disabled
-                    aria-label="Gesture mapping (coming soon)"
+                    checked={gestureMappingEnabled}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      if (enabled && !handTrackingEnabled) {
+                        setHandTrackingEnabled(true);
+                      }
+                      setGestureMappingEnabled(enabled);
+                    }}
+                    disabled={handTrackingInitializing}
+                    aria-label="Gesture mapping"
                     className="h-4 w-4 accent-emerald-500"
                   />
                 </label>
@@ -121,20 +186,13 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                     className="h-4 w-4 accent-emerald-500"
                   />
                 </label>
-                {handTrackingError ? (
-                  <div className="text-xs text-rose-400">
-                    {handTrackingError}
-                  </div>
-                ) : handTrackingInitializing ? (
-                  <div className="text-xs text-muted-foreground">
-                    Requesting camera access...
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground">
-                    Turn this on to request camera access and drive the
-                    on-screen hand cursor.
-                  </div>
-                )}
+                <GestureStatusMessage
+                  handTrackingError={handTrackingError}
+                  handTrackingInitializing={handTrackingInitializing}
+                  handTrackingEnabled={handTrackingEnabled}
+                  gestureMappingEnabled={gestureMappingEnabled}
+                  gestureLabel={gestureLabel}
+                />
               </div>
             </section>
           </div>

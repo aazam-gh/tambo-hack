@@ -1,0 +1,2 @@
+export const GESTURE_STABILITY_MS = 200;
+export const GESTURE_EMIT_COOLDOWN_MS = 800;

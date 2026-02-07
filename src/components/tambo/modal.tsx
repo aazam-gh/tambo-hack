@@ -97,6 +97,10 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
           return;
         }
 
+        if (!dialog.contains(event.target as Node)) {
+          return;
+        }
+
         const focusables = Array.from(
           dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
         ).filter((el) => !el.hasAttribute("disabled"));

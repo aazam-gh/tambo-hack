@@ -71,6 +71,8 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
   ) => {
     const [open, setOpen] = React.useState(defaultOpen);
     const titleId = React.useId();
+    const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+    const wasOpenRef = React.useRef(open);
 
     React.useEffect(() => {
       if (!open) {
@@ -89,11 +91,20 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
       };
     }, [open]);
 
+    React.useEffect(() => {
+      if (wasOpenRef.current && !open) {
+        triggerRef.current?.focus();
+      }
+
+      wasOpenRef.current = open;
+    }, [open]);
+
     return (
       <div ref={ref} className={cn("w-full", className)} {...props}>
         <button
           type="button"
           onClick={() => setOpen(true)}
+          ref={triggerRef}
           className="inline-flex items-center justify-center rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-sm text-foreground shadow-sm hover:bg-muted/40"
         >
           {triggerLabel}

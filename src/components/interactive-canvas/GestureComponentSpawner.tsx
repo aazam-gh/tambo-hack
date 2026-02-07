@@ -87,7 +87,11 @@ function buildComponentForGesture(action: GestureAction): React.ReactNode {
       return buildDemoModal(action.id);
     default: {
       const exhaustiveCheck: never = componentName;
-      return exhaustiveCheck;
+      console.error("Unhandled gesture component mapping", {
+        componentName: exhaustiveCheck,
+        action,
+      });
+      return null;
     }
   }
 }

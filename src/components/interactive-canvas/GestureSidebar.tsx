@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  GripVertical,
   Hand,
   MousePointer2,
   RotateCcw,
@@ -83,6 +84,10 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                 <div className="flex items-center gap-2">
                   <MousePointer2 className="h-4 w-4 text-emerald-400" />
                   <span>Drag to pan</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <GripVertical className="h-4 w-4 text-emerald-400" />
+                  <span>Pinch or drag the handle to move items</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <ZoomIn className="h-4 w-4 text-emerald-400" />

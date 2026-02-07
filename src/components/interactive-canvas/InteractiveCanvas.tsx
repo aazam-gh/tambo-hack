@@ -1,6 +1,7 @@
 import * as React from "react";
-import { RotateCcw, X } from "lucide-react";
+import { GripVertical, RotateCcw, X } from "lucide-react";
 
+import { useSensing } from "@/components/SensingProvider";
 import {
   TAMBO_SHOW_COMPONENT_EVENT,
   type TamboShowComponentDetail,
@@ -29,6 +30,8 @@ function clamp(value: number, min: number, max: number): number {
 
 export function InteractiveCanvas({ className }: { className?: string }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const { handGesture, handPosition, hoveredElement } = useSensing();
+  const hoveredCanvasItemId = hoveredElement?.dataset.canvasItemId ?? null;
 
   const [view, setViewState] = React.useState<CanvasView>({
     x: 0,
@@ -46,7 +49,35 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     });
   }, []);
 
-  const [items, setItems] = React.useState<CanvasItem[]>([]);
+  const [items, setItemsState] = React.useState<CanvasItem[]>([]);
+  const itemsRef = React.useRef(items);
+
+  type CanvasItemsUpdater =
+    | CanvasItem[]
+    | ((prev: CanvasItem[]) => CanvasItem[]);
+
+  const setItems = React.useCallback((updater: CanvasItemsUpdater) => {
+    setItemsState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      itemsRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const itemDragRef = React.useRef<{
+    pointerId: number;
+    itemId: string;
+    startClientX: number;
+    startClientY: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
+
+  const handDragRef = React.useRef<{
+    itemId: string;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
 
   const panRef = React.useRef<{
     pointerId: number;
@@ -69,10 +100,16 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       }
 
       const currentView = viewRef.current;
-      const centerScreenX = rect.width / 2;
-      const centerScreenY = rect.height / 2;
-      const x = (centerScreenX - currentView.x) / currentView.scale;
-      const y = (centerScreenY - currentView.y) / currentView.scale;
+      const localX =
+        typeof detail.clientX === "number"
+          ? clamp(detail.clientX - rect.left, 0, rect.width)
+          : rect.width / 2;
+      const localY =
+        typeof detail.clientY === "number"
+          ? clamp(detail.clientY - rect.top, 0, rect.height)
+          : rect.height / 2;
+      const x = (localX - currentView.x) / currentView.scale;
+      const y = (localY - currentView.y) / currentView.scale;
 
       setItems((prev) => {
         const existingIndex = prev.findIndex((i) => i.id === detail.messageId);
@@ -104,6 +141,96 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   const resetView = React.useCallback(() => {
     setView({ x: 0, y: 0, scale: 1 });
   }, [setView]);
+
+  const startItemDrag = React.useCallback(
+    (itemId: string, e: React.PointerEvent<HTMLButtonElement>) => {
+      if (e.button !== 0) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const currentItem = itemsRef.current.find((item) => item.id === itemId);
+      if (!currentItem) {
+        return;
+      }
+
+      (e.currentTarget as HTMLButtonElement).setPointerCapture(e.pointerId);
+      itemDragRef.current = {
+        pointerId: e.pointerId,
+        itemId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startX: currentItem.x,
+        startY: currentItem.y,
+      };
+
+      setItems((prev) => {
+        const idx = prev.findIndex((item) => item.id === itemId);
+        if (idx === -1 || idx === prev.length - 1) {
+          return prev;
+        }
+        const next = [...prev];
+        const [picked] = next.splice(idx, 1);
+        if (!picked) {
+          return prev;
+        }
+        next.push(picked);
+        return next;
+      });
+    },
+    [setItems],
+  );
+
+  const onItemPointerMove = React.useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      const session = itemDragRef.current;
+      if (!session || session.pointerId !== e.pointerId) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const scale = viewRef.current.scale;
+      const dx = (e.clientX - session.startClientX) / scale;
+      const dy = (e.clientY - session.startClientY) / scale;
+      const nextX = session.startX + dx;
+      const nextY = session.startY + dy;
+
+      const current = itemsRef.current.find((item) => item.id === session.itemId);
+      if (!current) {
+        return;
+      }
+
+      if (Math.abs(current.x - nextX) < 0.001 && Math.abs(current.y - nextY) < 0.001) {
+        return;
+      }
+
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === session.itemId ? { ...item, x: nextX, y: nextY } : item,
+        ),
+      );
+    },
+    [setItems],
+  );
+
+  const endItemDrag = React.useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const session = itemDragRef.current;
+    if (!session || session.pointerId !== e.pointerId) {
+      return;
+    }
+
+    try {
+      (e.currentTarget as HTMLButtonElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignore if pointer capture was already released.
+    }
+
+    itemDragRef.current = null;
+  }, []);
 
   const onPointerDown = React.useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -211,6 +338,82 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     };
   }, [onWheel]);
 
+  React.useEffect(() => {
+    if (handGesture !== "pinch" || !handPosition) {
+      handDragRef.current = null;
+      return;
+    }
+
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return;
+    }
+
+    const localX = clamp(handPosition.x - rect.left, 0, rect.width);
+    const localY = clamp(handPosition.y - rect.top, 0, rect.height);
+
+    const currentView = viewRef.current;
+    const worldX = (localX - currentView.x) / currentView.scale;
+    const worldY = (localY - currentView.y) / currentView.scale;
+
+    const activeSession = handDragRef.current;
+    if (!activeSession) {
+      if (!hoveredCanvasItemId) {
+        return;
+      }
+
+      const hoveredItem = itemsRef.current.find(
+        (item) => item.id === hoveredCanvasItemId,
+      );
+
+      if (!hoveredItem) {
+        return;
+      }
+
+      handDragRef.current = {
+        itemId: hoveredCanvasItemId,
+        offsetX: worldX - hoveredItem.x,
+        offsetY: worldY - hoveredItem.y,
+      };
+
+      setItems((prev) => {
+        const idx = prev.findIndex((item) => item.id === hoveredCanvasItemId);
+        if (idx === -1 || idx === prev.length - 1) {
+          return prev;
+        }
+
+        const next = [...prev];
+        const [picked] = next.splice(idx, 1);
+        if (!picked) {
+          return prev;
+        }
+        next.push(picked);
+        return next;
+      });
+
+      return;
+    }
+
+    const target = itemsRef.current.find((item) => item.id === activeSession.itemId);
+    if (!target) {
+      handDragRef.current = null;
+      return;
+    }
+
+    const nextX = worldX - activeSession.offsetX;
+    const nextY = worldY - activeSession.offsetY;
+
+    if (Math.abs(target.x - nextX) < 0.001 && Math.abs(target.y - nextY) < 0.001) {
+      return;
+    }
+
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === activeSession.itemId ? { ...item, x: nextX, y: nextY } : item,
+      ),
+    );
+  }, [handGesture, handPosition, hoveredCanvasItemId, setItems]);
+
   return (
     <div
       ref={containerRef}
@@ -275,12 +478,31 @@ export function InteractiveCanvas({ className }: { className?: string }) {
           <div
             key={item.id}
             data-canvas-item="true"
+            data-canvas-item-id={item.id}
+            data-interactable="true"
             className="absolute pointer-events-auto"
             style={{
               transform: `translate3d(${item.x}px, ${item.y}px, 0)`,
             }}
           >
             <div className="relative rounded-2xl border border-border/60 bg-card/80 p-4 text-foreground shadow-xl shadow-black/10 backdrop-blur dark:shadow-black/30">
+              <button
+                type="button"
+                aria-label="Move canvas item"
+                onPointerDown={(e) => startItemDrag(item.id, e)}
+                onPointerMove={onItemPointerMove}
+                onPointerUp={endItemDrag}
+                onPointerCancel={endItemDrag}
+                onLostPointerCapture={endItemDrag}
+                className={cn(
+                  "absolute left-2 top-2 rounded-md p-1 text-muted-foreground",
+                  "cursor-grab active:cursor-grabbing",
+                  "hover:bg-muted/50 hover:text-foreground",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60",
+                )}
+              >
+                <GripVertical aria-hidden="true" className="h-4 w-4" />
+              </button>
               <button
                 type="button"
                 aria-label="Remove canvas item"

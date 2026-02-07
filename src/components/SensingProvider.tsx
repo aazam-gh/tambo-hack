@@ -36,6 +36,7 @@ const SensingContext = createContext<SensingContextType | undefined>(undefined);
 export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [handPosition, setHandPosition] = useState<{ x: number; y: number } | null>(null);
     const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
+    const hoveredElementRef = useRef<HTMLElement | null>(null);
     const [handTrackingEnabled, setHandTrackingEnabledState] = useState(false);
     const [handTrackingInitializing, setHandTrackingInitializing] = useState(false);
     const [handTrackingError, setHandTrackingError] = useState<string | null>(null);
@@ -72,6 +73,11 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         lastMissingVideoLogAtRef.current = 0;
         missingVideoSinceRef.current = null;
         missingVideoClearedRef.current = false;
+    }, []);
+
+    const setHoveredElementSynced = useCallback((element: HTMLElement | null) => {
+        hoveredElementRef.current = element;
+        setHoveredElement(element);
     }, []);
 
     const getCameraErrorMessage = (err: unknown): string => {
@@ -144,10 +150,10 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         resetMissingVideoTracking();
 
         setHandPosition(null);
-        setHoveredElement(null);
+        setHoveredElementSynced(null);
         resetGestureDetection(now);
         setGestureAction(null);
-    }, [resetGestureDetection, resetMissingVideoTracking]);
+    }, [resetGestureDetection, resetMissingVideoTracking, setHoveredElementSynced]);
 
     const disableHandTracking = useCallback(
         (message: string) => {
@@ -234,7 +240,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             if (shouldClearState) {
                 missingVideoClearedRef.current = true;
                 setHandPosition(null);
-                setHoveredElement(null);
+                setHoveredElementSynced(null);
                 resetGestureDetection(now);
             }
         };
@@ -276,7 +282,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                         if (!indexFingerTip) {
                             setHandPosition(null);
-                            setHoveredElement(null);
+                            setHoveredElementSynced(null);
                             setHandGesture(null);
                             if (
                                 now - lastLandmarksTimeRef.current >
@@ -310,6 +316,10 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                             if (
                                 gestureMappingEnabledRef.current &&
+                                !(
+                                    gesture === "pinch" &&
+                                    hoveredElementRef.current?.dataset.canvasItemId
+                                ) &&
                                 !session.triggered &&
                                 now - candidate.since >= GESTURE_STABILITY_MS
                             ) {
@@ -341,18 +351,18 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                         const element = document.elementFromPoint(x, y) as HTMLElement;
                         if (element) {
-                            setHoveredElement(
+                            setHoveredElementSynced(
                                 (element.closest(
                                     "[data-interactable]",
                                 ) as HTMLElement) ||
                                 null,
                             );
                         } else {
-                            setHoveredElement(null);
+                            setHoveredElementSynced(null);
                         }
                     } else {
                         setHandPosition(null);
-                        setHoveredElement(null);
+                        setHoveredElementSynced(null);
                         setHandGesture(null);
                         if (
                             now - lastLandmarksTimeRef.current >

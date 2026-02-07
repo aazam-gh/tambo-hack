@@ -79,6 +79,8 @@ export function WidgetCompositionOverlay({
     return null;
   }
 
+  const activeOptionId = options[selectedIndex]?.id;
+
   const positionStyle: React.CSSProperties = {
     left: anchor.x + 18,
     top: anchor.y + 18,
@@ -94,6 +96,7 @@ export function WidgetCompositionOverlay({
       style={positionStyle}
       role="dialog"
       aria-label="Widget composition"
+      aria-modal="true"
     >
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -112,13 +115,21 @@ export function WidgetCompositionOverlay({
         {domain} • {intent}
       </div>
 
-      <div className="space-y-2">
+      <div
+        className="space-y-2"
+        role="listbox"
+        aria-label="Widget layout options"
+        aria-activedescendant={activeOptionId}
+      >
         {options.map((opt, idx) => {
           const selected = idx === selectedIndex;
           return (
             <button
               key={opt.id}
               type="button"
+              id={opt.id}
+              role="option"
+              aria-selected={selected}
               onClick={() => onSelectIndex(idx)}
               className={cn(
                 "w-full rounded-2xl border p-3 text-left",

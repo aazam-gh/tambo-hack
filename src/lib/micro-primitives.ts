@@ -15,7 +15,8 @@ export type MicroPrimitive = z.infer<typeof microPrimitiveSchema>;
 export type MicroComposition = {
   id: string;
   label: string;
-  primitives: readonly MicroPrimitive[];
+  primitives: MicroPrimitive[];
+  incremental?: boolean;
 };
 
 const MAX_MICRO_PRIMITIVES = 5;
@@ -27,7 +28,10 @@ export function normalizeMicroPrimitives(
   return unique.slice(0, MAX_MICRO_PRIMITIVES);
 }
 
-function compositionsForIntent(intent: DomainIntent): MicroComposition[] {
+function compositionsForIntent(
+  _domain: DomainId,
+  intent: DomainIntent,
+): MicroComposition[] {
   if (intent === "compare") {
     return [
       {
@@ -105,7 +109,7 @@ export function getMicroCompositions(
     (domain === "sales" || domain === "infra" || domain === "marketing") &&
     (intent === "inspect" || intent === "compare" || intent === "filter")
   ) {
-    return compositionsForIntent(intent).map((composition) => ({
+    return compositionsForIntent(domain, intent).map((composition) => ({
       ...composition,
       primitives: normalizeMicroPrimitives(composition.primitives),
     }));

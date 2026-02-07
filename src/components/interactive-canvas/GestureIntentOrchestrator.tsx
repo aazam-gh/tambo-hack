@@ -131,7 +131,7 @@ function buildSurfaceMeta(domain: DomainId, intent: DomainIntent): SurfaceMeta {
   };
 }
 
-type SurfaceComposition = {
+type GraphSurfaceComposition = {
   graphPrimitives: MicroPrimitive[];
   incremental: boolean;
 };
@@ -139,7 +139,7 @@ type SurfaceComposition = {
 function buildSurfaceNode(
   domain: DomainId,
   intent: DomainIntent,
-  composition?: SurfaceComposition,
+  composition?: GraphSurfaceComposition,
 ): React.ReactNode {
   if (domain === "sales") {
     const sales = fetchSalesData();
@@ -425,6 +425,14 @@ export function GestureIntentOrchestrator() {
     dismissCommandSurface();
   }, [dismissCommandSurface]);
 
+  const dismissTransientOverlays = React.useCallback(() => {
+    if (compositionOpen) {
+      dismissCompositionSurface();
+      return;
+    }
+    dismissCommandSurface();
+  }, [compositionOpen, dismissCommandSurface, dismissCompositionSurface]);
+
   const openCommandSurface = React.useCallback(
     (signal: GestureSignal) => {
       const anchor =
@@ -521,8 +529,8 @@ export function GestureIntentOrchestrator() {
     const surfaceId = `surface-${surfaceIdRef.current}-${Date.now()}`;
     const meta = buildSurfaceMeta(compositionTarget.domain, compositionTarget.intent);
     const node = buildSurfaceNode(compositionTarget.domain, compositionTarget.intent, {
-      graphPrimitives: [...selected.primitives],
-      incremental: true,
+      graphPrimitives: selected.primitives,
+      incremental: selected.incremental ?? true,
     });
 
     emitTamboShowComponent({
@@ -577,14 +585,14 @@ export function GestureIntentOrchestrator() {
       }
 
       if (performance.now() - last > COMMAND_SURFACE_IDLE_MS) {
-        dismissCompositionSurface();
+        dismissTransientOverlays();
       }
     }, 250);
 
     return () => {
       window.clearInterval(id);
     };
-  }, [commandOpen, compositionOpen, dismissCompositionSurface]);
+  }, [commandOpen, compositionOpen, dismissTransientOverlays]);
 
   React.useEffect(() => {
     if (!gestureSignal) {

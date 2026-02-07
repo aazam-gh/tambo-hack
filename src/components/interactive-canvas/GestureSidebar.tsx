@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { useSensing } from "@/components/SensingProvider";
+import { gestureMappings } from "@/lib/gesture-mapping";
 import { cn } from "@/lib/utils";
 
 export type GestureSidebarProps = {
@@ -147,22 +148,21 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                       Gestures
                     </div>
                     <div className="space-y-1 text-muted-foreground">
-                      <div>
-                        <span className="font-mono text-foreground">Pinch</span> →
-                        Spawn a form
-                      </div>
-                      <div>
-                        <span className="font-mono text-foreground">Thumbs up</span> →
-                        Spawn a chart
-                      </div>
-                      <div>
-                        <span className="font-mono text-foreground">Open palm</span> →
-                        Spawn a modal
-                      </div>
+                      {Object.values(gestureMappings).map((mapping) => (
+                        <div key={mapping.componentName}>
+                          <span className="font-mono text-foreground">
+                            {mapping.label}
+                          </span>{" "}
+                          → {mapping.description}
+                        </div>
+                      ))}
                     </div>
                     <div className="mt-2 text-muted-foreground">
-                      Current: {handGesture ? (
-                        <span className="font-mono text-foreground">{handGesture}</span>
+                      Current:{" "}
+                      {handGesture ? (
+                        <span className="font-mono text-foreground">
+                          {gestureMappings[handGesture].label}
+                        </span>
                       ) : (
                         <span className="font-mono">none</span>
                       )}

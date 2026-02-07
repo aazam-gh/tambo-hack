@@ -8,11 +8,7 @@ import React, {
 } from "react";
 import { HandLandmarkerService } from "../services/HandLandmarker";
 import { detectHandGesture, type HandGesture } from "@/lib/hand-gestures";
-
-type GestureAction = {
-    id: number;
-    gesture: HandGesture;
-};
+import type { GestureAction } from "@/lib/gesture-mapping";
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
@@ -40,6 +36,10 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const gestureMappingEnabledRef = useRef(gestureMappingEnabled);
     const [gestureAction, setGestureAction] = useState<GestureAction | null>(null);
     const gestureActionIdRef = useRef(0);
+
+    // Gesture detection is intentionally conservative:
+    // - `gestureCandidateRef` tracks the most recent detected gesture + when it started.
+    // - `gestureSessionRef` ensures we only fire once per continuous gesture hold.
     const gestureCandidateRef = useRef<{ gesture: HandGesture | null; since: number }>({
         gesture: null,
         since: 0,
@@ -82,8 +82,12 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGestureMappingEnabledState(enabled);
     }, []);
 
-    const resetGestureDetection = useCallback((now: number) => {
-        gestureCandidateRef.current = { gesture: null, since: now };
+    const resetGestureDetection = useCallback((now?: number) => {
+        const timestamp =
+            now ??
+            (typeof performance === "undefined" ? Date.now() : performance.now());
+
+        gestureCandidateRef.current = { gesture: null, since: timestamp };
         gestureSessionRef.current = { gesture: null, triggered: false };
         setHandGesture(null);
     }, []);
@@ -111,7 +115,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         setHandPosition(null);
         setHoveredElement(null);
-        resetGestureDetection(0);
+        resetGestureDetection();
         setGestureAction(null);
     }, [resetGestureDetection]);
 

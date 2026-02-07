@@ -4,7 +4,7 @@ import { useSensing } from "@/components/SensingProvider";
 import { Form } from "@/components/tambo/form";
 import { Graph } from "@/components/tambo/graph";
 import { Modal } from "@/components/tambo/modal";
-import type { HandGesture } from "@/lib/hand-gestures";
+import { gestureMappings, type GestureAction } from "@/lib/gesture-mapping";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
 
 function buildDemoChart(actionId: number) {
@@ -75,21 +75,21 @@ function buildDemoModal(actionId: number) {
   );
 }
 
-type GestureAction = {
-  id: number;
-  gesture: HandGesture;
-};
-
 function buildComponentForGesture(action: GestureAction): React.ReactNode {
-  if (action.gesture === "pinch") {
-    return buildDemoForm(action.id);
-  }
+  const componentName = gestureMappings[action.gesture].componentName;
 
-  if (action.gesture === "thumbsUp") {
-    return buildDemoChart(action.id);
+  switch (componentName) {
+    case "Form":
+      return buildDemoForm(action.id);
+    case "Graph":
+      return buildDemoChart(action.id);
+    case "Modal":
+      return buildDemoModal(action.id);
+    default: {
+      const exhaustiveCheck: never = componentName;
+      return exhaustiveCheck;
+    }
   }
-
-  return buildDemoModal(action.id);
 }
 
 export function GestureComponentSpawner() {

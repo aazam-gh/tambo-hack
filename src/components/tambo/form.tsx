@@ -61,10 +61,14 @@ type FormValue = string | boolean;
 function buildInitialValues(
   fields: FormProps["fields"],
 ): Record<string, FormValue> {
-  const entries = fields.map((field) => [
-    field.name,
-    field.type === "checkbox" ? false : "",
-  ] as const);
+  const entries = fields.map((field) => {
+    switch (field.type) {
+      case "checkbox":
+        return [field.name, false] as const;
+      default:
+        return [field.name, ""] as const;
+    }
+  });
   return Object.fromEntries(entries);
 }
 

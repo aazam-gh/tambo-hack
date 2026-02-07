@@ -325,6 +325,12 @@ export function GestureIntentOrchestrator() {
     setCommandSurfaceOpen(false);
   }, [setCommandSurfaceOpen]);
 
+  React.useEffect(() => {
+    return () => {
+      setCommandSurfaceOpen(false);
+    };
+  }, [setCommandSurfaceOpen]);
+
   const openCommandSurface = React.useCallback(
     (signal: GestureSignal) => {
       const anchor =

@@ -6,5 +6,7 @@ export const Route = createFileRoute('/')({
 });
 
 function Home() {
-  return <InteractiveCanvasWorkspace />;
+  return (
+    <InteractiveCanvasWorkspace className="h-screen w-full overflow-hidden" />
+  );
 }

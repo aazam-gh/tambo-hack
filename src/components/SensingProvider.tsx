@@ -9,10 +9,7 @@ interface SensingContextType {
 
 const SensingContext = createContext<SensingContextType | undefined>(undefined);
 
-export const SensingProvider: React.FC<{
-    children: React.ReactNode;
-    enabled?: boolean;
-}> = ({ children, enabled = true }) => {
+export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [handPosition, setHandPosition] = useState<{ x: number; y: number } | null>(null);
     const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
     const [lastVoiceCommand, setLastVoiceCommand] = useState("");
@@ -20,13 +17,6 @@ export const SensingProvider: React.FC<{
     const recognitionRef = useRef<any>(null);
 
     useEffect(() => {
-        if (!enabled) {
-            setHandPosition(null);
-            setHoveredElement(null);
-            setLastVoiceCommand("");
-            return;
-        }
-
         const service = HandLandmarkerService.getInstance();
         let isRunning = true;
 
@@ -114,7 +104,7 @@ export const SensingProvider: React.FC<{
                 recognitionRef.current.stop();
             }
         };
-    }, [enabled]);
+    }, []);
 
     return (
         <SensingContext.Provider value={{ handPosition, hoveredElement, lastVoiceCommand }}>

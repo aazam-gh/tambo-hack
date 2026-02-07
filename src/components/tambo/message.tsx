@@ -4,6 +4,7 @@ import {
   getMessageImages,
   getSafeContent,
 } from "@/lib/thread-hooks";
+import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
 import { cn } from "@/lib/utils";
 import type { TamboThreadMessage } from "@tambo-ai/react";
 import { useTambo } from "@tambo-ai/react";
@@ -787,16 +788,10 @@ const MessageRenderedComponentArea = React.forwardRef<
           <div className="flex justify-start pl-4">
             <button
               onClick={() => {
-                if (typeof window !== "undefined") {
-                  window.dispatchEvent(
-                    new CustomEvent("tambo:showComponent", {
-                      detail: {
-                        messageId: message.id,
-                        component: message.renderedComponent,
-                      },
-                    }),
-                  );
-                }
+                emitTamboShowComponent({
+                  messageId: message.id,
+                  component: message.renderedComponent,
+                });
               }}
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer group"
               aria-label="View component in canvas"

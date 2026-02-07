@@ -3,7 +3,9 @@ import * as React from "react";
 import { useSensing } from "@/components/SensingProvider";
 import { CommandSurfaceOverlay } from "@/components/interactive-canvas/CommandSurfaceOverlay";
 import { DomainSurfaceFrame } from "@/components/interactive-canvas/DomainSurfaceFrame";
+import { WidgetCompositionOverlay } from "@/components/interactive-canvas/WidgetCompositionOverlay";
 import { AlertList } from "@/components/tambo/alert-list";
+import { ComposableGraph } from "@/components/tambo/composable-graph";
 import { Graph } from "@/components/tambo/graph";
 import { LogViewer } from "@/components/tambo/log-viewer";
 import { PipelineStatus } from "@/components/tambo/pipeline-status";
@@ -11,6 +13,11 @@ import { Summary } from "@/components/tambo/summary";
 import { Table } from "@/components/tambo/table";
 import { Domains, type DomainId, type DomainIntent } from "@/lib/domains";
 import type { CommandOption } from "@/lib/command-surface";
+import {
+  getMicroCompositions,
+  type MicroComposition,
+  type MicroPrimitive,
+} from "@/lib/micro-primitives";
 import {
   domainIntentFromResolvedIntent,
   resolveIntentHypothesis,
@@ -124,7 +131,16 @@ function buildSurfaceMeta(domain: DomainId, intent: DomainIntent): SurfaceMeta {
   };
 }
 
-function buildSurfaceNode(domain: DomainId, intent: DomainIntent): React.ReactNode {
+type SurfaceComposition = {
+  graphPrimitives: MicroPrimitive[];
+  incremental: boolean;
+};
+
+function buildSurfaceNode(
+  domain: DomainId,
+  intent: DomainIntent,
+  composition?: SurfaceComposition,
+): React.ReactNode {
   if (domain === "sales") {
     const sales = fetchSalesData();
     if (intent === "explain") {
@@ -147,23 +163,44 @@ function buildSurfaceNode(domain: DomainId, intent: DomainIntent): React.ReactNo
     return (
       <DomainSurfaceFrame domain={domain} intent={intent} title="Sales performance">
         <div className="space-y-3">
-          <Graph
-            title="Revenue"
-            variant="solid"
-            size="sm"
-            showLegend={false}
-            data={{
-              type: "line",
-              labels: sales.revenue.labels,
-              datasets: [
-                {
-                  label: "Revenue",
-                  data: sales.revenue.values,
-                  color: "hsl(160, 82%, 47%)",
-                },
-              ],
-            }}
-          />
+          {composition ? (
+            <ComposableGraph
+              title="Revenue"
+              variant="solid"
+              size="sm"
+              incremental={composition.incremental}
+              microPrimitives={composition.graphPrimitives}
+              data={{
+                type: "line",
+                labels: sales.revenue.labels,
+                datasets: [
+                  {
+                    label: "Revenue",
+                    data: sales.revenue.values,
+                    color: "hsl(160, 82%, 47%)",
+                  },
+                ],
+              }}
+            />
+          ) : (
+            <Graph
+              title="Revenue"
+              variant="solid"
+              size="sm"
+              showLegend={false}
+              data={{
+                type: "line",
+                labels: sales.revenue.labels,
+                datasets: [
+                  {
+                    label: "Revenue",
+                    data: sales.revenue.values,
+                    color: "hsl(160, 82%, 47%)",
+                  },
+                ],
+              }}
+            />
+          )}
           <Table
             title="By region"
             columns={[
@@ -202,23 +239,44 @@ function buildSurfaceNode(domain: DomainId, intent: DomainIntent): React.ReactNo
     return (
       <DomainSurfaceFrame domain={domain} intent={intent} title="Infra health">
         <div className="space-y-3">
-          <Graph
-            title="Error rate (%)"
-            variant="solid"
-            size="sm"
-            showLegend={false}
-            data={{
-              type: "line",
-              labels: infra.errorRate.labels,
-              datasets: [
-                {
-                  label: "Error rate",
-                  data: infra.errorRate.values,
-                  color: "hsl(340, 82%, 66%)",
-                },
-              ],
-            }}
-          />
+          {composition ? (
+            <ComposableGraph
+              title="Error rate (%)"
+              variant="solid"
+              size="sm"
+              incremental={composition.incremental}
+              microPrimitives={composition.graphPrimitives}
+              data={{
+                type: "line",
+                labels: infra.errorRate.labels,
+                datasets: [
+                  {
+                    label: "Error rate",
+                    data: infra.errorRate.values,
+                    color: "hsl(340, 82%, 66%)",
+                  },
+                ],
+              }}
+            />
+          ) : (
+            <Graph
+              title="Error rate (%)"
+              variant="solid"
+              size="sm"
+              showLegend={false}
+              data={{
+                type: "line",
+                labels: infra.errorRate.labels,
+                datasets: [
+                  {
+                    label: "Error rate",
+                    data: infra.errorRate.values,
+                    color: "hsl(340, 82%, 66%)",
+                  },
+                ],
+              }}
+            />
+          )}
           <AlertList title="Alerts" alerts={infra.alerts} />
           <LogViewer title="Recent logs" lines={infra.logs.slice(-16)} />
         </div>
@@ -256,23 +314,44 @@ function buildSurfaceNode(domain: DomainId, intent: DomainIntent): React.ReactNo
     return (
       <DomainSurfaceFrame domain={domain} intent={intent} title="Marketing performance">
         <div className="space-y-3">
-          <Graph
-            title="CTR (%)"
-            variant="solid"
-            size="sm"
-            showLegend={false}
-            data={{
-              type: "line",
-              labels: marketing.ctr.labels,
-              datasets: [
-                {
-                  label: "CTR",
-                  data: marketing.ctr.values,
-                  color: "hsl(220, 100%, 62%)",
-                },
-              ],
-            }}
-          />
+          {composition ? (
+            <ComposableGraph
+              title="CTR (%)"
+              variant="solid"
+              size="sm"
+              incremental={composition.incremental}
+              microPrimitives={composition.graphPrimitives}
+              data={{
+                type: "line",
+                labels: marketing.ctr.labels,
+                datasets: [
+                  {
+                    label: "CTR",
+                    data: marketing.ctr.values,
+                    color: "hsl(220, 100%, 62%)",
+                  },
+                ],
+              }}
+            />
+          ) : (
+            <Graph
+              title="CTR (%)"
+              variant="solid"
+              size="sm"
+              showLegend={false}
+              data={{
+                type: "line",
+                labels: marketing.ctr.labels,
+                datasets: [
+                  {
+                    label: "CTR",
+                    data: marketing.ctr.values,
+                    color: "hsl(220, 100%, 62%)",
+                  },
+                ],
+              }}
+            />
+          )}
           <Table
             title="Top campaigns"
             columns={[
@@ -312,6 +391,19 @@ export function GestureIntentOrchestrator() {
   >(null);
   const [commandOptions, setCommandOptions] = React.useState<CommandOption[]>([]);
   const [commandSelectedIndex, setCommandSelectedIndex] = React.useState(0);
+
+  const [compositionOpen, setCompositionOpen] = React.useState(false);
+  const [compositionAnchor, setCompositionAnchor] = React.useState<
+    { x: number; y: number } | null
+  >(null);
+  const [compositionTarget, setCompositionTarget] = React.useState<{
+    domain: DomainId;
+    intent: DomainIntent;
+  } | null>(null);
+  const [compositionOptions, setCompositionOptions] = React.useState<
+    MicroComposition[]
+  >([]);
+  const [compositionSelectedIndex, setCompositionSelectedIndex] = React.useState(0);
   const lastCommandActivityAtRef = React.useRef<number | null>(null);
   const surfaceIdRef = React.useRef(0);
 
@@ -322,6 +414,16 @@ export function GestureIntentOrchestrator() {
     setCommandSelectedIndex(0);
     lastCommandActivityAtRef.current = null;
   }, []);
+
+  const dismissCompositionSurface = React.useCallback(() => {
+    setCompositionOpen(false);
+    setCompositionAnchor(null);
+    setCompositionTarget(null);
+    setCompositionOptions([]);
+    setCompositionSelectedIndex(0);
+    lastCommandActivityAtRef.current = null;
+    dismissCommandSurface();
+  }, [dismissCommandSurface]);
 
   const openCommandSurface = React.useCallback(
     (signal: GestureSignal) => {
@@ -361,6 +463,19 @@ export function GestureIntentOrchestrator() {
       return;
     }
 
+    const compositions = getMicroCompositions(selected.domain, selected.intent);
+    if (compositions && compositions.length > 0) {
+      setCommandOpen(false);
+      setCompositionOpen(true);
+      setCompositionAnchor(commandAnchor);
+      setCompositionTarget({ domain: selected.domain, intent: selected.intent });
+      setCompositionOptions(compositions);
+      setCompositionSelectedIndex(0);
+      lastCommandActivityAtRef.current = performance.now();
+      pushRecentAction(`compose:${selected.domain}:${selected.intent}`);
+      return;
+    }
+
     surfaceIdRef.current += 1;
     const surfaceId = `surface-${surfaceIdRef.current}-${Date.now()}`;
     const meta = buildSurfaceMeta(selected.domain, selected.intent);
@@ -390,8 +505,68 @@ export function GestureIntentOrchestrator() {
     setActiveDomains,
   ]);
 
+  const confirmSelectedComposition = React.useCallback(() => {
+    if (!compositionTarget) {
+      dismissCompositionSurface();
+      return;
+    }
+
+    const selected = compositionOptions[compositionSelectedIndex];
+    if (!selected) {
+      dismissCompositionSurface();
+      return;
+    }
+
+    surfaceIdRef.current += 1;
+    const surfaceId = `surface-${surfaceIdRef.current}-${Date.now()}`;
+    const meta = buildSurfaceMeta(compositionTarget.domain, compositionTarget.intent);
+    const node = buildSurfaceNode(compositionTarget.domain, compositionTarget.intent, {
+      graphPrimitives: [...selected.primitives],
+      incremental: true,
+    });
+
+    emitTamboShowComponent({
+      messageId: surfaceId,
+      component: node,
+      clientX: compositionAnchor?.x,
+      clientY: compositionAnchor?.y,
+      surfaceMeta: meta,
+    });
+
+    setActiveDomains(
+      dedupeDomains([
+        compositionTarget.domain,
+        ...interactionContext.activeDomains,
+      ]),
+    );
+    pushRecentAction(
+      `confirm:${compositionTarget.domain}:${compositionTarget.intent}:${selected.id}`,
+    );
+
+    dismissCompositionSurface();
+  }, [
+    compositionAnchor,
+    compositionOptions,
+    compositionSelectedIndex,
+    compositionTarget,
+    dismissCompositionSurface,
+    interactionContext.activeDomains,
+    pushRecentAction,
+    setActiveDomains,
+  ]);
+
+  const backToCommandSurface = React.useCallback(() => {
+    setCompositionOpen(false);
+    setCompositionAnchor(null);
+    setCompositionTarget(null);
+    setCompositionOptions([]);
+    setCompositionSelectedIndex(0);
+    setCommandOpen(true);
+    lastCommandActivityAtRef.current = performance.now();
+  }, []);
+
   React.useEffect(() => {
-    if (!commandOpen) {
+    if (!commandOpen && !compositionOpen) {
       return;
     }
 
@@ -402,14 +577,14 @@ export function GestureIntentOrchestrator() {
       }
 
       if (performance.now() - last > COMMAND_SURFACE_IDLE_MS) {
-        dismissCommandSurface();
+        dismissCompositionSurface();
       }
     }, 250);
 
     return () => {
       window.clearInterval(id);
     };
-  }, [commandOpen, dismissCommandSurface]);
+  }, [commandOpen, compositionOpen, dismissCompositionSurface]);
 
   React.useEffect(() => {
     if (!gestureSignal) {
@@ -417,11 +592,42 @@ export function GestureIntentOrchestrator() {
     }
 
     if (gestureSignal.type === "summon_ui") {
-      if (commandOpen) {
+      if (compositionOpen) {
+        dismissCompositionSurface();
+      } else if (commandOpen) {
         dismissCommandSurface();
       } else {
         openCommandSurface(gestureSignal);
       }
+      clearGestureSignal();
+      return;
+    }
+
+    if (compositionOpen) {
+      lastCommandActivityAtRef.current = performance.now();
+
+      if (gestureSignal.type === "dismiss") {
+        dismissCompositionSurface();
+        clearGestureSignal();
+        return;
+      }
+
+      if (gestureSignal.type === "select") {
+        setCompositionSelectedIndex((prev) =>
+          compositionOptions.length === 0
+            ? 0
+            : (prev + 1) % compositionOptions.length,
+        );
+        clearGestureSignal();
+        return;
+      }
+
+      if (gestureSignal.type === "confirm") {
+        confirmSelectedComposition();
+        clearGestureSignal();
+        return;
+      }
+
       clearGestureSignal();
       return;
     }
@@ -459,23 +665,44 @@ export function GestureIntentOrchestrator() {
     commandOpen,
     commandOptions.length,
     confirmSelectedOption,
+    compositionOpen,
+    compositionOptions.length,
+    confirmSelectedComposition,
     dismissCommandSurface,
+    dismissCompositionSurface,
     gestureSignal,
     openCommandSurface,
   ]);
 
   return (
-    <CommandSurfaceOverlay
-      open={commandOpen}
-      anchor={commandAnchor}
-      options={commandOptions}
-      selectedIndex={commandSelectedIndex}
-      onSelectIndex={(index) => {
-        setCommandSelectedIndex(index);
-        lastCommandActivityAtRef.current = performance.now();
-      }}
-      onConfirm={confirmSelectedOption}
-      onDismiss={dismissCommandSurface}
-    />
+    <>
+      <CommandSurfaceOverlay
+        open={commandOpen}
+        anchor={commandAnchor}
+        options={commandOptions}
+        selectedIndex={commandSelectedIndex}
+        onSelectIndex={(index) => {
+          setCommandSelectedIndex(index);
+          lastCommandActivityAtRef.current = performance.now();
+        }}
+        onConfirm={confirmSelectedOption}
+        onDismiss={dismissCommandSurface}
+      />
+      <WidgetCompositionOverlay
+        open={compositionOpen}
+        anchor={compositionAnchor}
+        domain={compositionTarget?.domain ?? "infra"}
+        intent={compositionTarget?.intent ?? "inspect"}
+        options={compositionOptions}
+        selectedIndex={compositionSelectedIndex}
+        onSelectIndex={(index) => {
+          setCompositionSelectedIndex(index);
+          lastCommandActivityAtRef.current = performance.now();
+        }}
+        onConfirm={confirmSelectedComposition}
+        onBack={backToCommandSurface}
+        onDismiss={dismissCompositionSurface}
+      />
+    </>
   );
 }

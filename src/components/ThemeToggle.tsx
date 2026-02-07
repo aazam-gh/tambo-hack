@@ -10,11 +10,9 @@ function applyTheme(theme: Theme) {
     return;
   }
 
-  if (theme === "dark") {
-    document.documentElement.classList.add("dark");
-  } else {
-    document.documentElement.classList.remove("dark");
-  }
+  const root = document.documentElement;
+  root.classList.toggle("dark", theme === "dark");
+  root.style.colorScheme = theme;
 }
 
 function persistTheme(theme: Theme) {

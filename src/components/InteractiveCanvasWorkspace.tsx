@@ -2,6 +2,9 @@ import * as React from "react";
 
 import { GestureSidebar } from "@/components/interactive-canvas/GestureSidebar";
 import { InteractiveCanvas } from "@/components/interactive-canvas/InteractiveCanvas";
+import { SensingProvider } from "@/components/SensingProvider";
+import { SensingStatus } from "@/components/SensingStatus";
+import { VirtualCursor } from "@/components/VirtualCursor";
 import { cn } from "@/lib/utils";
 
 export type InteractiveCanvasWorkspaceProps = {
@@ -14,12 +17,16 @@ export function InteractiveCanvasWorkspace({
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
 
   return (
-    <div className={cn("flex w-full", className)}>
-      <GestureSidebar
-        open={sidebarOpen}
-        onToggle={() => setSidebarOpen((v) => !v)}
-      />
-      <InteractiveCanvas className="flex-1" />
-    </div>
+    <SensingProvider>
+      <div className={cn("flex w-full", className)} data-sensing-surface="true">
+        <GestureSidebar
+          open={sidebarOpen}
+          onToggle={() => setSidebarOpen((v) => !v)}
+        />
+        <InteractiveCanvas className="flex-1" />
+      </div>
+      <VirtualCursor />
+      <SensingStatus />
+    </SensingProvider>
   );
 }

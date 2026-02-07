@@ -1,5 +1,8 @@
 import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
+const VISION_WASM_URL =
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm";
+
 export class HandLandmarkerService {
     private handLandmarker: HandLandmarker | null = null;
     private static instance: HandLandmarkerService;
@@ -16,22 +19,32 @@ export class HandLandmarkerService {
     public async initialize() {
         if (this.handLandmarker) return;
 
-        const vision = await FilesetResolver.forVisionTasks(
-            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-        );
+        try {
+            const vision = await FilesetResolver.forVisionTasks(
+                VISION_WASM_URL
+            );
 
-        this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
-            baseOptions: {
-                modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
-                delegate: "GPU"
-            },
-            runningMode: "VIDEO",
-            numHands: 1
-        });
+            this.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+                    delegate: "GPU"
+                },
+                runningMode: "VIDEO",
+                numHands: 1
+            });
+        } catch (err) {
+            this.handLandmarker = null;
+            throw err;
+        }
     }
 
     public predict(videoElement: HTMLVideoElement, timestamp: number) {
         if (!this.handLandmarker) return null;
         return this.handLandmarker.detectForVideo(videoElement, timestamp);
+    }
+
+    public dispose() {
+        this.handLandmarker?.close();
+        this.handLandmarker = null;
     }
 }

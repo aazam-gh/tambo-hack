@@ -3,27 +3,53 @@ import { useSensing } from "./SensingProvider";
 import { Mic, Hand, Camera } from "lucide-react";
 
 export const SensingStatus: React.FC = () => {
-    const { handPosition, lastVoiceCommand } = useSensing();
+    const {
+        handPosition,
+        handTrackingEnabled,
+        handTrackingInitializing,
+        handTrackingError,
+    } = useSensing();
+
+    const hasError = Boolean(handTrackingError);
+
+    const handClasses = hasError
+        ? "bg-rose-500/15 border-rose-500/60 text-rose-300"
+        : handTrackingInitializing
+            ? "bg-yellow-500/15 border-yellow-500/60 text-yellow-300"
+            : handTrackingEnabled
+                ? handPosition
+                    ? "bg-green-500/20 border-green-500 text-green-500"
+                    : "bg-yellow-500/15 border-yellow-500/60 text-yellow-300"
+                : "bg-gray-500/20 border-gray-500 text-gray-500";
+
+    const cameraClasses = hasError
+        ? "bg-rose-500/15 border-rose-500/60 text-rose-300"
+        : handTrackingInitializing
+            ? "bg-yellow-500/15 border-yellow-500/60 text-yellow-300"
+            : handTrackingEnabled
+                ? "bg-green-500/20 border-green-500 text-green-500"
+                : "bg-gray-500/20 border-gray-500 text-gray-500";
+
+    const micClasses = "bg-gray-500/10 border-dashed border-gray-500 text-gray-500";
 
     return (
         <div className="fixed bottom-4 right-4 flex flex-col gap-2 items-end pointer-events-none z-[9999]">
             <div className="flex gap-2">
-                <div className={`p-2 rounded-full backdrop-blur-md border ${handPosition ? "bg-green-500/20 border-green-500 text-green-500" : "bg-gray-500/20 border-gray-500 text-gray-500"} transition-colors shadow-lg`}>
+                <div className={`p-2 rounded-full backdrop-blur-md border ${handClasses} transition-colors shadow-lg`}>
                     <Hand size={20} />
                 </div>
-                <div className="p-2 rounded-full backdrop-blur-md border bg-green-500/20 border-green-500 text-green-500 shadow-lg">
+                <div className={`p-2 rounded-full backdrop-blur-md border ${cameraClasses} shadow-lg`}>
                     <Camera size={20} />
                 </div>
-                <div className="p-2 rounded-full backdrop-blur-md border bg-green-500/20 border-green-500 text-green-500 shadow-lg">
+                <div
+                    className={`p-2 rounded-full backdrop-blur-md border ${micClasses} shadow-lg`}
+                    title="Voice commands not available yet"
+                    aria-label="Voice commands not available yet"
+                >
                     <Mic size={20} />
                 </div>
             </div>
 
-            {lastVoiceCommand && (
-                <div className="bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-md border border-white/20 text-sm animate-in fade-in slide-in-from-bottom-2">
-                    " {lastVoiceCommand} "
-                </div>
-            )}
         </div>
     );
 };

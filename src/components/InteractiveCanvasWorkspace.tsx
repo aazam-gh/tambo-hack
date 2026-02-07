@@ -28,6 +28,8 @@ type TamboShowComponentDetail = {
   component: React.ReactNode;
 };
 
+const TAMBO_SHOW_COMPONENT_EVENT = "tambo:showComponent" as const;
+
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 4;
 
@@ -222,9 +224,9 @@ function InteractiveCanvas({ className }: { className?: string }) {
       });
     };
 
-    window.addEventListener("tambo:showComponent", onShowComponent);
+    window.addEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);
     return () => {
-      window.removeEventListener("tambo:showComponent", onShowComponent);
+      window.removeEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);
     };
   }, []);
 
@@ -273,6 +275,11 @@ function InteractiveCanvas({ className }: { className?: string }) {
   const onPointerUp = React.useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (panRef.current?.pointerId === e.pointerId) {
+        try {
+          (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+        } catch {
+          // Ignore if pointer capture was already released.
+        }
         panRef.current = null;
       }
     },

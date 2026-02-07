@@ -1,94 +1,92 @@
-import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+export type NormalizedLandmark = {
+  x: number;
+  y: number;
+  z?: number;
+};
 
-export type HandGesture =
-  | "open_palm"
-  | "fist"
-  | "pinch"
-  | "thumbs_up"
-  | "point";
+export type HandGesture = "pinch" | "openPalm" | "thumbsUp" | "peaceSign";
 
-const FINGER_Y_THRESHOLD = 0.02;
-const PINCH_MAX_DISTANCE = 0.05;
+// Gesture heuristics are based on MediaPipe's normalized landmark coordinates.
+// These thresholds are intentionally simple to keep the demo lightweight.
+const PINCH_DISTANCE_THRESHOLD = 0.055;
+const FINGER_EXTENSION_MARGIN_Y = 0.02;
+// Chosen empirically so the V gap is visually obvious at arm's length, while
+// still being tolerant of slight camera distance changes.
+//
+// This is the minimum normalized separation between index + middle fingertips
+// to treat the pose as a "V" (peace sign) rather than a single finger.
+const PEACE_FINGER_SEPARATION_THRESHOLD = 0.035;
 
-function distance(a: NormalizedLandmark, b: NormalizedLandmark): number {
+function distance2D(a: NormalizedLandmark, b: NormalizedLandmark): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.sqrt(dx * dx + dy * dy);
 }
 
 function isFingerExtended(
-  tip: NormalizedLandmark,
-  pip: NormalizedLandmark,
+  landmarks: readonly NormalizedLandmark[],
+  tipIndex: number,
+  pipIndex: number,
 ): boolean {
-  // MediaPipe coordinates are normalized with y increasing downward.
-  return tip.y < pip.y - FINGER_Y_THRESHOLD;
-}
+  const tip = landmarks[tipIndex];
+  const pip = landmarks[pipIndex];
+  if (!tip || !pip) return false;
 
-function isFingerCurled(
-  tip: NormalizedLandmark,
-  pip: NormalizedLandmark,
-): boolean {
-  return tip.y > pip.y + FINGER_Y_THRESHOLD;
+  // MediaPipe's normalized Y increases downward, so an extended finger (pointing
+  // up toward the camera top) will usually have a smaller Y at the tip.
+  return tip.y < pip.y - FINGER_EXTENSION_MARGIN_Y;
 }
 
 export function detectHandGesture(
-  landmarks: NormalizedLandmark[],
+  landmarks: readonly NormalizedLandmark[] | undefined | null,
 ): HandGesture | null {
-  // IMPORTANT: The `if` checks below rely on this priority order (first match wins).
-  // Changing the order will change which gestures win in ambiguous poses.
-  // pinch -> thumbs_up -> open_palm -> point -> fist
-  if (landmarks.length < 21) {
+  if (!landmarks || landmarks.length < 21) {
     return null;
   }
 
   const thumbTip = landmarks[4];
-  const thumbIp = landmarks[3];
   const indexTip = landmarks[8];
-  const indexPip = landmarks[6];
   const middleTip = landmarks[12];
-  const middlePip = landmarks[10];
-  const ringTip = landmarks[16];
-  const ringPip = landmarks[14];
-  const pinkyTip = landmarks[20];
-  const pinkyPip = landmarks[18];
+  if (!thumbTip || !indexTip || !middleTip) {
+    return null;
+  }
 
-  const indexExtended = isFingerExtended(indexTip, indexPip);
-  const middleExtended = isFingerExtended(middleTip, middlePip);
-  const ringExtended = isFingerExtended(ringTip, ringPip);
-  const pinkyExtended = isFingerExtended(pinkyTip, pinkyPip);
-
-  const indexCurled = isFingerCurled(indexTip, indexPip);
-  const middleCurled = isFingerCurled(middleTip, middlePip);
-  const ringCurled = isFingerCurled(ringTip, ringPip);
-  const pinkyCurled = isFingerCurled(pinkyTip, pinkyPip);
-
-  const thumbUp = thumbTip.y < thumbIp.y - FINGER_Y_THRESHOLD;
-  const thumbIndexDistance = distance(thumbTip, indexTip);
-
-  if (thumbIndexDistance < PINCH_MAX_DISTANCE) {
+  const pinchDistance = distance2D(thumbTip, indexTip);
+  if (pinchDistance < PINCH_DISTANCE_THRESHOLD) {
     return "pinch";
   }
 
-  if (thumbUp && indexCurled && middleCurled && ringCurled && pinkyCurled) {
-    return "thumbs_up";
-  }
-
-  if (indexExtended && middleExtended && ringExtended && pinkyExtended) {
-    return "open_palm";
-  }
-
-  if (indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
-    return "point";
-  }
+  const indexExtended = isFingerExtended(landmarks, 8, 6);
+  const middleExtended = isFingerExtended(landmarks, 12, 10);
+  const ringExtended = isFingerExtended(landmarks, 16, 14);
+  const pinkyExtended = isFingerExtended(landmarks, 20, 18);
+  const thumbExtended = isFingerExtended(landmarks, 4, 3);
 
   if (
-    !indexExtended &&
-    !middleExtended &&
+    indexExtended &&
+    middleExtended &&
     !ringExtended &&
-    !pinkyExtended &&
-    !thumbUp
+    !pinkyExtended
   ) {
-    return "fist";
+    // Peace sign thumb posture varies a lot in practice, so we intentionally
+    // don't require a specific thumb state here.
+    const wrist = landmarks[0];
+    if (
+      wrist &&
+      distance2D(indexTip, middleTip) >= PEACE_FINGER_SEPARATION_THRESHOLD &&
+      indexTip.y < wrist.y - FINGER_EXTENSION_MARGIN_Y &&
+      middleTip.y < wrist.y - FINGER_EXTENSION_MARGIN_Y
+    ) {
+      return "peaceSign";
+    }
+  }
+
+  if (thumbExtended && !indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
+    return "thumbsUp";
+  }
+
+  if (thumbExtended && indexExtended && middleExtended && ringExtended && pinkyExtended) {
+    return "openPalm";
   }
 
   return null;

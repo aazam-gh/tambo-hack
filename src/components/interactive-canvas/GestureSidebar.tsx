@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  GripVertical,
   Hand,
   MousePointer2,
   RotateCcw,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { useSensing } from "@/components/SensingProvider";
+import { gestureMappings } from "@/lib/gesture-mapping";
 import { cn } from "@/lib/utils";
 
 export type GestureSidebarProps = {
@@ -73,13 +75,20 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
     setGestureMappingEnabled,
   } = useSensing();
 
+  const currentGestureMapping =
+    handGesture && handGesture in gestureMappings
+      ? gestureMappings[handGesture]
+      : null;
+
   const gestureLabel = !handTrackingEnabled
     ? "Off"
     : !handPosition
       ? "No hand"
-      : handGesture
-        ? handGesture.replace(/_/g, " ")
-        : "No gesture";
+      : currentGestureMapping
+        ? currentGestureMapping.label
+        : handGesture
+          ? handGesture
+          : "No gesture";
 
   return (
     <aside
@@ -133,6 +142,10 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   <span>Drag to pan</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  <GripVertical className="h-4 w-4 text-emerald-400" />
+                  <span>Pinch while hovering an item (or drag the handle) to move it</span>
+                </div>
+                <div className="flex items-center gap-2">
                   <ZoomIn className="h-4 w-4 text-emerald-400" />
                   <span>Scroll to zoom</span>
                 </div>
@@ -179,6 +192,14 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                       setGestureMappingEnabled(enabled);
                     }}
                     disabled={handTrackingInitializing}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      if (enabled && !handTrackingEnabled) {
+                        setHandTrackingEnabled(true);
+                      }
+                      setGestureMappingEnabled(enabled);
+                    }}
+                    disabled={handTrackingInitializing}
                     aria-label="Gesture mapping"
                     className="h-4 w-4 accent-emerald-500"
                   />
@@ -199,6 +220,34 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   gestureMappingEnabled={gestureMappingEnabled}
                   gestureLabel={gestureLabel}
                 />
+
+                {gestureMappingEnabled && (
+                  <div className="mt-3 rounded-xl border border-border/50 bg-background/40 p-3 text-xs">
+                    <div className="mb-2 font-semibold uppercase tracking-wider text-muted-foreground">
+                      Gestures
+                    </div>
+                    <div className="space-y-1 text-muted-foreground">
+                      {Object.entries(gestureMappings).map(([gesture, mapping]) => (
+                        <div key={gesture}>
+                          <span className="font-mono text-foreground">
+                            {mapping.label}
+                          </span>{" "}
+                          → {mapping.description}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-muted-foreground">
+                      Current:{" "}
+                      {currentGestureMapping ? (
+                        <span className="font-mono text-foreground">
+                          {currentGestureMapping.label}
+                        </span>
+                      ) : (
+                        <span className="font-mono">none</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           </div>

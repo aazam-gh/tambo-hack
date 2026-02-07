@@ -15,12 +15,10 @@ type GestureComponentFactory = {
   render: () => React.ReactNode;
 };
 
-// Note: `HandGesture` includes additional values (e.g. `point`, `fist`) that are
-// intentionally left unmapped for now.
 const gestureComponentMap: Partial<Record<HandGesture, GestureComponentFactory>> =
   {
-    open_palm: {
-      messageId: "gesture-open_palm",
+    openPalm: {
+      messageId: "gesture-openPalm",
       render: () => (
         <Callout
           tone="info"
@@ -29,14 +27,8 @@ const gestureComponentMap: Partial<Record<HandGesture, GestureComponentFactory>>
         />
       ),
     },
-    pinch: {
-      messageId: "gesture-pinch",
-      render: () => (
-        <MetricCard label="Pinch" value="Active" tone="positive" change={1} />
-      ),
-    },
-    thumbs_up: {
-      messageId: "gesture-thumbs_up",
+    thumbsUp: {
+      messageId: "gesture-thumbsUp",
       render: () => (
         <Checklist
           title="Thumbs up"
@@ -45,6 +37,17 @@ const gestureComponentMap: Partial<Record<HandGesture, GestureComponentFactory>>
             { text: "Component emitted to canvas", checked: true },
             { text: "Keep exploring gestures", checked: false },
           ]}
+        />
+      ),
+    },
+    peaceSign: {
+      messageId: "gesture-peaceSign",
+      render: () => (
+        <MetricCard
+          label="Peace sign"
+          value="Active"
+          tone="positive"
+          change={1}
         />
       ),
     },

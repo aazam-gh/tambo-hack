@@ -1,0 +1,352 @@
+import { cn } from "@/lib/utils";
+import { cva } from "class-variance-authority";
+import * as React from "react";
+import { z } from "zod/v3";
+
+type ModalVariant = "default" | "solid" | "bordered";
+type ModalSize = "default" | "sm" | "lg";
+
+const TABBABLE_SELECTOR =
+  [
+    "a[href]",
+    "button:not([disabled])",
+    "textarea:not([disabled])",
+    "input:not([disabled])",
+    "select:not([disabled])",
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(", ");
+
+const MODAL_SELECTOR = "[role=dialog][aria-modal=true]";
+
+function getTopmostModal(): HTMLElement | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const dialogs = document.querySelectorAll<HTMLElement>(MODAL_SELECTOR);
+  return dialogs.length ? dialogs[dialogs.length - 1] : null;
+}
+
+function shouldTrapFocus(dialog: HTMLElement, target: Element | null): boolean {
+  const owningModal = dialog.closest(MODAL_SELECTOR);
+  const targetModal = target?.closest(MODAL_SELECTOR);
+  const topmostModal = getTopmostModal();
+
+  if (owningModal && topmostModal && owningModal !== topmostModal) {
+    return false;
+  }
+
+  if (targetModal && owningModal && targetModal !== owningModal) {
+    return false;
+  }
+
+  return true;
+}
+
+function getTabbableElements(container: HTMLElement): HTMLElement[] {
+  if (container.closest("[inert]")) {
+    return [];
+  }
+
+  return Array.from(container.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)).filter(
+    (el) =>
+      !el.hasAttribute("disabled") &&
+      !el.closest("[inert]") &&
+      el.tabIndex >= 0 &&
+      el.getAttribute("aria-hidden") !== "true" &&
+      el.getClientRects().length > 0,
+  );
+}
+
+export const modalVariants = cva("w-full", {
+  variants: {
+    variant: {
+      default: "bg-background",
+      solid:
+        "bg-muted/40 shadow-lg shadow-zinc-900/10 dark:shadow-zinc-900/20",
+      bordered: "border border-border/60 bg-background",
+    },
+    size: {
+      sm: "max-w-sm",
+      default: "max-w-md",
+      lg: "max-w-2xl",
+    },
+  },
+  defaultVariants: {
+    variant: "default",
+    size: "default",
+  },
+});
+
+export const modalSchema = z.object({
+  title: z.string().describe("Modal title"),
+  body: z.string().describe("Modal body text"),
+  defaultOpen: z
+    .boolean()
+    .optional()
+    .describe("Whether the modal starts open (default: false)"),
+  triggerLabel: z
+    .string()
+    .optional()
+    .describe("Label for the open button (default: Open)"),
+  closeLabel: z
+    .string()
+    .optional()
+    .describe("Label for the close button (default: Close)"),
+  variant: z
+    .enum(["default", "solid", "bordered"])
+    .optional()
+    .describe("Visual style variant"),
+  size: z
+    .enum(["default", "sm", "lg"])
+    .optional()
+    .describe("Width variant"),
+  className: z.string().optional().describe("Additional CSS classes"),
+});
+
+export type ModalProps = z.infer<typeof modalSchema>;
+
+export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
+  (
+    {
+      title,
+      body,
+      defaultOpen = false,
+      triggerLabel = "Open",
+      closeLabel = "Close",
+      variant,
+      size,
+      className,
+      ...props
+    },
+    ref,
+  ) => {
+    const [open, setOpen] = React.useState(defaultOpen);
+    const titleId = React.useId();
+    const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+    const dialogRef = React.useRef<HTMLDivElement | null>(null);
+    const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
+    const wasOpenRef = React.useRef(open);
+    const lastFocusedRef = React.useRef<HTMLElement | null>(null);
+    const restoringFocusRef = React.useRef(false);
+
+    const onDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Escape") {
+        const dialog = dialogRef.current;
+        if (!dialog) {
+          return;
+        }
+
+        const topmostModal = getTopmostModal();
+        const owningModal = dialog.closest(MODAL_SELECTOR);
+
+        if (topmostModal && owningModal && topmostModal !== owningModal) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return;
+      }
+
+      const owningModal = dialog.closest(MODAL_SELECTOR);
+      const topmostModal = getTopmostModal();
+      if (owningModal && topmostModal && owningModal !== topmostModal) {
+        return;
+      }
+
+      const focusables = getTabbableElements(dialog);
+
+      if (focusables.length === 0) {
+        const fallback = closeButtonRef.current ?? dialog;
+        fallback.focus();
+        lastFocusedRef.current = fallback;
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      const activeInside = !!active && dialog.contains(active);
+
+      if (!activeInside) {
+        const target = event.shiftKey ? last : first;
+        target.focus();
+        lastFocusedRef.current = target;
+        event.preventDefault();
+        return;
+      }
+
+      if (event.shiftKey) {
+        if (active === first) {
+          last.focus();
+          lastFocusedRef.current = last;
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (active === last) {
+        first.focus();
+        lastFocusedRef.current = first;
+        event.preventDefault();
+      }
+    };
+
+    React.useEffect(() => {
+      if (!open) {
+        return;
+      }
+
+      const onFocusIn = (event: FocusEvent) => {
+        if (restoringFocusRef.current) {
+          return;
+        }
+
+        const dialog = dialogRef.current;
+        if (!dialog) {
+          return;
+        }
+
+        if (!shouldTrapFocus(dialog, event.target as Element | null)) {
+          return;
+        }
+
+        if (dialog.contains(event.target as Node)) {
+          return;
+        }
+
+        const lastFocused = lastFocusedRef.current;
+        if (lastFocused && lastFocused.isConnected && dialog.contains(lastFocused)) {
+          restoringFocusRef.current = true;
+
+          try {
+            lastFocused.focus();
+          } finally {
+            restoringFocusRef.current = false;
+          }
+
+          return;
+        }
+
+        const fallback = closeButtonRef.current ?? dialog;
+        if (fallback.isConnected) {
+          restoringFocusRef.current = true;
+
+          try {
+            fallback.focus();
+            lastFocusedRef.current = fallback;
+          } finally {
+            restoringFocusRef.current = false;
+          }
+        }
+      };
+
+      document.addEventListener("focusin", onFocusIn);
+
+      const focusTimer = window.setTimeout(() => {
+        const initialFocusTarget = closeButtonRef.current ?? dialogRef.current;
+        if (initialFocusTarget?.isConnected) {
+          initialFocusTarget.focus();
+          lastFocusedRef.current = initialFocusTarget;
+        }
+      }, 0);
+
+      return () => {
+        window.clearTimeout(focusTimer);
+        document.removeEventListener("focusin", onFocusIn);
+      };
+    }, [open]);
+
+    React.useEffect(() => {
+      if (wasOpenRef.current && !open) {
+        triggerRef.current?.focus();
+      }
+
+      wasOpenRef.current = open;
+    }, [open]);
+
+    return (
+      <div ref={ref} className={cn("w-full", className)} {...props}>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          ref={triggerRef}
+          className="inline-flex items-center justify-center rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-sm text-foreground shadow-sm hover:bg-muted/40"
+        >
+          {triggerLabel}
+        </button>
+
+        {open && (
+          <div
+            className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                const dialog = dialogRef.current;
+                if (dialog) {
+                  const topmostModal = getTopmostModal();
+                  const owningModal = dialog.closest(MODAL_SELECTOR);
+
+                  if (topmostModal && owningModal && topmostModal !== owningModal) {
+                    return;
+                  }
+                }
+
+                setOpen(false);
+              }
+            }}
+          >
+            <div
+              ref={dialogRef}
+              onFocusCapture={(event) => {
+                lastFocusedRef.current = event.target as HTMLElement;
+              }}
+              onKeyDown={onDialogKeyDown}
+              tabIndex={-1}
+              className={cn(
+                "w-full rounded-2xl border border-border/60 p-4 text-foreground backdrop-blur",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60",
+                modalVariants({ variant, size }),
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div id={titleId} className="text-sm font-semibold tracking-tight">
+                    {title}
+                  </div>
+                  <div className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                    {body}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  ref={closeButtonRef}
+                  className="shrink-0 rounded-lg border border-border/60 bg-background/60 px-3 py-1.5 text-xs text-foreground hover:bg-muted/40"
+                >
+                  {closeLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+Modal.displayName = "Modal";

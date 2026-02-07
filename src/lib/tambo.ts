@@ -10,8 +10,10 @@
 
 import { Callout, calloutSchema } from "@/components/tambo/callout";
 import { Checklist, checklistSchema } from "@/components/tambo/checklist";
+import { Form, formSchema } from "@/components/tambo/form";
 import { Graph, graphSchema } from "@/components/tambo/graph";
 import { MetricCard, metricCardSchema } from "@/components/tambo/metric-card";
+import { Modal, modalSchema } from "@/components/tambo/modal";
 import type { TamboComponent } from "@tambo-ai/react";
 import { TamboTool } from "@tambo-ai/react";
 import { z } from "zod/v3";
@@ -55,6 +57,20 @@ export const components: TamboComponent[] = [
       "A metric card for displaying a labeled value with an optional unit and change indicator. Use `change` to show a positive/negative delta.",
     component: MetricCard,
     propsSchema: metricCardSchema,
+  },
+  {
+    name: "Form",
+    description:
+      "A dynamic, schema-driven form component that renders text inputs, textareas, numbers, emails, and checkboxes. Submits locally and shows the payload for demo/prototyping.",
+    component: Form,
+    propsSchema: formSchema,
+  },
+  {
+    name: "Modal",
+    description:
+      "A modal dialog with an open trigger and a dismissible overlay. Useful for confirmations, details panels, and quick callouts.",
+    component: Modal,
+    propsSchema: modalSchema,
   },
   // Add more components here
 ];

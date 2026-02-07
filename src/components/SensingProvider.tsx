@@ -44,16 +44,9 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return "Unable to access the camera.";
     };
 
-    const setHandTrackingEnabled = useCallback(
-        (enabled: boolean) => {
-            if (!enabled) {
-                setHandTrackingError(null);
-            }
-
-            setHandTrackingEnabledState(enabled);
-        },
-        [],
-    );
+    const setHandTrackingEnabled = useCallback((enabled: boolean) => {
+        setHandTrackingEnabledState(enabled);
+    }, []);
 
     const stopHandTracking = useCallback(() => {
         if (animationFrameRef.current !== null) {

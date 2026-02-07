@@ -6,6 +6,11 @@ import {
   TAMBO_SHOW_COMPONENT_EVENT,
   type TamboShowComponentDetail,
 } from "@/lib/tambo-canvas-events";
+import {
+  CANVAS_ITEM_SELECTOR,
+  clamp,
+  getCanvasItemIdAtClientPoint,
+} from "@/lib/hit-testing";
 import { cn } from "@/lib/utils";
 
 type CanvasView = {
@@ -23,10 +28,6 @@ type CanvasItem = {
 
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 4;
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
 
 function useRefBackedState<T>(
   initial: T,
@@ -50,7 +51,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   const { handGesture, handPosition, hoveredElement } = useSensing();
   const hoveredCanvasItemId =
     (hoveredElement?.closest(
-      "[data-canvas-item-id]",
+      CANVAS_ITEM_SELECTOR,
     ) as HTMLElement | null)?.dataset.canvasItemId ?? null;
   const hoveredCanvasItemIdRef = React.useRef<string | null>(hoveredCanvasItemId);
 
@@ -105,6 +106,19 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     if (!pending) {
       return;
     }
+
+    const session = handDragRef.current;
+    if (!session || session.itemId !== pending.itemId) {
+      pendingHandDragUpdateRef.current = null;
+      return;
+    }
+
+    if (!itemsRef.current.some((item) => item.id === pending.itemId)) {
+      pendingHandDragUpdateRef.current = null;
+      handDragRef.current = null;
+      return;
+    }
+
     pendingHandDragUpdateRef.current = null;
     setItems((prev) =>
       prev.map((item) =>
@@ -449,22 +463,12 @@ export function InteractiveCanvas({ className }: { className?: string }) {
 
     const activeSession = handDragRef.current;
     if (!activeSession) {
-      const hoveredItemAtPoint = (() => {
-        const maxHitTestX = Math.max(0, window.innerWidth - 1);
-        const maxHitTestY = Math.max(0, window.innerHeight - 1);
-        const hitTestX = clamp(handPosition.x, 0, maxHitTestX);
-        const hitTestY = clamp(handPosition.y, 0, maxHitTestY);
-        const el = document.elementFromPoint(
-          hitTestX,
-          hitTestY,
-        ) as HTMLElement | null;
-        const canvasItem = el?.closest(
-          "[data-canvas-item-id]",
-        ) as HTMLElement | null;
-        return canvasItem?.dataset.canvasItemId ?? null;
-      })();
+      const hoveredItemAtPoint = getCanvasItemIdAtClientPoint(
+        handPosition.x,
+        handPosition.y,
+      );
 
-      const startItemId = hoveredCanvasItemIdRef.current ?? hoveredItemAtPoint;
+      const startItemId = hoveredItemAtPoint ?? hoveredCanvasItemIdRef.current;
       if (!startItemId) {
         return;
       }

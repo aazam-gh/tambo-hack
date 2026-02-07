@@ -9,6 +9,11 @@ import React, {
 import { HandLandmarkerService } from "../services/HandLandmarker";
 import { detectHandGesture, type HandGesture } from "@/lib/hand-gestures";
 import type { GestureAction } from "@/lib/gesture-mapping";
+import {
+    clamp,
+    clampClientPointToViewport,
+    getInteractableAtClientPoint,
+} from "@/lib/hit-testing";
 
 const PREDICTION_INTERVAL_MS = 33;
 const GESTURE_STABILITY_MS = 350;
@@ -20,10 +25,6 @@ const MISSING_VIDEO_CLEAR_STATE_AFTER_MS = 2000;
 const HIT_TEST_CACHE_EPSILON_PX = 2;
 // Keep the hover state fresh even if the cursor is stationary.
 const HIT_TEST_CACHE_MAX_AGE_MS = 100;
-
-function clamp(value: number, min: number, max: number): number {
-    return Math.min(max, Math.max(min, value));
-}
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
@@ -80,7 +81,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         y: number;
         at: number;
         interactable: HTMLElement | null;
-        isOverCanvasDraggable: boolean;
+        canvasItem: HTMLElement | null;
     } | null>(null);
 
     const resetMissingVideoTracking = useCallback(() => {
@@ -325,55 +326,37 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                         setHandPosition({ x: clientX, y: clientY });
 
-                        const maxHitTestX = Math.max(0, window.innerWidth - 1);
-                        const maxHitTestY = Math.max(0, window.innerHeight - 1);
-                        const hitTestX = clamp(clientX, 0, maxHitTestX);
-                        const hitTestY = clamp(clientY, 0, maxHitTestY);
+                        const { x: hitTestX, y: hitTestY } =
+                            clampClientPointToViewport(clientX, clientY);
 
                         const cachedHit = hitTestCacheRef.current;
                         const cachedInteractable = cachedHit?.interactable ?? null;
-                        const cachedIsOverCanvasDraggable =
-                            cachedHit?.isOverCanvasDraggable ?? false;
+                        const cachedCanvasItem = cachedHit?.canvasItem ?? null;
                         const canReuseCachedHit =
                             cachedHit !== null &&
                             now - cachedHit.at < HIT_TEST_CACHE_MAX_AGE_MS &&
                             (!cachedInteractable || cachedInteractable.isConnected) &&
+                            (!cachedCanvasItem || cachedCanvasItem.isConnected) &&
                             Math.hypot(hitTestX - cachedHit.x, hitTestY - cachedHit.y) <
                                 HIT_TEST_CACHE_EPSILON_PX;
 
                         let interactable = cachedInteractable;
-                        let isOverCanvasDraggable = cachedIsOverCanvasDraggable;
+                        let isOverCanvasDraggable = Boolean(cachedCanvasItem);
 
                         if (!canReuseCachedHit) {
-                            const element = document.elementFromPoint(
+                            const hitTest = getInteractableAtClientPoint(
                                 hitTestX,
                                 hitTestY,
-                            ) as HTMLElement | null;
-
-                            const canvasItem = element
-                                ? ((element.closest(
-                                      "[data-canvas-item-id]",
-                                  ) as HTMLElement) ||
-                                      null)
-                                : null;
-
-                            isOverCanvasDraggable = Boolean(canvasItem);
-
-                            interactable = canvasItem
-                                ? canvasItem
-                                : element
-                                  ? ((element.closest(
-                                        "[data-interactable]",
-                                    ) as HTMLElement) ||
-                                        null)
-                                  : null;
+                            );
+                            interactable = hitTest.interactable;
+                            isOverCanvasDraggable = Boolean(hitTest.canvasItem);
 
                             hitTestCacheRef.current = {
                                 x: hitTestX,
                                 y: hitTestY,
                                 at: now,
                                 interactable,
-                                isOverCanvasDraggable,
+                                canvasItem: hitTest.canvasItem,
                             };
                         }
 

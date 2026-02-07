@@ -94,6 +94,8 @@ function buildInitialFormState(fields: FormProps["fields"]): InitialFormState {
 }
 
 function getFormValuesKey(fields: FormField[]): string {
+  // Only key off the field/value *shape* (name + type), so cosmetic changes (like
+  // label/placeholder tweaks) don't wipe user input.
   return fields
     .map((field) => JSON.stringify([field.name, field.type]))
     .sort()
@@ -115,8 +117,13 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
   ) => {
     const formId = React.useId();
 
-    const initial = React.useMemo(() => buildInitialFormState(fields), [fields]);
-    const valuesKey = getFormValuesKey(initial.uniqueFields);
+    const { initial, valuesKey } = React.useMemo(() => {
+      const initial = buildInitialFormState(fields);
+      return {
+        initial,
+        valuesKey: getFormValuesKey(initial.uniqueFields),
+      };
+    }, [fields]);
 
     const [values, setValues] = React.useState<Record<string, FormValue>>(
       () => initial.initialValues,

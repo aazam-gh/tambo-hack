@@ -153,6 +153,16 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         }
 
         const owningModal = dialog.closest("[role=dialog][aria-modal=true]");
+
+        const dialogs = Array.from(
+          document.querySelectorAll<HTMLElement>("[role=dialog][aria-modal=true]"),
+        );
+        const topmostDialog = dialogs[dialogs.length - 1];
+
+        if (owningModal && topmostDialog && owningModal !== topmostDialog) {
+          return;
+        }
+
         const targetModal = (event.target as Element | null)?.closest(
           "[role=dialog][aria-modal=true]",
         );
@@ -166,20 +176,26 @@ export const Modal = React.forwardRef<HTMLDivElement, ModalProps>(
         }
 
         const lastFocused = lastFocusedRef.current;
-        if (lastFocused && dialog.contains(lastFocused) && document.contains(lastFocused)) {
+        if (lastFocused && lastFocused.isConnected && dialog.contains(lastFocused)) {
           lastFocused.focus();
           return;
         }
 
         const fallback = closeButtonRef.current ?? dialog;
-        fallback.focus();
-        lastFocusedRef.current = fallback;
+        if (fallback.isConnected) {
+          fallback.focus();
+          lastFocusedRef.current = fallback;
+        }
       };
 
       document.addEventListener("focusin", onFocusIn);
 
       const focusTimer = window.setTimeout(() => {
-        closeButtonRef.current?.focus();
+        const initialFocusTarget = closeButtonRef.current ?? dialogRef.current;
+        if (initialFocusTarget?.isConnected) {
+          initialFocusTarget.focus();
+          lastFocusedRef.current = initialFocusTarget;
+        }
       }, 0);
 
       return () => {

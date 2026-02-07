@@ -16,6 +16,8 @@ const MAX_CONSECUTIVE_PREDICTION_ERRORS = 3;
 const NO_LANDMARKS_RESET_MS = 200;
 const MISSING_VIDEO_LOG_EVERY_MS = 5000;
 const MISSING_VIDEO_CLEAR_STATE_AFTER_MS = 2000;
+const HIT_TEST_CACHE_EPSILON_PX = 2;
+const HIT_TEST_CACHE_MAX_AGE_MS = 100;
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
@@ -67,6 +69,12 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const missingVideoSinceRef = useRef<number | null>(null);
     const missingVideoClearedRef = useRef(false);
     const sensingSurfaceRef = useRef<HTMLElement | null>(null);
+    const hitTestCacheRef = useRef<{
+        x: number;
+        y: number;
+        at: number;
+        interactable: HTMLElement | null;
+    } | null>(null);
 
     const resetMissingVideoTracking = useCallback(() => {
         lastMissingVideoLogAtRef.current = 0;
@@ -145,6 +153,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         setHandPosition(null);
         setHoveredElement(null);
+        hitTestCacheRef.current = null;
         resetGestureDetection(now);
         setGestureAction(null);
     }, [resetGestureDetection, resetMissingVideoTracking]);
@@ -235,6 +244,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 missingVideoClearedRef.current = true;
                 setHandPosition(null);
                 setHoveredElement(null);
+                hitTestCacheRef.current = null;
                 resetGestureDetection(now);
             }
         };
@@ -277,6 +287,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         if (!indexFingerTip) {
                             setHandPosition(null);
                             setHoveredElement(null);
+                            hitTestCacheRef.current = null;
                             setHandGesture(null);
                             if (
                                 now - lastLandmarksTimeRef.current >
@@ -305,26 +316,46 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                         setHandPosition({ x: clientX, y: clientY });
 
-                        const element = document.elementFromPoint(
-                            clientX,
-                            clientY,
-                        ) as HTMLElement | null;
+                        const cachedHit = hitTestCacheRef.current;
+                        const cachedInteractable = cachedHit?.interactable ?? null;
+                        const canReuseCachedHit =
+                            cachedHit !== null &&
+                            now - cachedHit.at < HIT_TEST_CACHE_MAX_AGE_MS &&
+                            Math.hypot(clientX - cachedHit.x, clientY - cachedHit.y) <
+                                HIT_TEST_CACHE_EPSILON_PX &&
+                            (!cachedInteractable || cachedInteractable.isConnected);
 
-                        const canvasDraggable = element
-                            ? ((element.closest(
-                                  '[data-canvas-draggable="true"]',
-                              ) as HTMLElement) ||
-                                  null)
-                            : null;
+                        let interactable = cachedInteractable;
 
-                        const interactable = canvasDraggable
-                            ? canvasDraggable
-                            : element
-                              ? ((element.closest(
-                                    "[data-interactable]",
-                                ) as HTMLElement) ||
-                                    null)
-                              : null;
+                        if (!canReuseCachedHit) {
+                            const element = document.elementFromPoint(
+                                clientX,
+                                clientY,
+                            ) as HTMLElement | null;
+
+                            const canvasItem = element
+                                ? ((element.closest(
+                                      "[data-canvas-item-id]",
+                                  ) as HTMLElement) ||
+                                      null)
+                                : null;
+
+                            interactable = canvasItem
+                                ? canvasItem
+                                : element
+                                  ? ((element.closest(
+                                        "[data-interactable]",
+                                    ) as HTMLElement) ||
+                                        null)
+                                  : null;
+
+                            hitTestCacheRef.current = {
+                                x: clientX,
+                                y: clientY,
+                                at: now,
+                                interactable,
+                            };
+                        }
 
                         setHoveredElement(interactable);
 
@@ -348,7 +379,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                             // Pinch is reserved for dragging existing canvas items.
                             const shouldSuppressAction =
-                                gesture === "pinch" && Boolean(canvasDraggable);
+                                gesture === "pinch" &&
+                                Boolean(interactable?.dataset.canvasItemId);
 
                             if (
                                 gestureMappingEnabledRef.current &&
@@ -370,6 +402,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     } else {
                         setHandPosition(null);
                         setHoveredElement(null);
+                        hitTestCacheRef.current = null;
                         setHandGesture(null);
                         if (
                             now - lastLandmarksTimeRef.current >

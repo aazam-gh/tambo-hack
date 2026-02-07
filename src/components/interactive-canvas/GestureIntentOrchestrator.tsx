@@ -303,6 +303,8 @@ function buildSurfaceNode(domain: DomainId, intent: DomainIntent): React.ReactNo
 }
 
 export function GestureIntentOrchestrator() {
+  // Contract: gestures only emit low-entropy signals. This orchestrator is the
+  // only place that may translate confirmed intent into `tambo:showComponent`.
   const { gestureSignal, clearGestureSignal, handPosition } = useSensing();
   const interactionContext = useInteractionContext();
   const { setActiveDomains, pushRecentAction } = useInteractionContextActions();

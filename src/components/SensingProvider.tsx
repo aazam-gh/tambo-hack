@@ -106,6 +106,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGestureMappingEnabledState(enabled);
     }, []);
 
+    // Clears only the last emitted gesture action; does not reset gesture detection state.
     const clearGestureAction = useCallback(() => {
         setGestureAction(null);
     }, []);

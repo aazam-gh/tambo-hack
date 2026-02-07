@@ -114,17 +114,18 @@ export function GestureComponentSpawner() {
 
     const actionId = gestureAction.id;
     if (lastHandledActionIdRef.current === actionId) {
+      clearGestureAction();
+      return;
+    }
+
+    const component = buildComponentForGesture(gestureAction);
+    if (!component) {
       return;
     }
 
     lastHandledActionIdRef.current = actionId;
 
     const messageId = `gesture-${actionId}-${Math.round(gestureAction.at)}`;
-
-    const component = buildComponentForGesture(gestureAction);
-    if (!component) {
-      return;
-    }
 
     emitTamboShowComponent({
       messageId,

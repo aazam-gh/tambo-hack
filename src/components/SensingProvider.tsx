@@ -45,18 +45,10 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return "Unable to access the camera.";
     };
 
-    const setHandTrackingEnabled = useCallback((enabled: boolean) => {
-        if (enabled) {
-            setHandTrackingError(null);
-        }
-
+    const setHandTrackingEnabledSynced = useCallback((enabled: boolean) => {
         handTrackingEnabledRef.current = enabled;
         setHandTrackingEnabledState(enabled);
     }, []);
-
-    useEffect(() => {
-        handTrackingEnabledRef.current = handTrackingEnabled;
-    }, [handTrackingEnabled]);
 
     const stopHandTracking = useCallback(() => {
         if (animationFrameRef.current !== null) {
@@ -82,6 +74,29 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setHandPosition(null);
         setHoveredElement(null);
     }, []);
+
+    const disableHandTracking = useCallback(
+        (message: string) => {
+            setHandTrackingError(message);
+            setHandTrackingEnabledSynced(false);
+            stopHandTracking();
+        },
+        [setHandTrackingEnabledSynced, stopHandTracking],
+    );
+
+    const setHandTrackingEnabled = useCallback(
+        (enabled: boolean) => {
+            if (enabled) {
+                setHandTrackingError(null);
+                setHandTrackingEnabledSynced(true);
+                return;
+            }
+
+            setHandTrackingEnabledSynced(false);
+            stopHandTracking();
+        },
+        [setHandTrackingEnabledSynced, stopHandTracking],
+    );
 
     useEffect(() => {
         return () => {
@@ -143,9 +158,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 }
             } catch (err) {
                 console.error("Hand tracking prediction failed:", err);
-                setHandTrackingError("Hand tracking encountered an error.");
-                    handTrackingEnabledRef.current = false;
-                setHandTrackingEnabledState(false);
+                disableHandTracking("Hand tracking encountered an error.");
                 return;
             }
 
@@ -156,11 +169,9 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             setHandTrackingError(null);
 
             if (!navigator.mediaDevices?.getUserMedia) {
-                setHandTrackingError(
+                disableHandTracking(
                     "Camera access is not supported in this browser.",
                 );
-                handTrackingEnabledRef.current = false;
-                setHandTrackingEnabledState(false);
                 return;
             }
 
@@ -185,11 +196,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     await service.initialize();
                 } catch (err) {
                     console.error("Hand landmarker initialization failed:", err);
-                    setHandTrackingError("Hand tracking failed to initialize.");
-                    stream.getTracks().forEach((track) => track.stop());
-                    streamRef.current = null;
-                    handTrackingEnabledRef.current = false;
-                    setHandTrackingEnabledState(false);
+                    disableHandTracking("Hand tracking failed to initialize.");
                     return;
                 }
 
@@ -198,9 +205,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 }
             } catch (err) {
                 console.error("Camera access denied:", err);
-                setHandTrackingError(getCameraErrorMessage(err));
-                handTrackingEnabledRef.current = false;
-                setHandTrackingEnabledState(false);
+                disableHandTracking(getCameraErrorMessage(err));
             }
         };
 
@@ -210,7 +215,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             canceled = true;
             stopHandTracking();
         };
-    }, [handTrackingEnabled, stopHandTracking]);
+    }, [disableHandTracking, handTrackingEnabled, stopHandTracking]);
 
     return (
         <SensingContext.Provider

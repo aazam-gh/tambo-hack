@@ -19,6 +19,11 @@ export const gestureMappings = {
     description: "Spawn a chart",
     componentName: "Graph",
   },
+  peaceSign: {
+    label: "Peace sign",
+    description: "Spawn a chart",
+    componentName: "Graph",
+  },
   openPalm: {
     label: "Open palm",
     description: "Spawn a modal",

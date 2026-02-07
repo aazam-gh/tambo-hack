@@ -4,12 +4,13 @@ export type NormalizedLandmark = {
   z?: number;
 };
 
-export type HandGesture = "pinch" | "openPalm" | "thumbsUp";
+export type HandGesture = "pinch" | "openPalm" | "thumbsUp" | "peaceSign";
 
 // Gesture heuristics are based on MediaPipe's normalized landmark coordinates.
 // These thresholds are intentionally simple to keep the demo lightweight.
 const PINCH_DISTANCE_THRESHOLD = 0.055;
 const FINGER_EXTENSION_MARGIN_Y = 0.02;
+const PEACE_FINGER_SEPARATION_THRESHOLD = 0.035;
 
 function distance2D(a: NormalizedLandmark, b: NormalizedLandmark): number {
   const dx = a.x - b.x;
@@ -54,6 +55,13 @@ export function detectHandGesture(
   const ringExtended = isFingerExtended(landmarks, 16, 14);
   const pinkyExtended = isFingerExtended(landmarks, 20, 18);
   const thumbExtended = isFingerExtended(landmarks, 4, 3);
+
+  if (indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
+    const middleTip = landmarks[12];
+    if (middleTip && distance2D(indexTip, middleTip) >= PEACE_FINGER_SEPARATION_THRESHOLD) {
+      return "peaceSign";
+    }
+  }
 
   if (thumbExtended && !indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
     return "thumbsUp";

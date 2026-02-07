@@ -129,6 +129,8 @@ export function GestureComponentSpawner() {
     emitTamboShowComponent({
       messageId,
       component,
+      clientX: gestureAction.clientX,
+      clientY: gestureAction.clientY,
     });
     clearGestureAction();
   }, [clearGestureAction, gestureAction]);

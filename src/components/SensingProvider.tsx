@@ -16,6 +16,14 @@ const MAX_CONSECUTIVE_PREDICTION_ERRORS = 3;
 const NO_LANDMARKS_RESET_MS = 200;
 const MISSING_VIDEO_LOG_EVERY_MS = 5000;
 const MISSING_VIDEO_CLEAR_STATE_AFTER_MS = 2000;
+// Small jitter tolerance: avoids repeated DOM hit-testing when the hand cursor is stable.
+const HIT_TEST_CACHE_EPSILON_PX = 2;
+// Keep the hover state fresh even if the cursor is stationary.
+const HIT_TEST_CACHE_MAX_AGE_MS = 100;
+
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+}
 
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
@@ -67,6 +75,13 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const missingVideoSinceRef = useRef<number | null>(null);
     const missingVideoClearedRef = useRef(false);
     const sensingSurfaceRef = useRef<HTMLElement | null>(null);
+    const hitTestCacheRef = useRef<{
+        x: number;
+        y: number;
+        at: number;
+        interactable: HTMLElement | null;
+        isOverCanvasDraggable: boolean;
+    } | null>(null);
 
     const resetMissingVideoTracking = useCallback(() => {
         lastMissingVideoLogAtRef.current = 0;
@@ -145,6 +160,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         setHandPosition(null);
         setHoveredElement(null);
+        hitTestCacheRef.current = null;
         resetGestureDetection(now);
         setGestureAction(null);
     }, [resetGestureDetection, resetMissingVideoTracking]);
@@ -235,6 +251,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 missingVideoClearedRef.current = true;
                 setHandPosition(null);
                 setHoveredElement(null);
+                hitTestCacheRef.current = null;
                 resetGestureDetection(now);
             }
         };
@@ -277,6 +294,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         if (!indexFingerTip) {
                             setHandPosition(null);
                             setHoveredElement(null);
+                            hitTestCacheRef.current = null;
                             setHandGesture(null);
                             if (
                                 now - lastLandmarksTimeRef.current >
@@ -289,6 +307,77 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         }
 
                         lastLandmarksTimeRef.current = now;
+
+                        const surfaceRect =
+                            sensingSurfaceRef.current?.getBoundingClientRect();
+
+                        const left = surfaceRect?.left ?? 0;
+                        const top = surfaceRect?.top ?? 0;
+                        const width = surfaceRect?.width ?? window.innerWidth;
+                        const height = surfaceRect?.height ?? window.innerHeight;
+
+                        // MediaPipe coordinates are normalized 0-1
+                        // We flip X because camera is mirrored
+                        const normalizedX = clamp(1 - indexFingerTip.x, 0, 1);
+                        const normalizedY = clamp(indexFingerTip.y, 0, 1);
+                        const clientX = left + normalizedX * width;
+                        const clientY = top + normalizedY * height;
+
+                        setHandPosition({ x: clientX, y: clientY });
+
+                        const maxHitTestX = Math.max(0, window.innerWidth - 1);
+                        const maxHitTestY = Math.max(0, window.innerHeight - 1);
+                        const hitTestX = clamp(clientX, 0, maxHitTestX);
+                        const hitTestY = clamp(clientY, 0, maxHitTestY);
+
+                        const cachedHit = hitTestCacheRef.current;
+                        const cachedInteractable = cachedHit?.interactable ?? null;
+                        const cachedIsOverCanvasDraggable =
+                            cachedHit?.isOverCanvasDraggable ?? false;
+                        const canReuseCachedHit =
+                            cachedHit !== null &&
+                            now - cachedHit.at < HIT_TEST_CACHE_MAX_AGE_MS &&
+                            (!cachedInteractable || cachedInteractable.isConnected) &&
+                            Math.hypot(hitTestX - cachedHit.x, hitTestY - cachedHit.y) <
+                                HIT_TEST_CACHE_EPSILON_PX;
+
+                        let interactable = cachedInteractable;
+                        let isOverCanvasDraggable = cachedIsOverCanvasDraggable;
+
+                        if (!canReuseCachedHit) {
+                            const element = document.elementFromPoint(
+                                hitTestX,
+                                hitTestY,
+                            ) as HTMLElement | null;
+
+                            const canvasItem = element
+                                ? ((element.closest(
+                                      "[data-canvas-item-id]",
+                                  ) as HTMLElement) ||
+                                      null)
+                                : null;
+
+                            isOverCanvasDraggable = Boolean(canvasItem);
+
+                            interactable = canvasItem
+                                ? canvasItem
+                                : element
+                                  ? ((element.closest(
+                                        "[data-interactable]",
+                                    ) as HTMLElement) ||
+                                        null)
+                                  : null;
+
+                            hitTestCacheRef.current = {
+                                x: hitTestX,
+                                y: hitTestY,
+                                at: now,
+                                interactable,
+                                isOverCanvasDraggable,
+                            };
+                        }
+
+                        setHoveredElement(interactable);
 
                         const gesture = detectHandGesture(handLandmarks);
                         setHandGesture(gesture);
@@ -308,8 +397,13 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 session.triggered = false;
                             }
 
+                            // Pinch is reserved for dragging existing canvas items.
+                            const shouldSuppressAction =
+                                gesture === "pinch" && isOverCanvasDraggable;
+
                             if (
                                 gestureMappingEnabledRef.current &&
+                                !shouldSuppressAction &&
                                 !session.triggered &&
                                 now - candidate.since >= GESTURE_STABILITY_MS
                             ) {
@@ -319,40 +413,15 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                     id: gestureActionIdRef.current,
                                     gesture,
                                     at: now,
+                                    clientX,
+                                    clientY,
                                 });
                             }
-                        }
-
-                        const surfaceRect =
-                            sensingSurfaceRef.current?.getBoundingClientRect();
-
-                        // MediaPipe coordinates are normalized 0-1
-                        // We flip X because camera is mirrored
-                        const x =
-                            (surfaceRect?.left ?? 0) +
-                            (1 - indexFingerTip.x) *
-                            (surfaceRect?.width ?? window.innerWidth);
-                        const y =
-                            (surfaceRect?.top ?? 0) +
-                            indexFingerTip.y *
-                            (surfaceRect?.height ?? window.innerHeight);
-
-                        setHandPosition({ x, y });
-
-                        const element = document.elementFromPoint(x, y) as HTMLElement;
-                        if (element) {
-                            setHoveredElement(
-                                (element.closest(
-                                    "[data-interactable]",
-                                ) as HTMLElement) ||
-                                null,
-                            );
-                        } else {
-                            setHoveredElement(null);
                         }
                     } else {
                         setHandPosition(null);
                         setHoveredElement(null);
+                        hitTestCacheRef.current = null;
                         setHandGesture(null);
                         if (
                             now - lastLandmarksTimeRef.current >

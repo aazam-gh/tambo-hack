@@ -5,6 +5,8 @@ export const TAMBO_SHOW_COMPONENT_EVENT = "tambo:showComponent" as const;
 export type TamboShowComponentDetail = {
   messageId: string;
   component: ReactNode;
+  clientX?: number;
+  clientY?: number;
 };
 
 export function emitTamboShowComponent(detail: TamboShowComponentDetail): void {

@@ -135,7 +135,6 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         lastMissingVideoLogAtRef.current = 0;
         missingVideoSinceRef.current = null;
         missingVideoClearedRef.current = false;
-        gestureActionIdRef.current = 0;
 
         setHandPosition(null);
         setHoveredElement(null);

@@ -59,6 +59,7 @@ export type FormProps = z.infer<typeof formSchema>;
 type FormValue = string | boolean;
 
 type InitialFormState = {
+  uniqueFields: FormProps["fields"];
   initialValues: Record<string, FormValue>;
   duplicateNames: string[];
 };
@@ -67,6 +68,7 @@ function buildInitialFormState(fields: FormProps["fields"]): InitialFormState {
   const seenNames = new Set<string>();
   const duplicateNames: string[] = [];
   const entries: Array<[string, FormValue]> = [];
+  const uniqueFields: FormProps["fields"] = [];
 
   for (const field of fields) {
     if (seenNames.has(field.name)) {
@@ -75,6 +77,7 @@ function buildInitialFormState(fields: FormProps["fields"]): InitialFormState {
     }
 
     seenNames.add(field.name);
+    uniqueFields.push(field);
 
     const initialValue: FormValue =
       field.type === "checkbox" ? false : "";
@@ -82,6 +85,7 @@ function buildInitialFormState(fields: FormProps["fields"]): InitialFormState {
   }
 
   return {
+    uniqueFields,
     initialValues: Object.fromEntries(entries),
     duplicateNames,
   };
@@ -102,36 +106,21 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
   ) => {
     const formId = React.useId();
 
-    const [values, setValues] = React.useState<Record<string, FormValue>>(() =>
-      buildInitialFormState(fields).initialValues,
-    );
-    const [duplicateNames, setDuplicateNames] = React.useState<string[]>(() =>
-      buildInitialFormState(fields).duplicateNames,
+    const initial = React.useMemo(() => buildInitialFormState(fields), [fields]);
+
+    const [values, setValues] = React.useState<Record<string, FormValue>>(
+      () => initial.initialValues,
     );
     const [submitted, setSubmitted] = React.useState<Record<string, FormValue> | null>(
       null,
     );
 
-    const hasDuplicateNames = duplicateNames.length > 0;
-
-    const uniqueFields = React.useMemo(() => {
-      const seen = new Set<string>();
-      return fields.filter((field) => {
-        if (seen.has(field.name)) {
-          return false;
-        }
-
-        seen.add(field.name);
-        return true;
-      });
-    }, [fields]);
+    const hasDuplicateNames = initial.duplicateNames.length > 0;
 
     React.useEffect(() => {
-      const next = buildInitialFormState(fields);
-      setValues(next.initialValues);
-      setDuplicateNames(next.duplicateNames);
+      setValues(initial.initialValues);
       setSubmitted(null);
-    }, [fields]);
+    }, [initial]);
 
     return (
       <div
@@ -149,7 +138,7 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
         {hasDuplicateNames && (
           <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
             Form is misconfigured. Only the first field for each name will be used.
-            Duplicates: {duplicateNames.join(", ")}
+            Duplicates: {initial.duplicateNames.join(", ")}
           </div>
         )}
 
@@ -160,7 +149,7 @@ export const Form = React.forwardRef<HTMLDivElement, FormProps>(
             setSubmitted(values);
           }}
         >
-          {uniqueFields.map((field) => {
+          {initial.uniqueFields.map((field) => {
             const inputId = `${formId}-${field.name}`;
 
             if (field.type === "checkbox") {

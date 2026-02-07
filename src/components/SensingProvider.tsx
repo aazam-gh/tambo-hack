@@ -16,7 +16,9 @@ const MAX_CONSECUTIVE_PREDICTION_ERRORS = 3;
 const NO_LANDMARKS_RESET_MS = 200;
 const MISSING_VIDEO_LOG_EVERY_MS = 5000;
 const MISSING_VIDEO_CLEAR_STATE_AFTER_MS = 2000;
+// Small jitter tolerance: avoids repeated DOM hit-testing when the hand cursor is stable.
 const HIT_TEST_CACHE_EPSILON_PX = 2;
+// Keep the hover state fresh even if the cursor is stationary.
 const HIT_TEST_CACHE_MAX_AGE_MS = 100;
 
 interface SensingContextType {
@@ -74,6 +76,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         y: number;
         at: number;
         interactable: HTMLElement | null;
+        isOverCanvasDraggable: boolean;
     } | null>(null);
 
     const resetMissingVideoTracking = useCallback(() => {
@@ -318,14 +321,17 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                         const cachedHit = hitTestCacheRef.current;
                         const cachedInteractable = cachedHit?.interactable ?? null;
+                        const cachedIsOverCanvasDraggable =
+                            cachedHit?.isOverCanvasDraggable ?? false;
                         const canReuseCachedHit =
                             cachedHit !== null &&
                             now - cachedHit.at < HIT_TEST_CACHE_MAX_AGE_MS &&
+                            (!cachedInteractable || cachedInteractable.isConnected) &&
                             Math.hypot(clientX - cachedHit.x, clientY - cachedHit.y) <
-                                HIT_TEST_CACHE_EPSILON_PX &&
-                            (!cachedInteractable || cachedInteractable.isConnected);
+                                HIT_TEST_CACHE_EPSILON_PX;
 
                         let interactable = cachedInteractable;
+                        let isOverCanvasDraggable = cachedIsOverCanvasDraggable;
 
                         if (!canReuseCachedHit) {
                             const element = document.elementFromPoint(
@@ -333,12 +339,21 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 clientY,
                             ) as HTMLElement | null;
 
+                            const canvasDraggable = element
+                                ? ((element.closest(
+                                      '[data-canvas-draggable="true"]',
+                                  ) as HTMLElement) ||
+                                      null)
+                                : null;
+
                             const canvasItem = element
                                 ? ((element.closest(
                                       "[data-canvas-item-id]",
                                   ) as HTMLElement) ||
                                       null)
                                 : null;
+
+                            isOverCanvasDraggable = Boolean(canvasDraggable);
 
                             interactable = canvasItem
                                 ? canvasItem
@@ -354,6 +369,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                 y: clientY,
                                 at: now,
                                 interactable,
+                                isOverCanvasDraggable,
                             };
                         }
 
@@ -379,8 +395,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                             // Pinch is reserved for dragging existing canvas items.
                             const shouldSuppressAction =
-                                gesture === "pinch" &&
-                                Boolean(interactable?.dataset.canvasItemId);
+                                gesture === "pinch" && isOverCanvasDraggable;
 
                             if (
                                 gestureMappingEnabledRef.current &&

@@ -21,6 +21,10 @@ export type InteractionContextActions = {
 
 const MAX_RECENT_ACTIONS = 20;
 
+function dedupeDomains(domains: DomainId[]): DomainId[] {
+  return [...new Set(domains)];
+}
+
 const InteractionContextState = React.createContext<InteractionContext | null>(
   null,
 );
@@ -37,14 +41,14 @@ export function InteractionContextProvider({
   const [focusedSurface, setFocusedSurface] = React.useState<string | undefined>(
     undefined,
   );
-  const [activeDomains, setActiveDomains] = React.useState<DomainId[]>([]);
+  const [activeDomains, setActiveDomainsState] = React.useState<DomainId[]>([]);
   const [recentActions, setRecentActions] = React.useState<string[]>([]);
   const [userRole, setUserRole] = React.useState<string | undefined>(undefined);
 
   const actions = React.useMemo<InteractionContextActions>(
     () => ({
       setFocusedSurface,
-      setActiveDomains,
+      setActiveDomains: (domains) => setActiveDomainsState(dedupeDomains(domains)),
       pushRecentAction: (action) => {
         setRecentActions((prev) => {
           const next = [action, ...prev];

@@ -36,6 +36,29 @@ function toResolvedIntent(intent: DomainIntent): ResolvedIntent {
   }
 }
 
+export function domainIntentFromResolvedIntent(
+  resolved: ResolvedIntent,
+): DomainIntent {
+  switch (resolved) {
+    case "compare_domain":
+      return "compare";
+    case "explain_domain":
+      return "explain";
+    case "filter_domain":
+      return "filter";
+    case "debug_domain":
+      return "debug";
+    case "inspect_domain":
+    case "confirm_intent":
+    case "dismiss_surface":
+    case "navigate":
+    case "adjust_value":
+    case "select":
+    case "noop":
+      return "inspect";
+  }
+}
+
 function pickPrimaryDomain(context: InteractionContext): DomainId {
   const active = context.activeDomains[0];
   if (active) {

@@ -28,7 +28,7 @@ export const Summary = React.forwardRef<HTMLDivElement, SummaryProps>(
         <div className="text-sm font-semibold tracking-tight">{title}</div>
         <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
           {bullets.map((b, idx) => (
-            <li key={idx} className="flex gap-2">
+            <li key={`${idx}-${b}`} className="flex gap-2">
               <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/60" />
               <span className="leading-relaxed">{b}</span>
             </li>

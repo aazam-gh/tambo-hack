@@ -61,12 +61,14 @@ function buildSeries({
 }): number[] {
   const values: number[] = [];
   let stateNoise = 0;
+  const normalizedSpikeAt =
+    typeof spikeAt === "number" ? clamp(spikeAt, 0, length - 1) : undefined;
 
   for (let i = 0; i < length; i += 1) {
     stateNoise = stateNoise * 0.75 + (rng() - 0.5) * noise;
     const seasonal = Math.sin((i / length) * Math.PI * 2) * seasonality;
     const spike =
-      typeof spikeAt === "number" && spikeAt === i
+      typeof normalizedSpikeAt === "number" && normalizedSpikeAt === i
         ? spikeMagnitude ?? 0
         : 0;
     values.push(base + trend * i + seasonal + stateNoise + spike);
@@ -398,6 +400,7 @@ export type DomainDataResult =
   | { domain: "legal"; data: LegalData }
   | { domain: "dev"; data: DevData };
 
+// Convenience helper for sampling default (unfiltered) data per domain.
 export function fetchDomainData(domain: DomainId): DomainDataResult {
   switch (domain) {
     case "sales":

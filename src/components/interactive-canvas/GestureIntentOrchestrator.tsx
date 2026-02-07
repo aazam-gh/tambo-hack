@@ -11,11 +11,16 @@ import { Summary } from "@/components/tambo/summary";
 import { Table } from "@/components/tambo/table";
 import { Domains, type DomainId, type DomainIntent } from "@/lib/domains";
 import type { CommandOption } from "@/lib/command-surface";
-import { resolveIntentHypothesis } from "@/lib/intent-resolution";
+import {
+  domainIntentFromResolvedIntent,
+  resolveIntentHypothesis,
+} from "@/lib/intent-resolution";
 import {
   useInteractionContext,
   useInteractionContextActions,
 } from "@/lib/interaction-context";
+import type { InteractionContext } from "@/lib/interaction-context";
+import type { GestureSignal } from "@/lib/gesture-signals";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
 import type { SurfaceMeta } from "@/lib/surfaces";
 import {
@@ -31,14 +36,6 @@ const MAX_COMMAND_OPTIONS = 5;
 
 function dedupeDomains(domains: DomainId[]): DomainId[] {
   return [...new Set(domains)];
-}
-
-function intentFromResolved(resolved: string): DomainIntent {
-  if (resolved.startsWith("compare")) return "compare";
-  if (resolved.startsWith("explain")) return "explain";
-  if (resolved.startsWith("filter")) return "filter";
-  if (resolved.startsWith("debug")) return "debug";
-  return "inspect";
 }
 
 function labelForOption(domain: DomainId, intent: DomainIntent): string {
@@ -69,7 +66,7 @@ function labelForOption(domain: DomainId, intent: DomainIntent): string {
 }
 
 function buildCommandOptions(
-  context: ReturnType<typeof useInteractionContext>,
+  context: InteractionContext,
   primaryDomain: DomainId,
   primaryIntent: DomainIntent,
 ): CommandOption[] {
@@ -326,42 +323,36 @@ export function GestureIntentOrchestrator() {
     lastCommandActivityAtRef.current = null;
   }, []);
 
-  const openCommandSurface = React.useCallback(() => {
-    const anchor =
-      (gestureSignal?.clientX != null && gestureSignal?.clientY != null
-        ? { x: gestureSignal.clientX, y: gestureSignal.clientY }
-        : null) ?? handPosition;
+  const openCommandSurface = React.useCallback(
+    (signal: GestureSignal) => {
+      const anchor =
+        (signal.clientX != null && signal.clientY != null
+          ? { x: signal.clientX, y: signal.clientY }
+          : null) ?? handPosition;
 
-    if (!anchor) {
-      return;
-    }
+      if (!anchor) {
+        return;
+      }
 
-    const hypothesis = resolveIntentHypothesis(
-      {
-        id: 0,
-        type: "summon_ui",
-        at: performance.now(),
-        confidence: 1,
-      },
-      interactionContext,
-    );
+      const hypothesis = resolveIntentHypothesis(signal, interactionContext);
+      const primaryDomain = hypothesis.targetDomain ?? "infra";
+      const primaryIntent = domainIntentFromResolvedIntent(hypothesis.primary);
 
-    const primaryDomain = hypothesis.targetDomain ?? "infra";
-    const primaryIntent = intentFromResolved(hypothesis.primary);
+      const options = buildCommandOptions(
+        interactionContext,
+        primaryDomain,
+        primaryIntent,
+      );
 
-    const options = buildCommandOptions(
-      interactionContext,
-      primaryDomain,
-      primaryIntent,
-    );
-
-    setCommandAnchor(anchor);
-    setCommandOptions(options);
-    setCommandSelectedIndex(0);
-    setCommandOpen(true);
-    lastCommandActivityAtRef.current = performance.now();
-    pushRecentAction("command_surface:open");
-  }, [gestureSignal, handPosition, interactionContext, pushRecentAction]);
+      setCommandAnchor(anchor);
+      setCommandOptions(options);
+      setCommandSelectedIndex(0);
+      setCommandOpen(true);
+      lastCommandActivityAtRef.current = performance.now();
+      pushRecentAction("command_surface:open");
+    },
+    [handPosition, interactionContext, pushRecentAction],
+  );
 
   const confirmSelectedOption = React.useCallback(() => {
     const selected = commandOptions[commandSelectedIndex];
@@ -429,7 +420,7 @@ export function GestureIntentOrchestrator() {
       if (commandOpen) {
         dismissCommandSurface();
       } else {
-        openCommandSurface();
+        openCommandSurface(gestureSignal);
       }
       clearGestureSignal();
       return;

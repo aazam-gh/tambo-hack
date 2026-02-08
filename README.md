@@ -19,6 +19,15 @@ The app uses **MediaPipe hand tracking** to drive a “command surface” (a sma
   - Components: `src/components/tambo/*`
   - Mock dataset: `src/lib/mock-data.json`, `src/lib/mock-sales.ts`
 
+### How it works (high level)
+
+1. MediaPipe tracks hand landmarks and emits low-entropy gesture signals via `SensingProvider`.
+2. `GestureIntentOrchestrator` turns those signals into domain + intent selections.
+3. Confirmed intents either:
+   - spawn local surfaces rendered by `SurfaceRenderer`, or
+   - submit a prompt to Tambo so it can call registered tools and render registered components.
+4. `InteractiveCanvas` listens for `tambo:showComponent` events and manages the spawned “surfaces” (layout + drag/resize/combine).
+
 ## Quickstart
 
 ### 1) Install
@@ -44,7 +53,7 @@ If you prefer using the CLI to set this up:
 npm run init
 ```
 
-This repo defines an `init` script (`"init": "npx tambo init"`) that may prompt you for configuration and help scaffold env variables. If you still don’t end up with a working `.env.local`, create it manually as shown above.
+This repo defines an `init` script (`"init": "npx tambo init"`) to run the Tambo CLI setup. If you prefer not to use the CLI (or it doesn’t set up env vars the way you expect), create `.env.local` manually as shown above.
 
 ### 3) Run
 
@@ -72,7 +81,7 @@ Open `http://localhost:5173`.
 
 Current gesture bindings live in `src/lib/gesture-mapping.ts`:
 
-(The list below is a quick summary; `src/lib/gesture-mapping.ts` is the source of truth.)
+(The list below describes the default bindings in this repo; `src/lib/gesture-mapping.ts` is the source of truth.)
 
 - **Open palm** → summon/dismiss the command surface
 - **Peace sign** → select (cycle options)
@@ -119,6 +128,8 @@ export const components: TamboComponent[] = [
   },
 ];
 ```
+
+Note: the registry uses `as any` in a few places to keep the demo wiring simple. If you’re building a production app, prefer fully typed schemas and tool signatures.
 
 ### Register new Tambo components
 

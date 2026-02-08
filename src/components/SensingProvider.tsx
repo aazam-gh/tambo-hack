@@ -114,8 +114,14 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             label: `Gesture signal: ${gestureSignal.type}`,
             detail: {
                 confidence: Number(gestureSignal.confidence.toFixed(2)),
-                clientX: Math.round(gestureSignal.clientX),
-                clientY: Math.round(gestureSignal.clientY),
+                clientX:
+                    typeof gestureSignal.clientX === "number"
+                        ? Math.round(gestureSignal.clientX)
+                        : undefined,
+                clientY:
+                    typeof gestureSignal.clientY === "number"
+                        ? Math.round(gestureSignal.clientY)
+                        : undefined,
             },
         });
     }, [gestureSignal]);

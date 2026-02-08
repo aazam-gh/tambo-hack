@@ -9,6 +9,7 @@ export type CommandSurfaceOverlayProps = {
   anchor: { x: number; y: number } | null;
   options: CommandOption[];
   selectedIndex: number;
+  linkedPreview?: { label: string; description: string }[];
   onSelectIndex: (index: number) => void;
   onConfirm: () => void;
   onDismiss: () => void;
@@ -19,6 +20,7 @@ export function CommandSurfaceOverlay({
   anchor,
   options,
   selectedIndex,
+  linkedPreview,
   onSelectIndex,
   onConfirm,
   onDismiss,
@@ -106,6 +108,32 @@ export function CommandSurfaceOverlay({
           );
         })}
       </div>
+
+      {linkedPreview && linkedPreview.length > 0 ? (
+        <div className="mt-3 rounded-xl border border-border/50 bg-background/40 p-2">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Linked surfaces
+          </div>
+          <div className="mt-2 space-y-1 text-xs">
+            {linkedPreview.map((entry, idx) => (
+              <div
+                key={`${entry.label}-${idx}`}
+                className="flex items-start gap-3"
+              >
+                <div className="min-w-0 flex-1 font-medium text-foreground">
+                  {entry.label}
+                </div>
+                <div className="text-right text-[11px] text-muted-foreground">
+                  {entry.description}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 text-[11px] text-muted-foreground">
+            Confirm spawns the primary surface plus {linkedPreview.length} linked.
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
         <div>

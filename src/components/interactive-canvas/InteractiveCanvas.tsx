@@ -15,6 +15,7 @@ import {
   useInteractionContext,
   useInteractionContextActions,
 } from "@/lib/interaction-context";
+import { useSurfaceManagerActions } from "@/lib/surface-manager";
 import type { SurfaceMeta } from "@/lib/surfaces";
 import { cn } from "@/lib/utils";
 
@@ -115,6 +116,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   const interactionContext = useInteractionContext();
   const { focusedSurface, commandSurfaceOpen } = interactionContext;
   const { removeSurface, setFocusedSurface } = useInteractionContextActions();
+  const { dismissSurface } = useSurfaceManagerActions();
   const hoveredCanvasItemId =
     (hoveredElement?.closest(
       "[data-canvas-item-id]",
@@ -1532,6 +1534,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
                   onClick={(e) => {
                     e.stopPropagation();
                     removeSurface(item.id);
+                    dismissSurface(item.id);
                     setItems((prev) => prev.filter((p) => p.id !== item.id));
 
                     if (

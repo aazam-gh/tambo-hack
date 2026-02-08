@@ -123,7 +123,7 @@ export const tools: TamboTool<any, any>[] = [
   },
   {
     name: "market_news_read",
-    description: "Get latest market news from Finnhub.",
+    description: "Get latest market news from Finnhub (up to 5 items).",
     tool: async (args: { category: string } = { category: "general" }) => {
       const { category } = args;
       try {
@@ -150,7 +150,8 @@ export const tools: TamboTool<any, any>[] = [
   },
   {
     name: "insider_sentiment_read",
-    description: "Get insider sentiment data for a stock symbol from Finnhub.",
+    description:
+      "Get insider sentiment data for a stock symbol from Finnhub (up to the latest 12 data points).",
     tool: async (args: { symbol: string }) => {
       const { symbol } = args;
       try {

@@ -3,6 +3,11 @@ import { GripVertical, RotateCcw, X } from "lucide-react";
 
 import { useSensing } from "@/components/SensingProvider";
 import {
+  computeAdaptiveLayout,
+  spiralGridSlot,
+  type AdaptiveLayoutItemMetrics,
+} from "@/lib/adaptive-layout";
+import {
   TAMBO_SHOW_COMPONENT_EVENT,
   type TamboShowComponentDetail,
 } from "@/lib/tambo-canvas-events";
@@ -25,10 +30,17 @@ type CanvasItem = {
   x: number;
   y: number;
   surfaceMeta?: SurfaceMeta;
+  metrics: AdaptiveLayoutItemMetrics;
+  importance: number;
+  visualScale: number;
+  visualOpacity: number;
 };
 
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 4;
+const MANUAL_LOCK_MS = 30_000;
+const LAYOUT_THROTTLE_MS = 140;
+const SPAWN_LOCK_MS = 1800;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -54,7 +66,8 @@ function useRefBackedState<T>(
 export function InteractiveCanvas({ className }: { className?: string }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const { handGesture, handPosition, hoveredElement } = useSensing();
-  const { focusedSurface } = useInteractionContext();
+  const interactionContext = useInteractionContext();
+  const { focusedSurface } = interactionContext;
   const { removeSurface, setFocusedSurface } = useInteractionContextActions();
   const hoveredCanvasItemId =
     (hoveredElement?.closest(
@@ -140,23 +153,53 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         return;
       }
 
+      const now = performance.now();
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) {
         return;
       }
 
       const currentView = viewRef.current;
-      // If the spawn point is outside the canvas bounds, clamp it to the nearest edge.
-      const localX =
-        typeof detail.clientX === "number"
-          ? clamp(detail.clientX - rect.left, 0, rect.width)
-          : rect.width / 2;
-      const localY =
-        typeof detail.clientY === "number"
-          ? clamp(detail.clientY - rect.top, 0, rect.height)
-          : rect.height / 2;
-      const x = (localX - currentView.x) / currentView.scale;
-      const y = (localY - currentView.y) / currentView.scale;
+
+      let x: number;
+      let y: number;
+
+      if (typeof detail.clientX === "number" || typeof detail.clientY === "number") {
+        // If the spawn point is outside the canvas bounds, clamp it to the nearest edge.
+        const localX =
+          typeof detail.clientX === "number"
+            ? clamp(detail.clientX - rect.left, 0, rect.width)
+            : rect.width / 2;
+        const localY =
+          typeof detail.clientY === "number"
+            ? clamp(detail.clientY - rect.top, 0, rect.height)
+            : rect.height / 2;
+        x = (localX - currentView.x) / currentView.scale;
+        y = (localY - currentView.y) / currentView.scale;
+      } else {
+        const localCenterX = rect.width / 2;
+        const localCenterY = rect.height / 2;
+        const centerX = (localCenterX - currentView.x) / currentView.scale;
+        const centerY = (localCenterY - currentView.y) / currentView.scale;
+
+        const focused =
+          focusedSurface != null
+            ? itemsRef.current.find((item) => item.id === focusedSurface)
+            : undefined;
+        const anchorX = focused?.x ?? centerX;
+        const anchorY = focused?.y ?? centerY;
+
+        const slot = spiralGridSlot(itemsRef.current.length);
+        x = anchorX + slot.col * 440;
+        y = anchorY + slot.row * 360;
+      }
+
+      const metrics: AdaptiveLayoutItemMetrics = {
+        createdAt: now,
+        lastInteractedAt: now,
+        interactionCount: 0,
+        manualUntil: now + SPAWN_LOCK_MS,
+      };
 
       setItems((prev) => {
         const existingIndex = prev.findIndex((i) => i.id === detail.messageId);
@@ -169,6 +212,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
               x,
               y,
               surfaceMeta: detail.surfaceMeta,
+              metrics,
+              importance: 0.5,
+              visualScale: 1,
+              visualOpacity: 1,
             },
           ];
         }
@@ -184,7 +231,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         );
       });
     },
-    [setItems],
+    [focusedSurface, itemsRef, setItems],
   );
 
   React.useEffect(() => {
@@ -240,9 +287,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         startY: currentItem.y,
       };
 
+      const now = performance.now();
       setItems((prev) => {
         const idx = prev.findIndex((item) => item.id === itemId);
-        if (idx === -1 || idx === prev.length - 1) {
+        if (idx === -1) {
           return prev;
         }
         const next = [...prev];
@@ -250,7 +298,16 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         if (!picked) {
           return prev;
         }
-        next.push(picked);
+
+        next.push({
+          ...picked,
+          metrics: {
+            ...picked.metrics,
+            manualUntil: now + MANUAL_LOCK_MS,
+            lastInteractedAt: now,
+            interactionCount: picked.metrics.interactionCount + 1,
+          },
+        });
         return next;
       });
     },
@@ -327,9 +384,20 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         return;
       }
 
+      const now = performance.now();
       clearItemDragSession({ pointerId: session.pointerId, itemId: session.itemId });
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === session.itemId
+            ? {
+                ...item,
+                metrics: { ...item.metrics, manualUntil: now + MANUAL_LOCK_MS },
+              }
+            : item,
+        ),
+      );
     },
-    [clearItemDragSession],
+    [clearItemDragSession, setItems],
   );
 
   React.useEffect(() => {
@@ -496,9 +564,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         offsetY: worldY - hoveredItem.y,
       };
 
+      const now = performance.now();
       setItems((prev) => {
         const idx = prev.findIndex((item) => item.id === startItemId);
-        if (idx === -1 || idx === prev.length - 1) {
+        if (idx === -1) {
           return prev;
         }
 
@@ -507,7 +576,16 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         if (!picked) {
           return prev;
         }
-        next.push(picked);
+
+        next.push({
+          ...picked,
+          metrics: {
+            ...picked.metrics,
+            manualUntil: now + MANUAL_LOCK_MS,
+            lastInteractedAt: now,
+            interactionCount: picked.metrics.interactionCount + 1,
+          },
+        });
         return next;
       });
 
@@ -536,6 +614,139 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       handDragRafRef.current = requestAnimationFrame(flushHandDragUpdate);
     }
   }, [flushHandDragUpdate, handGesture, handPosition, hoveredCanvasItemId, setItems]);
+
+  const interactionContextRef = React.useRef(interactionContext);
+  const layoutTimeoutRef = React.useRef<number | null>(null);
+  const layoutRafRef = React.useRef<number | null>(null);
+  const lastLayoutAtRef = React.useRef(0);
+
+  React.useEffect(() => {
+    interactionContextRef.current = interactionContext;
+  }, [interactionContext]);
+
+  const runAdaptiveLayout = React.useCallback(() => {
+    const now = performance.now();
+    const currentItems = itemsRef.current;
+    if (currentItems.length === 0) {
+      return;
+    }
+
+    const layout = computeAdaptiveLayout({
+      items: currentItems.map((item) => ({
+        id: item.id,
+        x: item.x,
+        y: item.y,
+        surfaceMeta: item.surfaceMeta,
+        metrics: item.metrics,
+      })),
+      context: interactionContextRef.current,
+      focusedSurfaceId: interactionContextRef.current.focusedSurface,
+      now,
+    });
+
+    setItems((prev) => {
+      let changed = false;
+      const next = prev.map((item) => {
+        const target = layout.targets[item.id];
+        if (!target) {
+          return item;
+        }
+
+        const dragging =
+          itemDragRef.current?.itemId === item.id ||
+          handDragRef.current?.itemId === item.id;
+
+        let nextX = item.x;
+        let nextY = item.y;
+
+        if (!dragging && typeof target.x === "number" && typeof target.y === "number") {
+          if (Math.abs(item.x - target.x) > 0.5 || Math.abs(item.y - target.y) > 0.5) {
+            nextX = target.x;
+            nextY = target.y;
+          }
+        }
+
+        const nextImportance = target.importance;
+        const nextScale = target.scale;
+        const nextOpacity = target.opacity;
+
+        const needsUpdate =
+          Math.abs(item.importance - nextImportance) > 0.005 ||
+          Math.abs(item.visualScale - nextScale) > 0.005 ||
+          Math.abs(item.visualOpacity - nextOpacity) > 0.005 ||
+          Math.abs(item.x - nextX) > 0.001 ||
+          Math.abs(item.y - nextY) > 0.001;
+
+        if (!needsUpdate) {
+          return item;
+        }
+
+        changed = true;
+        return {
+          ...item,
+          x: nextX,
+          y: nextY,
+          importance: nextImportance,
+          visualScale: nextScale,
+          visualOpacity: nextOpacity,
+        };
+      });
+
+      return changed ? next : prev;
+    });
+  }, [itemsRef, setItems]);
+
+  const scheduleAdaptiveLayout = React.useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (layoutTimeoutRef.current !== null || layoutRafRef.current !== null) {
+      return;
+    }
+
+    const wait = Math.max(
+      0,
+      LAYOUT_THROTTLE_MS - (performance.now() - lastLayoutAtRef.current),
+    );
+
+    layoutTimeoutRef.current = window.setTimeout(() => {
+      layoutTimeoutRef.current = null;
+      layoutRafRef.current = requestAnimationFrame(() => {
+        layoutRafRef.current = null;
+        lastLayoutAtRef.current = performance.now();
+        runAdaptiveLayout();
+      });
+    }, wait);
+  }, [runAdaptiveLayout]);
+
+  React.useEffect(() => {
+    scheduleAdaptiveLayout();
+  }, [items, interactionContext.activeDomains, interactionContext.recentActions, scheduleAdaptiveLayout]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const id = window.setInterval(scheduleAdaptiveLayout, 900);
+    return () => {
+      window.clearInterval(id);
+    };
+  }, [scheduleAdaptiveLayout]);
+
+  React.useEffect(() => {
+    return () => {
+      if (layoutTimeoutRef.current !== null) {
+        window.clearTimeout(layoutTimeoutRef.current);
+        layoutTimeoutRef.current = null;
+      }
+      if (layoutRafRef.current !== null) {
+        cancelAnimationFrame(layoutRafRef.current);
+        layoutRafRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div
@@ -597,30 +808,61 @@ export function InteractiveCanvas({ className }: { className?: string }) {
           transformOrigin: "0 0",
         }}
       >
-        {items.map((item) => (
-          <div
-            key={item.id}
-            data-canvas-item="true"
-            data-canvas-item-id={item.id}
-            data-canvas-draggable="true"
-            data-interactable="true"
-            data-surface-domain={item.surfaceMeta?.domain}
-            data-surface-intent={item.surfaceMeta?.intent}
-            className="absolute pointer-events-auto"
-            style={{
-              transform: `translate3d(${item.x}px, ${item.y}px, 0)`,
-            }}
-            onClick={() => setFocusedSurface(item.id)}
-          >
+        {items.map((item) => {
+          const dragging =
+            itemDragRef.current?.itemId === item.id ||
+            handDragRef.current?.itemId === item.id;
+          const focused = focusedSurface === item.id;
+          const zIndex = focused ? 240 : 10 + Math.round(item.importance * 100);
+
+          return (
             <div
+              key={item.id}
+              data-canvas-item="true"
+              data-canvas-item-id={item.id}
+              data-canvas-draggable="true"
+              data-interactable="true"
+              data-surface-domain={item.surfaceMeta?.domain}
+              data-surface-intent={item.surfaceMeta?.intent}
               className={cn(
-                "relative rounded-2xl border bg-card/80 p-4 text-foreground shadow-xl shadow-black/10 backdrop-blur",
-                "dark:shadow-black/30",
-                focusedSurface === item.id
-                  ? "border-emerald-500/40 ring-2 ring-emerald-500/40"
-                  : "border-border/60",
+                "absolute pointer-events-auto will-change-transform",
+                !dragging &&
+                  "transition-[transform,opacity] duration-300 ease-out",
               )}
+              style={{
+                transform: `translate3d(${item.x}px, ${item.y}px, 0) scale(${item.visualScale})`,
+                transformOrigin: "top left",
+                opacity: item.visualOpacity,
+                zIndex,
+              }}
+              onClick={() => {
+                setFocusedSurface(item.id);
+                const now = performance.now();
+                setItems((prev) =>
+                  prev.map((surface) =>
+                    surface.id === item.id
+                      ? {
+                          ...surface,
+                          metrics: {
+                            ...surface.metrics,
+                            lastInteractedAt: now,
+                            interactionCount: surface.metrics.interactionCount + 1,
+                          },
+                        }
+                      : surface,
+                  ),
+                );
+              }}
             >
+              <div
+                className={cn(
+                  "relative rounded-2xl border bg-card/80 p-4 text-foreground shadow-xl shadow-black/10 backdrop-blur",
+                  "dark:shadow-black/30",
+                  focused
+                    ? "border-emerald-500/40 ring-2 ring-emerald-500/40"
+                    : "border-border/60",
+                )}
+              >
               <button
                 type="button"
                 aria-label="Drag to move canvas item"
@@ -641,7 +883,8 @@ export function InteractiveCanvas({ className }: { className?: string }) {
               <button
                 type="button"
                 aria-label="Remove canvas item"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   removeSurface(item.id);
                   setItems((prev) => prev.filter((p) => p.id !== item.id));
                 }}
@@ -656,7 +899,8 @@ export function InteractiveCanvas({ className }: { className?: string }) {
               {item.node}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

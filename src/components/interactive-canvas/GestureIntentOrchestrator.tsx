@@ -419,6 +419,7 @@ export function GestureIntentOrchestrator() {
   const lastCommandActivityAtRef = React.useRef<number | null>(null);
   const surfaceIdRef = React.useRef(0);
   const lastPredictiveKeyRef = React.useRef<string | null>(null);
+  const intentConfidenceRef = React.useRef<number | undefined>(undefined);
 
   const dismissCommandSurface = React.useCallback(() => {
     setCommandOpen(false);
@@ -426,6 +427,7 @@ export function GestureIntentOrchestrator() {
     setCommandOptions([]);
     setCommandSelectedIndex(0);
     lastCommandActivityAtRef.current = null;
+    intentConfidenceRef.current = undefined;
   }, []);
 
   const openCommandSurface = React.useCallback(
@@ -458,6 +460,7 @@ export function GestureIntentOrchestrator() {
       setCommandSelectedIndex(0);
       setCommandOpen(true);
       lastCommandActivityAtRef.current = performance.now();
+      intentConfidenceRef.current = signal.confidence;
       pushRecentAction("command_surface:open");
     },
     [handPosition, interactionContext, pushRecentAction],
@@ -472,7 +475,10 @@ export function GestureIntentOrchestrator() {
 
     surfaceIdRef.current += 1;
     const surfaceId = `surface-${surfaceIdRef.current}-${Date.now()}`;
-    const meta = buildSurfaceMeta(selected.domain, selected.intent);
+    const meta = {
+      ...buildSurfaceMeta(selected.domain, selected.intent),
+      intentConfidence: intentConfidenceRef.current,
+    };
     const node = buildSurfaceNode(selected.domain, selected.intent);
 
     const dependency = interactionContext.focusedSurface

@@ -27,7 +27,7 @@ import {
   type SurfaceLinkGroup,
   type SurfaceLinkSuggestion,
 } from "@/lib/surface-linking";
-import { cycleRangeDays } from "@/lib/surface-range";
+import { cycleRangeDays, DEFAULT_RANGE_DAYS } from "@/lib/surface-range";
 import { useSurfaceManager, useSurfaceManagerActions } from "@/lib/surface-manager";
 import { buildDefaultSurfaceMeta } from "@/lib/surface-meta";
 import { useTamboThread, useTamboThreadInput } from "@tambo-ai/react";
@@ -38,6 +38,7 @@ const MAX_COMMAND_OPTIONS = 5;
 const PREDICTIVE_AUTO_OPEN_MIN_CONFIDENCE = 0.75;
 const LINKED_SURFACE_OFFSET_X = 360;
 const LINKED_SURFACE_OFFSET_Y = 280;
+const GESTURE_CLICK_DEBOUNCE_MS = 500;
 
 function dedupeDomains(domains: DomainId[]): DomainId[] {
   return [...new Set(domains)];
@@ -810,8 +811,8 @@ export function GestureIntentOrchestrator() {
       const hoveredSurfaceId = hoveredItem?.dataset.canvasItemId;
 
       const gestureTarget = hoveredElement?.closest(
-        '[data-interactable="true"][data-gesture-click="true"]',
-      ) as HTMLElement | null;
+        'button[data-interactable="true"][data-gesture-click="true"]',
+      ) as HTMLButtonElement | null;
 
       const canGestureClick =
         gestureTarget != null &&
@@ -822,7 +823,11 @@ export function GestureIntentOrchestrator() {
       if (canGestureClick && gestureTarget) {
         const now = performance.now();
         const lastClick = lastGestureClickRef.current;
-        if (lastClick && lastClick.target === gestureTarget && now - lastClick.at < 250) {
+        if (
+          lastClick &&
+          lastClick.target === gestureTarget &&
+          now - lastClick.at < GESTURE_CLICK_DEBOUNCE_MS
+        ) {
           clearGestureSignal();
           return;
         }
@@ -832,12 +837,20 @@ export function GestureIntentOrchestrator() {
           setFocusedSurface(hoveredSurfaceId);
         }
 
+        let clickSucceeded = false;
         try {
           gestureTarget.click();
+          clickSucceeded = true;
         } catch (error) {
           console.error("Gesture click handler threw", { error, gestureTarget });
         }
-        pushRecentAction(`gesture_click:${gestureTarget.tagName.toLowerCase()}`);
+
+        if (clickSucceeded) {
+          pushRecentAction(`gesture_click:${gestureTarget.tagName.toLowerCase()}`);
+        } else {
+          pushRecentAction(`gesture_click_error:${gestureTarget.tagName.toLowerCase()}`);
+        }
+
         clearGestureSignal();
         return;
       }
@@ -855,7 +868,9 @@ export function GestureIntentOrchestrator() {
 
         if (hoveredSurfaceId && meta) {
           const current =
-            typeof meta.query.rangeDays === "number" ? meta.query.rangeDays : 14;
+            typeof meta.query.rangeDays === "number"
+              ? meta.query.rangeDays
+              : DEFAULT_RANGE_DAYS;
           const next = cycleRangeDays(current);
           updateSurfaceQuery(hoveredSurfaceId, { rangeDays: next });
           setFocusedSurface(hoveredSurfaceId);

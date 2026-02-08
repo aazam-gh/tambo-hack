@@ -10,7 +10,7 @@ import { Summary } from "@/components/tambo/summary";
 import { Table } from "@/components/tambo/table";
 import { Domains } from "@/lib/domains";
 import { normalizeMicroPrimitives, type MicroPrimitive } from "@/lib/micro-primitives";
-import { cycleRangeDays } from "@/lib/surface-range";
+import { cycleRangeDays, DEFAULT_RANGE_DAYS } from "@/lib/surface-range";
 import { useSurfaceManager, useSurfaceManagerActions } from "@/lib/surface-manager";
 import type { SurfaceId, SurfaceMeta } from "@/lib/surfaces";
 import { cn } from "@/lib/utils";
@@ -131,7 +131,7 @@ export function SurfaceRenderer({
     );
   }
 
-  const rangeDays = queryNumber(meta.query, "rangeDays") ?? 14;
+  const rangeDays = queryNumber(meta.query, "rangeDays") ?? DEFAULT_RANGE_DAYS;
   const onCycleRange = () =>
     updateSurfaceQuery(surfaceId, { rangeDays: cycleRangeDays(rangeDays) });
 

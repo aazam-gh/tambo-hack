@@ -1,11 +1,17 @@
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 
-export type HandGesture = "pinch" | "openPalm" | "thumbsUp" | "peaceSign";
+export type HandGesture =
+  | "pinch"
+  | "openPalm"
+  | "thumbsUp"
+  | "thumbsDown"
+  | "peaceSign";
 
 // Gesture heuristics are based on MediaPipe's normalized landmark coordinates.
 // These thresholds are intentionally simple to keep the demo lightweight.
 const PINCH_DISTANCE_THRESHOLD = 0.055;
 const FINGER_EXTENSION_MARGIN_Y = 0.02;
+const THUMB_ORIENTATION_MARGIN_Y = 0.03;
 // Chosen empirically so the V gap is visually obvious at arm's length, while
 // still being tolerant of slight camera distance changes.
 //
@@ -57,6 +63,8 @@ export function detectHandGesture(
   const ringExtended = isFingerExtended(landmarks, 16, 14);
   const pinkyExtended = isFingerExtended(landmarks, 20, 18);
   const thumbExtended = isFingerExtended(landmarks, 4, 3);
+  const thumbIp = landmarks[3];
+  const wrist = landmarks[0];
 
   if (
     indexExtended &&
@@ -66,7 +74,6 @@ export function detectHandGesture(
   ) {
     // Peace sign thumb posture varies a lot in practice, so we intentionally
     // don't require a specific thumb state here.
-    const wrist = landmarks[0];
     if (
       wrist &&
       distance2D(indexTip, middleTip) >= PEACE_FINGER_SEPARATION_THRESHOLD &&
@@ -77,8 +84,30 @@ export function detectHandGesture(
     }
   }
 
-  if (thumbExtended && !indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
-    return "thumbsUp";
+  const thumbOnly =
+    thumbTip &&
+    thumbIp &&
+    wrist &&
+    !indexExtended &&
+    !middleExtended &&
+    !ringExtended &&
+    !pinkyExtended;
+
+  if (thumbOnly) {
+    // Thumbs up/down uses global Y comparisons, so it assumes a roughly upright hand.
+    const isThumbUp =
+      thumbTip.y < thumbIp.y - THUMB_ORIENTATION_MARGIN_Y &&
+      thumbTip.y < wrist.y - THUMB_ORIENTATION_MARGIN_Y;
+    if (isThumbUp) {
+      return "thumbsUp";
+    }
+
+    const isThumbDown =
+      thumbTip.y > thumbIp.y + THUMB_ORIENTATION_MARGIN_Y &&
+      thumbTip.y > wrist.y + THUMB_ORIENTATION_MARGIN_Y;
+    if (isThumbDown) {
+      return "thumbsDown";
+    }
   }
 
   if (thumbExtended && indexExtended && middleExtended && ringExtended && pinkyExtended) {

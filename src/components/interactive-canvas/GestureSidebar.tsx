@@ -148,6 +148,15 @@ export function GestureSidebar({ open, onToggle }: GestureSidebarProps) {
                   <span>Pinch while hovering an item (or drag the handle) to move it</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Hand className="h-4 w-4 text-emerald-400" />
+                  <span>
+                    Thumbs up while hovering an item selects it (thumbs up on another
+                    item switches selection). Thumbs down cancels any active action
+                    and clears the current selection. While an item is selected,
+                    move/resize gestures apply only to that item.
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
                   <Maximize2 className="h-4 w-4 text-emerald-400" />
                   <span>Pinch or drag the corner icon to resize a surface (thumbs up to confirm)</span>
                 </div>

@@ -6,7 +6,6 @@ import { withInteractable } from "@tambo-ai/react";
 import { z } from "zod/v3";
 
 type FinnhubCompanyNewsItem = {
-    id: number;
     datetime: number;
     headline: string;
     summary: string;
@@ -208,7 +207,7 @@ export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
                     <div className="space-y-5">
                         {news.map((item) => (
                             <div
-                                key={item.id}
+                                key={`${item.datetime}-${item.url}`}
                                 className="group flex gap-4 pb-5 border-b border-border/40 last:border-0 last:pb-0"
                             >
                                 {item.image ? (

@@ -58,6 +58,11 @@ const MAX_SURFACE_SCALE = 2.2;
 const COMBINE_DISTANCE_PX = 140;
 const COMBINE_MIN_OVERLAP_RATIO = 0.08;
 
+const BOOTSTRAP_COMPANY_NEWS_SURFACE_ID = "bootstrap-company-news";
+const BOOTSTRAP_COMPANY_NEWS_SYMBOL = "AAPL";
+const BOOTSTRAP_COMPANY_NEWS_RANGE_DAYS = 14;
+const BOOTSTRAP_COMPANY_NEWS_LIMIT = 6;
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -108,6 +113,7 @@ function useRefBackedState<T>(
 
 export function InteractiveCanvas({ className }: { className?: string }) {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const bootstrappedRef = React.useRef(false);
   const {
     handGesture,
     handPosition,
@@ -322,18 +328,26 @@ export function InteractiveCanvas({ className }: { className?: string }) {
 
     window.addEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);
 
-    const bootstrapSurfaceId = "bootstrap-company-news";
-    const baseMeta = buildDefaultSurfaceMeta("news", "summarize");
-    const bootstrapMeta: SurfaceMeta = {
-      ...baseMeta,
-      query: { ...baseMeta.query, symbol: "AAPL" },
-    };
-    registerSurfaceMeta(bootstrapSurfaceId, bootstrapMeta);
-    emitTamboShowComponent({
-      messageId: bootstrapSurfaceId,
-      component: <InteractableCompanyNews symbol="AAPL" rangeDays={14} limit={6} />,
-      surfaceMeta: bootstrapMeta,
-    });
+    if (!bootstrappedRef.current) {
+      bootstrappedRef.current = true;
+      const baseMeta = buildDefaultSurfaceMeta("news", "summarize");
+      const bootstrapMeta: SurfaceMeta = {
+        ...baseMeta,
+        query: { ...baseMeta.query, symbol: BOOTSTRAP_COMPANY_NEWS_SYMBOL },
+      };
+      registerSurfaceMeta(BOOTSTRAP_COMPANY_NEWS_SURFACE_ID, bootstrapMeta);
+      emitTamboShowComponent({
+        messageId: BOOTSTRAP_COMPANY_NEWS_SURFACE_ID,
+        component: (
+          <InteractableCompanyNews
+            symbol={BOOTSTRAP_COMPANY_NEWS_SYMBOL}
+            rangeDays={BOOTSTRAP_COMPANY_NEWS_RANGE_DAYS}
+            limit={BOOTSTRAP_COMPANY_NEWS_LIMIT}
+          />
+        ),
+        surfaceMeta: bootstrapMeta,
+      });
+    }
 
     return () => {
       window.removeEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);

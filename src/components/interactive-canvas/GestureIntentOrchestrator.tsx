@@ -511,8 +511,9 @@ export function GestureIntentOrchestrator() {
     lastGestureHandPositionRef.current = commandAnchor;
 
     if (selected.domain === "news" || selected.domain === "trading" || selected.domain === "research") {
+      const allowedComponents = Domains[selected.domain].components.join(", ");
       const prompt = `[GESTURE_SYSTEM]: [REF_${Date.now()}] User confirmed intent "${selected.intent}" for ${selected.domain}. 
-        Please use the Finnhub tools to fetch the relevant data and display it using the most appropriate Finnhub UI component (StockQuote, CompanyProfile, MarketNews, CompanyNews, InsiderSentiment, or BasicFinancials).
+        Please use the Finnhub tools to fetch the relevant data and display it using the most appropriate Finnhub UI component (${allowedComponents}).
         IMPORTANT: If no stock symbol is currently active or mentioned in the conversation history, default to "AAPL" (Apple Inc.) so that the data can be shown immediately.`;
 
       setValue(prompt);

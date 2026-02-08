@@ -34,12 +34,53 @@ import {
 } from "@/components/tambo/GestureDataExplorer";
 import type { TamboComponent } from "@tambo-ai/react";
 import { TamboTool } from "@tambo-ai/react";
+import { appendLogSummaryEvent } from "@/lib/log-summary";
 
 import {
   DEFAULT_MOCK_PRODUCT_NAME,
   salesData,
   type SalesRecord,
 } from "@/lib/mock-sales";
+
+function withToolLogging<TArgs, TResult>(
+  name: string,
+  tool: (args: TArgs) => Promise<TResult>,
+): (args: TArgs) => Promise<TResult> {
+  return async (args: TArgs) => {
+    appendLogSummaryEvent({
+      kind: "tambo_tool",
+      label: `Tool call: ${name}`,
+      detail: { args },
+    });
+
+    const startedAt = Date.now();
+    try {
+      const result = await tool(args);
+      appendLogSummaryEvent({
+        kind: "tambo_tool",
+        label: `Tool ok: ${name}`,
+        detail: {
+          durationMs: Date.now() - startedAt,
+          resultKeys:
+            result && typeof result === "object"
+              ? Object.keys(result as Record<string, unknown>)
+              : undefined,
+        },
+      });
+      return result;
+    } catch (error) {
+      appendLogSummaryEvent({
+        kind: "tambo_tool",
+        label: `Tool error: ${name}`,
+        detail: {
+          durationMs: Date.now() - startedAt,
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+      throw error;
+    }
+  };
+}
 
 // Helper to find relevant records
 function getProductRecords(productNameQuery: string): SalesRecord[] {
@@ -90,7 +131,7 @@ export const tools: TamboTool<any, any>[] = [
     name: "product_quote_read",
     description:
       "Get a unit price snapshot for a product from the bundled mock sales dataset.",
-    tool: async (args: { productName: string }) => {
+    tool: withToolLogging("product_quote_read", async (args: { productName: string }) => {
       const { productName } = args;
       const records = getProductRecordsOrDefault(productName);
       if (records.length === 0) {
@@ -129,7 +170,7 @@ export const tools: TamboTool<any, any>[] = [
         change,
         percentChange,
       };
-    },
+    }),
     toolSchema: {
       type: "object",
       properties: {
@@ -145,7 +186,7 @@ export const tools: TamboTool<any, any>[] = [
     name: "product_profile_read",
     description:
       "Get a product overview (category, regions, totals) from the bundled mock sales dataset.",
-    tool: async (args: { productName: string }) => {
+    tool: withToolLogging("product_profile_read", async (args: { productName: string }) => {
       const { productName } = args;
       const records = getProductRecordsOrDefault(productName);
       if (records.length === 0) {
@@ -171,7 +212,7 @@ export const tools: TamboTool<any, any>[] = [
         totalUnits,
         regions,
       };
-    },
+    }),
     toolSchema: {
       type: "object",
       properties: {
@@ -187,7 +228,9 @@ export const tools: TamboTool<any, any>[] = [
     name: "sales_highlights_read",
     description:
       "Get a small feed of notable sales events from the bundled mock dataset.",
-    tool: async (args: { category?: string } = {}) => {
+    tool: withToolLogging(
+      "sales_highlights_read",
+      async (args: { category?: string } = {}) => {
       const normalizedCategory = args.category?.trim().toLowerCase();
       const filtered = normalizedCategory
         ? salesData.filter((r) => r.Category.toLowerCase() === normalizedCategory)
@@ -217,7 +260,8 @@ export const tools: TamboTool<any, any>[] = [
         });
 
       return { highlights };
-    },
+      },
+    ),
     toolSchema: {
       type: "object",
       properties: {
@@ -233,7 +277,9 @@ export const tools: TamboTool<any, any>[] = [
     name: "profit_sentiment_read",
     description:
       "Get a monthly profitability trend (profit + margin) for a product from the bundled mock dataset.",
-    tool: async (args: { productName: string }) => {
+    tool: withToolLogging(
+      "profit_sentiment_read",
+      async (args: { productName: string }) => {
       const { productName } = args;
       const records = getProductRecordsOrDefault(productName);
       if (records.length === 0) {
@@ -274,7 +320,8 @@ export const tools: TamboTool<any, any>[] = [
         }));
 
       return { productName: records[0]["Product Name"], data };
-    },
+      },
+    ),
     toolSchema: {
       type: "object",
       properties: {
@@ -290,7 +337,9 @@ export const tools: TamboTool<any, any>[] = [
     name: "product_metrics_read",
     description:
       "Get key sales metrics for a product from the bundled mock sales dataset.",
-    tool: async (args: { productName: string }) => {
+    tool: withToolLogging(
+      "product_metrics_read",
+      async (args: { productName: string }) => {
       const { productName } = args;
       const records = getProductRecordsOrDefault(productName);
       if (records.length === 0) {
@@ -326,7 +375,8 @@ export const tools: TamboTool<any, any>[] = [
           lowUnitPrice: Math.min(...prices),
         },
       };
-    },
+      },
+    ),
     toolSchema: {
       type: "object",
       properties: {

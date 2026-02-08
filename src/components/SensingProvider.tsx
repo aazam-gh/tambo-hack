@@ -10,6 +10,7 @@ import { HandLandmarkerService } from "../services/HandLandmarker";
 import { detectHandGesture, type HandGesture } from "@/lib/hand-gestures";
 import { gestureMappings } from "@/lib/gesture-mapping";
 import type { GestureSignal } from "@/lib/gesture-signals";
+import { appendLogSummaryEvent } from "@/lib/log-summary";
 
 const PREDICTION_INTERVAL_MS = 33;
 const GESTURE_STABILITY_MS = 350;
@@ -21,6 +22,9 @@ const MISSING_VIDEO_CLEAR_STATE_AFTER_MS = 2000;
 const HIT_TEST_CACHE_EPSILON_PX = 2;
 // Keep the hover state fresh even if the cursor is stationary.
 const HIT_TEST_CACHE_MAX_AGE_MS = 100;
+const MOVEMENT_LOG_DISTANCE_PX = 60;
+const MOVEMENT_LOG_MIN_INTERVAL_MS = 800;
+const HAND_GESTURE_LOG_COOLDOWN_MS = 600;
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
@@ -56,6 +60,104 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [gestureSignal, setGestureSignal] = useState<GestureSignal | null>(null);
     const gestureSignalIdRef = useRef(0);
     const missingGestureMappingLoggedRef = useRef<Set<HandGesture>>(new Set());
+    const lastMovementLogRef = useRef<{ x: number; y: number; atMs: number } | null>(null);
+    const lastHandGestureLogRef = useRef<{ gesture: HandGesture | null; atMs: number }>({
+        gesture: null,
+        atMs: 0,
+    });
+    const lastGestureSignalLoggedRef = useRef<number | null>(null);
+    const lastHandTrackingEnabledRef = useRef(handTrackingEnabled);
+
+    useEffect(() => {
+        if (handTrackingEnabled === lastHandTrackingEnabledRef.current) {
+            return;
+        }
+
+        lastHandTrackingEnabledRef.current = handTrackingEnabled;
+        appendLogSummaryEvent({
+            kind: "gesture",
+            label: handTrackingEnabled ? "Hand tracking enabled" : "Hand tracking disabled",
+        });
+    }, [handTrackingEnabled]);
+
+    useEffect(() => {
+        const now = Date.now();
+        const prev = lastHandGestureLogRef.current;
+
+        if (handGesture === prev.gesture) {
+            return;
+        }
+
+        if (now - prev.atMs < HAND_GESTURE_LOG_COOLDOWN_MS) {
+            return;
+        }
+
+        lastHandGestureLogRef.current = { gesture: handGesture, atMs: now };
+        appendLogSummaryEvent({
+            kind: "gesture",
+            label: handGesture ? `Hand gesture: ${handGesture}` : "Hand gesture cleared",
+        });
+    }, [handGesture]);
+
+    useEffect(() => {
+        if (!gestureSignal) {
+            return;
+        }
+
+        if (lastGestureSignalLoggedRef.current === gestureSignal.id) {
+            return;
+        }
+
+        lastGestureSignalLoggedRef.current = gestureSignal.id;
+        appendLogSummaryEvent({
+            kind: "gesture",
+            label: `Gesture signal: ${gestureSignal.type}`,
+            detail: {
+                confidence: Number(gestureSignal.confidence.toFixed(2)),
+                clientX: Math.round(gestureSignal.clientX),
+                clientY: Math.round(gestureSignal.clientY),
+            },
+        });
+    }, [gestureSignal]);
+
+    useEffect(() => {
+        if (!handPosition) {
+            lastMovementLogRef.current = null;
+            return;
+        }
+
+        const now = Date.now();
+        const last = lastMovementLogRef.current;
+        if (!last) {
+            lastMovementLogRef.current = { x: handPosition.x, y: handPosition.y, atMs: now };
+            appendLogSummaryEvent({
+                kind: "movement",
+                label: "Hand cursor acquired",
+                detail: {
+                    x: Math.round(handPosition.x),
+                    y: Math.round(handPosition.y),
+                },
+            });
+            return;
+        }
+
+        const distance = Math.hypot(handPosition.x - last.x, handPosition.y - last.y);
+        const elapsed = now - last.atMs;
+        if (distance < MOVEMENT_LOG_DISTANCE_PX && elapsed < MOVEMENT_LOG_MIN_INTERVAL_MS) {
+            return;
+        }
+
+        lastMovementLogRef.current = { x: handPosition.x, y: handPosition.y, atMs: now };
+        appendLogSummaryEvent({
+            kind: "movement",
+            label: "Hand moved",
+            detail: {
+                x: Math.round(handPosition.x),
+                y: Math.round(handPosition.y),
+                deltaPx: Math.round(distance),
+            },
+        });
+    }, [handPosition]);
 
     // Gesture detection is intentionally conservative:
     // - `gestureCandidateRef` tracks the most recent detected gesture + when it started.

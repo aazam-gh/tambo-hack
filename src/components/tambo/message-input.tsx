@@ -3,6 +3,7 @@ import {
   TooltipProvider,
 } from "@/components/tambo/suggestions-tooltip";
 import { cn } from "@/lib/utils";
+import { appendLogSummaryEvent } from "@/lib/log-summary";
 import {
   useIsTamboTokenUpdating,
   useTamboThread,
@@ -203,6 +204,16 @@ const MessageInputInternal = React.forwardRef<
       }
 
       try {
+        appendLogSummaryEvent({
+          kind: "tambo_submit",
+          label: "Submit (message input)",
+          detail: {
+            contextKey,
+            messagePreview: value.slice(0, 120),
+            messageLength: value.length,
+            images: images.length,
+          },
+        });
         await submit({
           contextKey,
           streamResponse: true,
@@ -214,6 +225,14 @@ const MessageInputInternal = React.forwardRef<
         }, 0);
       } catch (error) {
         console.error("Failed to submit message:", error);
+        appendLogSummaryEvent({
+          kind: "tambo_submit",
+          label: "Submit failed (message input)",
+          detail: {
+            contextKey,
+            message: error instanceof Error ? error.message : String(error),
+          },
+        });
         setDisplayValue(value);
         setSubmitError(
           error instanceof Error

@@ -4,6 +4,7 @@ import { GestureDataButton } from "@/components/GestureDataButton";
 import { GestureIntentOrchestrator } from "@/components/interactive-canvas/GestureIntentOrchestrator";
 import { GestureSidebar } from "@/components/interactive-canvas/GestureSidebar";
 import { InteractiveCanvas } from "@/components/interactive-canvas/InteractiveCanvas";
+import { LogSummarySidebar } from "@/components/interactive-canvas/LogSummarySidebar";
 import { SensingProvider } from "@/components/SensingProvider";
 import { SensingStatus } from "@/components/SensingStatus";
 import { VirtualCursor } from "@/components/VirtualCursor";
@@ -28,6 +29,7 @@ export function InteractiveCanvasWorkspace({
             onToggle={() => setSidebarOpen((v) => !v)}
           />
           <InteractiveCanvas className="flex-1" />
+          <LogSummarySidebar />
           <GestureIntentOrchestrator />
         </SurfaceManagerProvider>
       </div>

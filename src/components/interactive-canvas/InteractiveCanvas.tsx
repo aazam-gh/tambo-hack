@@ -11,6 +11,7 @@ import {
   TAMBO_SHOW_COMPONENT_EVENT,
   type TamboShowComponentDetail,
 } from "@/lib/tambo-canvas-events";
+import { appendLogSummaryEvent } from "@/lib/log-summary";
 import {
   useInteractionContext,
   useInteractionContextActions,
@@ -228,6 +229,17 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       if (!detail?.messageId || !detail.component) {
         return;
       }
+
+      const existed = itemsRef.current.some((item) => item.id === detail.messageId);
+      appendLogSummaryEvent({
+        kind: "component",
+        label: existed ? "Component updated" : "Component created",
+        detail: {
+          messageId: detail.messageId,
+          domain: detail.surfaceMeta?.domain,
+          intent: detail.surfaceMeta?.intent,
+        },
+      });
 
       const now = performance.now();
       const rect = containerRef.current?.getBoundingClientRect();
@@ -455,6 +467,16 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         startY: currentItem.y,
       };
 
+      appendLogSummaryEvent({
+        kind: "movement",
+        label: "Surface drag start",
+        detail: {
+          surfaceId: itemId,
+          x: Math.round(currentItem.x),
+          y: Math.round(currentItem.y),
+        },
+      });
+
       const now = performance.now();
       setItems((prev) => {
         const idx = prev.findIndex((item) => item.id === itemId);
@@ -555,6 +577,16 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       }
 
       const now = performance.now();
+      const currentItem = itemsRef.current.find((item) => item.id === session.itemId);
+      appendLogSummaryEvent({
+        kind: "movement",
+        label: "Surface drag end",
+        detail: {
+          surfaceId: session.itemId,
+          x: currentItem ? Math.round(currentItem.x) : undefined,
+          y: currentItem ? Math.round(currentItem.y) : undefined,
+        },
+      });
       clearItemDragSession({ pointerId: session.pointerId, itemId: session.itemId });
       setItems((prev) =>
         prev.map((item) =>
@@ -603,6 +635,15 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         startClientY: e.clientY,
         startScale: currentItem.scale,
       };
+
+      appendLogSummaryEvent({
+        kind: "movement",
+        label: "Surface resize start",
+        detail: {
+          surfaceId: itemId,
+          scale: Number(currentItem.scale.toFixed(2)),
+        },
+      });
 
       setItems((prev) => {
         const idx = prev.findIndex((item) => item.id === itemId);
@@ -705,6 +746,16 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         setPendingOperation(null);
         return;
       }
+
+      appendLogSummaryEvent({
+        kind: "movement",
+        label: "Surface resize pending confirm",
+        detail: {
+          surfaceId: session.itemId,
+          from: Number(item.scale.toFixed(2)),
+          to: Number(item.previewScale.toFixed(2)),
+        },
+      });
 
       setPendingOperation({ kind: "resize", surfaceId: session.itemId });
     },

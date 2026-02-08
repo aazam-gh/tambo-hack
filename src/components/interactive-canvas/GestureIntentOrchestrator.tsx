@@ -29,6 +29,7 @@ import {
 } from "@/lib/surface-linking";
 import { useSurfaceManagerActions } from "@/lib/surface-manager";
 import { buildDefaultSurfaceMeta } from "@/lib/surface-meta";
+import { appendLogSummaryEvent } from "@/lib/log-summary";
 import { useTamboThread, useTamboThreadInput } from "@tambo-ai/react";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
 
@@ -271,19 +272,50 @@ export function GestureIntentOrchestrator() {
 
   React.useEffect(() => {
     if (pendingPromptRef.current && value === pendingPromptRef.current) {
+      appendLogSummaryEvent({
+        kind: "tambo_submit",
+        label: "Submit (gesture intent)",
+        detail: {
+          promptPreview: value.slice(0, 120),
+          promptLength: value.length,
+        },
+      });
+
       submit({ streamResponse: true }).catch((err) => {
         if (err instanceof Error && err.message.includes("streaming response")) {
           console.warn(
             "Gesture intent streaming submission failed, retrying:",
             err,
           );
+          appendLogSummaryEvent({
+            kind: "tambo_submit",
+            label: "Submit retry (gesture intent)",
+            detail: {
+              reason: err.message,
+            },
+          });
           submit({ streamResponse: true }).catch((retryErr) => {
             console.error("Gesture intent retry submission failed:", retryErr);
+            appendLogSummaryEvent({
+              kind: "tambo_submit",
+              label: "Submit failed (gesture intent)",
+              detail: {
+                message:
+                  retryErr instanceof Error ? retryErr.message : String(retryErr),
+              },
+            });
           });
           return;
         }
 
         console.error("Gesture intent submission failed:", err);
+        appendLogSummaryEvent({
+          kind: "tambo_submit",
+          label: "Submit failed (gesture intent)",
+          detail: {
+            message: err instanceof Error ? err.message : String(err),
+          },
+        });
       });
       pendingPromptRef.current = null;
     }

@@ -35,21 +35,19 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+const DOMAIN_BASE_PRIORITY: Record<DomainId, number> = {
+  infra: 1,
+  trading: 0.92,
+  research: 0.86,
+  dev: 0.82,
+  sales: 0.74,
+  news: 0.68,
+  marketing: 0.62,
+  legal: 0.5,
+};
+
 function domainBasePriority(domain: DomainId): number {
-  switch (domain) {
-    case "infra":
-      return 1;
-    case "dev":
-      return 0.86;
-    case "sales":
-      return 0.74;
-    case "marketing":
-      return 0.62;
-    case "legal":
-      return 0.5;
-    case "stripe":
-      return 0.4;
-  }
+  return DOMAIN_BASE_PRIORITY[domain] ?? 0.5;
 }
 
 function domainPriority(domain: DomainId, context: InteractionContext): number {

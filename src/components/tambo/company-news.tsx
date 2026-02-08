@@ -106,9 +106,22 @@ export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
                         return;
                     }
 
+                    if (!Array.isArray(data)) {
+                        console.warn("CompanyNews: unexpected Finnhub response", {
+                            symbol: applied.symbol,
+                            rangeDays: applied.rangeDays,
+                            data,
+                        });
+                        setState({
+                            status: "error",
+                            message: "Unexpected response from news provider.",
+                        });
+                        return;
+                    }
+
                     setState({
                         status: "ready",
-                        news: Array.isArray(data) ? data : [],
+                        news: data,
                     });
                 } catch (error) {
                     if (cancelled) {
@@ -275,6 +288,6 @@ CompanyNews.displayName = "CompanyNews";
 export const InteractableCompanyNews = withInteractable(CompanyNews, {
     componentName: "CompanyNewsWidget",
     description:
-        "A pre-placed company news panel that can update its symbol, rangeDays, and limit to show recent company news from Finnhub.",
+        "A pre-placed company news panel that can update its symbol and rangeDays to show recent company news from Finnhub.",
     propsSchema: companyNewsSchema as any,
 });

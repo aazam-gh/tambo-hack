@@ -1,15 +1,18 @@
+import type { ReactNode } from "react";
+
 import { components, tools } from "@/lib/tambo";
 import { InteractionContextProvider } from "@/lib/interaction-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { TamboProvider } from "@tambo-ai/react";
-import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { createRootRoute, Outlet, type ErrorComponentProps } from "@tanstack/react-router";
 import "../styles/globals.css";
 
 export const Route = createRootRoute({
   component: RootComponent,
+  errorComponent: RootError,
 });
 
-function RootComponent() {
+function RootShell({ children }: { children: ReactNode }) {
   return (
     <TamboProvider
       apiKey={import.meta.env.VITE_TAMBO_API_KEY!}
@@ -20,9 +23,41 @@ function RootComponent() {
       <InteractionContextProvider>
         <div className="relative min-h-screen bg-background text-foreground selection:bg-emerald-500/30 transition-colors antialiased font-[family-name:var(--font-geist-sans)]">
           <ThemeToggle className="fixed right-4 top-4 z-20" />
-          <Outlet />
+          {children}
         </div>
       </InteractionContextProvider>
     </TamboProvider>
+  );
+}
+
+function RootComponent() {
+  return (
+    <RootShell>
+      <Outlet />
+    </RootShell>
+  );
+}
+
+function RootError({ error, reset }: ErrorComponentProps) {
+  const message = import.meta.env.DEV
+    ? error.stack ?? error.message
+    : "An unexpected error occurred. Please try again.";
+
+  return (
+    <RootShell>
+      <div className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-4 p-8">
+        <h1 className="text-2xl font-semibold">Something went wrong</h1>
+        <pre className="max-h-72 overflow-auto rounded-xl border border-border/60 bg-card/70 p-4 text-sm text-muted-foreground">
+          {message}
+        </pre>
+        <button
+          type="button"
+          onClick={reset}
+          className="w-fit rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+        >
+          Try again
+        </button>
+      </div>
+    </RootShell>
   );
 }

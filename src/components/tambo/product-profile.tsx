@@ -36,7 +36,9 @@ export const ProductProfile = React.forwardRef<
     ref,
   ) => {
     const profitMargin = totalSales > 0 ? (totalProfit / totalSales) * 100 : 0;
-    const regionLabel = regions.length > 0 ? regions.join(", ") : "Unknown";
+    const safeRegions = Array.isArray(regions) ? regions : [];
+    const regionLabel =
+      safeRegions.length > 0 ? safeRegions.join(", ") : "Unknown";
 
     return (
       <div

@@ -44,6 +44,8 @@ If you prefer using the CLI to set this up:
 npm run init
 ```
 
+(`npm run init` runs `npx tambo init`, which may prompt you for configuration and help scaffold env variables. If you still don’t end up with a working `.env.local`, create it manually as shown above.)
+
 ### 3) Run
 
 ```bash
@@ -79,6 +81,8 @@ Current gesture bindings live in `src/lib/gesture-mapping.ts`:
 
 Use the “Gesture Data Explorer” button (top-right) to record short gesture sequences and show a gesture-driven analytics view.
 
+Note: this is an experimental/debugging view (no persistence; UX can vary by browser/camera).
+
 ## Extending
 
 ### Register new Tambo components
@@ -101,3 +105,11 @@ Use the “Gesture Data Explorer” button (top-right) to record short gesture s
 - Hand tracking uses MediaPipe and requires a browser with camera access.
 - The included “product” flows are backed by a bundled mock dataset; no external data source is required.
 - Learn more about Tambo at https://docs.tambo.co.
+
+## Relationship to the Tambo template
+
+This repo started life as a Tambo + Vite starter, but it’s been customized into a more opinionated “gesture + surfaces” playground. If you’re looking for a minimal starter project, the easiest path is:
+
+```bash
+npm create-tambo@latest my-tambo-app
+```

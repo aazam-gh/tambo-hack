@@ -511,9 +511,7 @@ export function GestureIntentOrchestrator() {
     lastGestureHandPositionRef.current = commandAnchor;
 
     if (selected.domain === "news" || selected.domain === "trading" || selected.domain === "research") {
-      const domainDef = Domains[selected.domain];
-      const configuredComponents =
-        domainDef && Array.isArray(domainDef.components) ? domainDef.components : [];
+      const configuredComponents = Domains[selected.domain]?.components ?? [];
       const allowedComponents =
         configuredComponents.length > 0
           ? configuredComponents.join(", ")

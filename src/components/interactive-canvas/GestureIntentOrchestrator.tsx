@@ -821,12 +821,24 @@ export function GestureIntentOrchestrator() {
         (gestureSignal.type === "select" || gestureSignal.type === "confirm");
 
       if (canGestureClick && gestureTarget) {
+        const gestureKey = gestureTarget.dataset.gestureKey;
+        if (!gestureKey) {
+          if (import.meta.env.DEV) {
+            console.warn(
+              "Gesture clickable control missing data-gesture-key",
+              gestureTarget,
+            );
+          }
+          clearGestureSignal();
+          return;
+        }
+
         const now =
           typeof performance !== "undefined" && typeof performance.now === "function"
             ? performance.now()
             : Date.now();
         const lastClick = lastGestureClickRef.current;
-        const targetKey = `${hoveredSurfaceId ?? "global"}:${gestureTarget.dataset.gestureKey ?? "unknown"}`;
+        const targetKey = `${hoveredSurfaceId ?? "global"}:${gestureKey}`;
         if (
           lastClick &&
           lastClick.key === targetKey &&
@@ -841,6 +853,7 @@ export function GestureIntentOrchestrator() {
           setFocusedSurface(hoveredSurfaceId);
         }
 
+        const tagName = gestureTarget.tagName.toLowerCase();
         let clickSucceeded = false;
         try {
           gestureTarget.click();
@@ -850,9 +863,9 @@ export function GestureIntentOrchestrator() {
         }
 
         if (clickSucceeded) {
-          pushRecentAction(`gesture_click:${gestureTarget.tagName.toLowerCase()}`);
+          pushRecentAction(`gesture_click:${tagName}`);
         } else {
-          pushRecentAction(`gesture_click_error:${gestureTarget.tagName.toLowerCase()}`);
+          pushRecentAction(`gesture_click_error:${tagName}`);
         }
 
         clearGestureSignal();

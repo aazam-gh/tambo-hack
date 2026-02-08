@@ -63,7 +63,7 @@ Optional: use the Tambo CLI to set this up:
 npm run init
 ```
 
-`npm run init` runs `npx tambo init`. If it fails due to `npx`/network restrictions (or you prefer manual setup), skip it and configure `.env.local` manually.
+This repo includes an `init` script in `package.json` that runs `npx tambo init`. If it fails due to `npx`/network restrictions (or you prefer manual setup), skip it and configure `.env.local` manually.
 
 ### 3) Run
 
@@ -107,7 +107,7 @@ Open `http://localhost:5173`.
 
 Current gesture bindings live in `src/lib/gesture-mapping.ts`:
 
-(The list below describes the default bindings in this repo; `src/lib/gesture-mapping.ts` is the source of truth.)
+(The list below is only a summary of the defaults in this repo; `src/lib/gesture-mapping.ts` is the source of truth.)
 
 - **Open palm** → summon/dismiss the command surface
 - **Peace sign** → select (cycle options)
@@ -130,7 +130,7 @@ Tambo is wired up via the `TamboProvider` in `src/routes/__root.tsx`, and the re
 
 To extend what the model can do, add entries to the exported `tools` and `components` arrays in `src/lib/tambo.ts`.
 
-**Important:** this demo uses `as any` in a few places to keep the wiring simple while experimenting. In production apps, avoid `any` and prefer fully typed schemas + tool signatures so you get end-to-end type safety.
+**Important:** this demo uses `as any` in a few places (notably in `src/lib/tambo.ts`) to keep the wiring simple while experimenting. In production apps, avoid `any` and prefer fully typed schemas + tool signatures so you get end-to-end type safety.
 
 This repo optimizes for fast experimentation (gestures + surfaces + prompt orchestration) over perfect end-to-end typing.
 

@@ -54,6 +54,7 @@ const MIN_SURFACE_SCALE = 0.7;
 const MAX_SURFACE_SCALE = 2.2;
 const COMBINE_DISTANCE_PX = 140;
 const COMBINE_MIN_OVERLAP_RATIO = 0.08;
+const MAX_GESTURE_MODE_ITEMS = 5;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -110,6 +111,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     handPosition,
     hoveredElement,
     pinchDistance,
+    gestureMappingEnabled,
     gestureSignal,
     clearGestureSignal,
   } = useSensing();
@@ -222,11 +224,77 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     startY: number;
   } | null>(null);
 
+  const evictCanvasItemIds = React.useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) {
+        return;
+      }
+
+      for (const id of ids) {
+        removeSurface(id);
+        dismissSurface(id);
+      }
+
+      setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+
+      setPendingOperation((pending) => {
+        if (!pending) {
+          return pending;
+        }
+
+        if (pending.kind === "resize" && ids.includes(pending.surfaceId)) {
+          return null;
+        }
+
+        if (
+          pending.kind === "combine" &&
+          (ids.includes(pending.sourceId) || ids.includes(pending.targetId))
+        ) {
+          return null;
+        }
+
+        return pending;
+      });
+
+      setCombineCandidate((candidate) => {
+        if (!candidate) {
+          return candidate;
+        }
+
+        return ids.includes(candidate.sourceId) || ids.includes(candidate.targetId)
+          ? null
+          : candidate;
+      });
+    },
+    [dismissSurface, removeSurface, setItems],
+  );
+
+  React.useEffect(() => {
+    if (!gestureMappingEnabled || items.length <= MAX_GESTURE_MODE_ITEMS) {
+      return;
+    }
+
+    const overflow = items.length - MAX_GESTURE_MODE_ITEMS;
+    const ids = items.slice(0, overflow).map((item) => item.id);
+    evictCanvasItemIds(ids);
+  }, [evictCanvasItemIds, gestureMappingEnabled, items]);
+
   const onShowComponent = React.useCallback(
     (event: Event) => {
       const detail = (event as CustomEvent<TamboShowComponentDetail>).detail;
       if (!detail?.messageId || !detail.component) {
         return;
+      }
+
+      const existingIndex = itemsRef.current.findIndex((i) => i.id === detail.messageId);
+      if (
+        gestureMappingEnabled &&
+        existingIndex === -1 &&
+        itemsRef.current.length >= MAX_GESTURE_MODE_ITEMS
+      ) {
+        const overflow = itemsRef.current.length + 1 - MAX_GESTURE_MODE_ITEMS;
+        const ids = itemsRef.current.slice(0, overflow).map((item) => item.id);
+        evictCanvasItemIds(ids);
       }
 
       const now = performance.now();
@@ -278,8 +346,8 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       };
 
       setItems((prev) => {
-        const existingIndex = prev.findIndex((i) => i.id === detail.messageId);
-        if (existingIndex === -1) {
+        const index = prev.findIndex((i) => i.id === detail.messageId);
+        if (index === -1) {
           return [
             ...prev,
             {
@@ -299,7 +367,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         }
 
         return prev.map((item, idx) =>
-          idx === existingIndex
+          idx === index
             ? {
               ...item,
               node: detail.component,
@@ -309,7 +377,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         );
       });
     },
-    [focusedSurface, itemsRef, setItems],
+    [evictCanvasItemIds, focusedSurface, gestureMappingEnabled, itemsRef, setItems],
   );
 
   React.useEffect(() => {

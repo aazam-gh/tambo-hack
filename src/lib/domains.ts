@@ -9,28 +9,22 @@ import {
 } from "lucide-react";
 
 export type DomainId =
-  | "sales"
-  | "infra"
-  | "marketing"
-  | "legal"
-  | "dev"
-  | "stripe";
+  | "research"
+  | "trading"
+  | "news";
 
 export type DomainIntent =
   | "inspect"
-  | "compare"
-  | "explain"
-  | "filter"
-  | "debug"
-  | "summarize";
+  | "analyze"
+  | "summarize"
+  | "compare";
 
 export type DomainUiComponent =
-  | "Graph"
-  | "Table"
-  | "Summary"
-  | "LogViewer"
-  | "AlertList"
-  | "PipelineStatus";
+  | "StockQuote"
+  | "CompanyProfile"
+  | "MarketNews"
+  | "InsiderSentiment"
+  | "BasicFinancials";
 
 export type DomainDefinition = {
   id: DomainId;
@@ -42,52 +36,28 @@ export type DomainDefinition = {
 };
 
 export const Domains = {
-  sales: {
-    id: "sales",
-    label: "Sales",
+  research: {
+    id: "research",
+    label: "Equity Research",
     icon: DollarSign,
-    intents: ["inspect", "compare", "explain"],
-    components: ["Graph", "Table", "Summary"],
-    dataSource: "sales",
+    intents: ["inspect", "analyze", "summarize"],
+    components: ["CompanyProfile", "BasicFinancials"],
+    dataSource: "research",
   },
-  stripe: {
-    id: "stripe",
-    label: "Stripe",
+  trading: {
+    id: "trading",
+    label: "Trading Desk",
     icon: CreditCard,
-    intents: ["inspect", "summarize", "compare"],
-    components: ["Graph", "Table", "Summary"],
-    dataSource: "stripe",
+    intents: ["inspect", "summarize"],
+    components: ["StockQuote", "InsiderSentiment"],
+    dataSource: "trading",
   },
-  infra: {
-    id: "infra",
-    label: "Infrastructure",
-    icon: Server,
-    intents: ["inspect", "filter", "explain"],
-    components: ["LogViewer", "Graph", "AlertList"],
-    dataSource: "infra",
-  },
-  marketing: {
-    id: "marketing",
-    label: "Marketing",
+  news: {
+    id: "news",
+    label: "Market News",
     icon: Megaphone,
-    intents: ["inspect", "compare", "explain"],
-    components: ["Graph", "Table", "Summary"],
-    dataSource: "marketing",
-  },
-  legal: {
-    id: "legal",
-    label: "Legal",
-    icon: Scale,
-    intents: ["inspect", "explain"],
-    components: ["Summary", "Table"],
-    dataSource: "legal",
-  },
-  dev: {
-    id: "dev",
-    label: "Dev Pipelines",
-    icon: Code2,
-    intents: ["inspect", "debug"],
-    components: ["PipelineStatus", "Table", "Summary"],
-    dataSource: "dev",
+    intents: ["summarize"],
+    components: ["MarketNews"],
+    dataSource: "news",
   },
 } as const satisfies Record<DomainId, DomainDefinition>;

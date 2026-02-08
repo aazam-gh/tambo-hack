@@ -44,31 +44,26 @@ function dedupeDomains(domains: DomainId[]): DomainId[] {
 function labelForOption(domain: DomainId, intent: DomainIntent): string {
   const domainLabel = Domains[domain].label;
 
-  if (domain === "infra" && intent === "inspect") {
-    return "Check infra health";
+  if (domain === "research" && intent === "analyze") {
+    return "Analyze equity metrics";
   }
-  if (domain === "infra" && intent === "filter") {
-    return "Review infra alerts";
+  if (domain === "trading" && intent === "summarize") {
+    return "Summarize insider sentiment";
   }
-  if (domain === "infra" && intent === "explain") {
-    return "Explain error spike";
-  }
-  if (domain === "dev" && intent === "inspect") {
-    return "Review pipeline failures";
+  if (domain === "news" && intent === "summarize") {
+    return "Get latest market updates";
   }
 
   const verb =
     intent === "inspect"
       ? "Inspect"
-      : intent === "compare"
-        ? "Compare"
-        : intent === "filter"
-          ? "Filter"
-          : intent === "debug"
-            ? "Debug"
-            : intent === "summarize"
-              ? "Summarize"
-              : "Explain";
+      : intent === "analyze"
+        ? "Analyze"
+        : intent === "compare"
+          ? "Compare"
+          : intent === "summarize"
+            ? "Summarize"
+            : "Explain";
 
   return `${verb} ${domainLabel.toLowerCase()}`;
 }
@@ -82,12 +77,9 @@ function buildCommandOptions(
   const priority: DomainId[] = [
     ...activeDomains,
     primaryDomain,
-    "infra",
-    "stripe",
-    "sales",
-    "dev",
-    "marketing",
-    "legal",
+    "trading",
+    "research",
+    "news",
   ];
 
   const ordered = dedupeDomains(priority);
@@ -367,7 +359,7 @@ export function GestureIntentOrchestrator() {
       }
 
       const hypothesis = resolveIntentHypothesis(signal, interactionContext);
-      const primaryDomain = hypothesis.targetDomain ?? "infra";
+      const primaryDomain = hypothesis.targetDomain ?? "research";
       const primaryIntent = domainIntentFromResolvedIntent(hypothesis.primary);
 
       const predictiveHypothesis = predictIntentHypothesis(interactionContext);
@@ -489,9 +481,9 @@ export function GestureIntentOrchestrator() {
 
     lastGestureHandPositionRef.current = commandAnchor;
 
-    if (selected.domain === "stripe") {
-      const prompt = `[GESTURE_SYSTEM]: User confirmed intent "${selected.intent}" for Stripe. 
-        Please use the Stripe tools to fetch the relevant data and display it using the most appropriate Tambo UI component (Graph, Table, or Summary).`;
+    if (selected.domain === "news" || selected.domain === "trading" || selected.domain === "research") {
+      const prompt = `[GESTURE_SYSTEM]: User confirmed intent "${selected.intent}" for ${selected.domain}. 
+        Please use the Finnhub tools to fetch the relevant data and display it using the most appropriate Finnhub UI component (StockQuote, CompanyProfile, MarketNews, InsiderSentiment, or BasicFinancials).`;
 
       setValue(prompt);
       submit();
@@ -621,7 +613,7 @@ export function GestureIntentOrchestrator() {
       return;
     }
 
-    const primaryDomain = hypothesis.targetDomain ?? suggested[0]?.domain ?? "infra";
+    const primaryDomain = hypothesis.targetDomain ?? suggested[0]?.domain ?? "research";
     const primaryIntent = suggested[0]?.intent ?? "inspect";
     const options = buildCommandOptions(
       activeDomainsSnapshot,

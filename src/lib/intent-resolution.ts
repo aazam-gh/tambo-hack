@@ -30,14 +30,12 @@ function toResolvedIntent(intent: DomainIntent): ResolvedIntent {
       return "inspect_domain";
     case "compare":
       return "compare_domain";
-    case "explain":
-      return "explain_domain";
-    case "filter":
-      return "filter_domain";
-    case "debug":
+    case "analyze":
       return "debug_domain";
     case "summarize":
       return "explain_domain";
+    default:
+      return "noop";
   }
 }
 
@@ -47,12 +45,10 @@ export function domainIntentFromResolvedIntent(
   switch (resolved) {
     case "compare_domain":
       return "compare";
-    case "explain_domain":
-      return "explain";
-    case "filter_domain":
-      return "filter";
     case "debug_domain":
-      return "debug";
+      return "analyze";
+    case "explain_domain":
+      return "summarize";
     case "inspect_domain":
     case "move_surface":
     case "resize_surface":
@@ -63,6 +59,7 @@ export function domainIntentFromResolvedIntent(
     case "adjust_value":
     case "select":
     case "noop":
+    default:
       return "inspect";
   }
 }
@@ -73,7 +70,7 @@ function pickPrimaryDomain(context: InteractionContext): DomainId {
     return active;
   }
 
-  return "infra";
+  return "research";
 }
 
 export function resolveIntentHypothesis(

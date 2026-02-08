@@ -8,94 +8,166 @@
  * Read more about Tambo at https://tambo.co/docs
  */
 
-import { AlertList, alertListSchema } from "@/components/tambo/alert-list";
-import { Callout, calloutSchema } from "@/components/tambo/callout";
-import { Checklist, checklistSchema } from "@/components/tambo/checklist";
 import {
-  ComposableGraph,
-  composableGraphSchema,
-} from "@/components/tambo/composable-graph";
-import { Form, formSchema } from "@/components/tambo/form";
-import { Graph, graphSchema } from "@/components/tambo/graph";
-import { LogViewer, logViewerSchema } from "@/components/tambo/log-viewer";
-import { MetricCard, metricCardSchema } from "@/components/tambo/metric-card";
-import { Modal, modalSchema } from "@/components/tambo/modal";
+  StockQuote,
+  stockQuoteSchema,
+} from "@/components/tambo/stock-quote";
 import {
-  PipelineStatus,
-  pipelineStatusSchema,
-} from "@/components/tambo/pipeline-status";
-import { Summary, summarySchema } from "@/components/tambo/summary";
-import { Table, tableSchema } from "@/components/tambo/table";
+  CompanyProfile,
+  companyProfileSchema,
+} from "@/components/tambo/company-profile";
+import {
+  MarketNews,
+  marketNewsSchema,
+} from "@/components/tambo/market-news";
+import {
+  InsiderSentiment,
+  insiderSentimentSchema,
+} from "@/components/tambo/insider-sentiment";
+import {
+  BasicFinancials,
+  basicFinancialsSchema,
+} from "@/components/tambo/basic-financials";
 import type { TamboComponent } from "@tambo-ai/react";
 import { TamboTool } from "@tambo-ai/react";
 import { z } from "zod";
 
 export const tools: TamboTool<any, any>[] = [
   {
-    name: "balance_read",
-    description: "Get the current Stripe account balance. Returns dummy data.",
-    tool: async () => {
+    name: "stock_quote_read",
+    description: "Get real-time quote data for a stock symbol from Finnhub.",
+    tool: async (args: { symbol: string }) => {
+      const { symbol } = args;
+      const apiKey = "d646mq1r01ql6dj2d1t0d646mq1r01ql6dj2d1tg";
+      const response = await fetch(
+        `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch quote for ${symbol}`);
+      }
+      const data = await response.json();
       return {
-        available: [{ amount: 1254050, currency: "usd" }],
-        pending: [{ amount: 45000, currency: "usd" }],
-      };
-    },
-    toolSchema: {
-      type: "object",
-      properties: {},
-      required: [],
-    } as any,
-  },
-  {
-    name: "charges_read",
-    description: "List recent Stripe charges. Returns dummy data.",
-    tool: async (args: { limit?: number } = {}) => {
-      const limit = args.limit ?? 10;
-      return {
-        data: Array.from({ length: limit }, (_, i) => ({
-          id: `ch_${Math.random().toString(36).slice(2, 10)}`,
-          amount: Math.floor(Math.random() * 10000) + 500,
-          currency: "usd",
-          status: "succeeded",
-          created: Math.floor(Date.now() / 1000) - i * 3600,
-          customer: `cus_${Math.random().toString(36).slice(2, 10)}`,
-        })),
-        has_more: false,
+        symbol,
+        currentPrice: data.c,
+        highPrice: data.h,
+        lowPrice: data.l,
+        openPrice: data.o,
+        previousClose: data.pc,
+        change: data.d,
+        percentChange: data.dp,
       };
     },
     toolSchema: {
       type: "object",
       properties: {
-        limit: {
-          type: "number",
-          description: "Limit the number of charges to return",
+        symbol: {
+          type: "string",
+          description: "The stock symbol to get a quote for (e.g. AAPL)",
+        },
+      },
+      required: ["symbol"],
+    } as any,
+  },
+  {
+    name: "company_profile_read",
+    description: "Get general company information for a given symbol from Finnhub.",
+    tool: async (args: { symbol: string }) => {
+      const { symbol } = args;
+      const apiKey = "d646mq1r01ql6dj2d1t0d646mq1r01ql6dj2d1tg";
+      const response = await fetch(
+        `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${apiKey}`
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch profile for ${symbol}`);
+      }
+      return await response.json();
+    },
+    toolSchema: {
+      type: "object",
+      properties: {
+        symbol: {
+          type: "string",
+          description: "The stock symbol to get a profile for (e.g. AAPL)",
+        },
+      },
+      required: ["symbol"],
+    } as any,
+  },
+  {
+    name: "market_news_read",
+    description: "Get latest market news from Finnhub.",
+    tool: async (args: { category: string } = { category: "general" }) => {
+      const { category } = args;
+      const apiKey = "d646mq1r01ql6dj2d1t0d646mq1r01ql6dj2d1tg";
+      const response = await fetch(
+        `https://finnhub.io/api/v1/news?category=${category}&token=${apiKey}`
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch news for ${category}`);
+      }
+      const data = await response.json();
+      return { news: data };
+    },
+    toolSchema: {
+      type: "object",
+      properties: {
+        category: {
+          type: "string",
+          description: "The news category (general, forex, crypto, merger)",
         },
       },
     } as any,
   },
   {
-    name: "customers_read",
-    description: "List Stripe customers. Returns dummy data.",
-    tool: async (args: { limit?: number } = {}) => {
-      const limit = args.limit ?? 10;
-      return {
-        data: Array.from({ length: limit }, (_, i) => ({
-          id: `cus_${Math.random().toString(36).slice(2, 10)}`,
-          email: `client_${i}@example.com`,
-          name: `Mock Client ${i}`,
-          created: Math.floor(Date.now() / 1000) - i * 86400,
-        })),
-        has_more: false,
-      };
+    name: "insider_sentiment_read",
+    description: "Get insider sentiment data for a stock symbol from Finnhub.",
+    tool: async (args: { symbol: string }) => {
+      const { symbol } = args;
+      const apiKey = "d646mq1r01ql6dj2d1t0d646mq1r01ql6dj2d1tg";
+      const response = await fetch(
+        `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${symbol}&from=2024-01-01&token=${apiKey}`
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch insider sentiment for ${symbol}`);
+      }
+      const data = await response.json();
+      return { symbol, data: data.data };
     },
     toolSchema: {
       type: "object",
       properties: {
-        limit: {
-          type: "number",
-          description: "Limit the number of customers to return",
+        symbol: {
+          type: "string",
+          description: "The stock symbol (e.g. AAPL)",
         },
       },
+      required: ["symbol"],
+    } as any,
+  },
+  {
+    name: "basic_financials_read",
+    description: "Get basic financial metrics for a stock symbol from Finnhub.",
+    tool: async (args: { symbol: string }) => {
+      const { symbol } = args;
+      const apiKey = "d646mq1r01ql6dj2d1t0d646mq1r01ql6dj2d1tg";
+      const response = await fetch(
+        `https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${apiKey}`
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch financials for ${symbol}`);
+      }
+      const data = await response.json();
+      return { symbol, metric: data.metric };
+    },
+    toolSchema: {
+      type: "object",
+      properties: {
+        symbol: {
+          type: "string",
+          description: "The stock symbol (e.g. AAPL)",
+        },
+      },
+      required: ["symbol"],
     } as any,
   },
 ];
@@ -109,89 +181,38 @@ export const tools: TamboTool<any, any>[] = [
  */
 export const components: TamboComponent[] = [
   {
-    name: "AlertList",
+    name: "StockQuote",
     description:
-      "A list of alerts with severity levels. Use for infra health overviews and incident summaries.",
-    component: AlertList,
-    propsSchema: alertListSchema,
+      "A real-time stock quote card showing the current price, high/low/open for the day, and change percent.",
+    component: StockQuote,
+    propsSchema: stockQuoteSchema as any,
   },
   {
-    name: "Callout",
+    name: "CompanyProfile",
     description:
-      "A callout card for highlighting information, success states, warnings, or errors. Use `tone` to set the visual style (info/success/warning/error).",
-    component: Callout,
-    propsSchema: calloutSchema,
+      "A company profile card showing the logo, industry, exchange, market cap, and website link.",
+    component: CompanyProfile,
+    propsSchema: companyProfileSchema as any,
   },
   {
-    name: "Checklist",
+    name: "MarketNews",
     description:
-      "A checklist card with a title and a list of items. Each item supports an optional `checked` boolean to show completion state.",
-    component: Checklist,
-    propsSchema: checklistSchema,
+      "A list of the latest market news articles with headlines, summaries, and images.",
+    component: MarketNews,
+    propsSchema: marketNewsSchema as any,
   },
   {
-    name: "Graph",
+    name: "InsiderSentiment",
     description:
-      "A component that renders various types of charts (bar, line, pie) using Recharts. Supports customizable data visualization with labels, datasets, and styling options.",
-    component: Graph,
-    propsSchema: graphSchema,
+      "A card showing insider sentiment trends for a company based on monthly share purchase ratios.",
+    component: InsiderSentiment,
+    propsSchema: insiderSentimentSchema as any,
   },
   {
-    name: "ComposableGraph",
+    name: "BasicFinancials",
     description:
-      "A composable graph that renders a chart as micro-primitives (Axis, DataLine, Legend, Tooltip, FilterControl). Pass `microPrimitives` to control which parts render, and `incremental` to reveal them in stages.",
-    component: ComposableGraph,
-    propsSchema: composableGraphSchema,
+      "A component showing key financial metrics like P/E ratio, EPS, Dividend Yield, and Beta.",
+    component: BasicFinancials,
+    propsSchema: basicFinancialsSchema as any,
   },
-  {
-    name: "LogViewer",
-    description:
-      "A compact log viewer showing timestamped log lines with severity.",
-    component: LogViewer,
-    propsSchema: logViewerSchema,
-  },
-  {
-    name: "MetricCard",
-    description:
-      "A metric card for displaying a labeled value with an optional unit and change indicator. Use `change` to show a positive/negative delta.",
-    component: MetricCard,
-    propsSchema: metricCardSchema,
-  },
-  {
-    name: "Form",
-    description:
-      "A dynamic, schema-driven form component that renders text inputs, textareas, numbers, emails, and checkboxes. Submits locally and shows the payload for demo/prototyping.",
-    component: Form,
-    propsSchema: formSchema,
-  },
-  {
-    name: "Modal",
-    description:
-      "A modal dialog with an open trigger and a dismissible overlay. Useful for confirmations, details panels, and quick callouts.",
-    component: Modal,
-    propsSchema: modalSchema,
-  },
-  {
-    name: "PipelineStatus",
-    description:
-      "A pipeline status card showing recent runs and step-level states.",
-    component: PipelineStatus,
-    propsSchema: pipelineStatusSchema,
-  },
-  {
-    name: "Summary",
-    description:
-      "A short summary card with a title and bullet points. Use for explanations and key takeaways.",
-    component: Summary,
-    propsSchema: summarySchema,
-  },
-  {
-    name: "Table",
-    description:
-      "A compact table component with explicit columns and row objects.",
-    component: Table,
-    propsSchema: tableSchema,
-  },
-  // Add more components here
 ];
-

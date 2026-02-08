@@ -21,8 +21,15 @@ export const productMetricsSchema = z.object({
 
 export type ProductMetricsProps = z.infer<typeof productMetricsSchema>;
 
-const toFiniteNumber = (value: unknown): number | undefined =>
-  typeof value === "number" && Number.isFinite(value) ? value : undefined;
+const toFiniteNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
+  }
+
+  return undefined;
+};
 
 const formatCurrency = (value?: number): string =>
   typeof value === "number" ? `$${value.toFixed(2)}` : "N/A";
@@ -49,15 +56,19 @@ export const ProductMetrics = React.forwardRef<
   };
 
   const hasMeaningfulMetrics = Object.values(normalized).some(
-    (value) => typeof value === "number",
+    (value) => value !== undefined,
   );
 
-  const unitPriceRangeLabel =
-    typeof normalized.lowUnitPrice === "number" &&
-    typeof normalized.highUnitPrice === "number" &&
-    normalized.lowUnitPrice <= normalized.highUnitPrice
-      ? `${formatCurrency(normalized.lowUnitPrice)} - ${formatCurrency(normalized.highUnitPrice)}`
-      : "N/A";
+  const unitPriceRangeLabel = (() => {
+    const { lowUnitPrice, highUnitPrice } = normalized;
+    if (typeof lowUnitPrice === "number" && typeof highUnitPrice === "number") {
+      if (lowUnitPrice > highUnitPrice) return "N/A";
+      return `${formatCurrency(lowUnitPrice)} - ${formatCurrency(highUnitPrice)}`;
+    }
+    if (typeof lowUnitPrice === "number") return `≥ ${formatCurrency(lowUnitPrice)}`;
+    if (typeof highUnitPrice === "number") return `≤ ${formatCurrency(highUnitPrice)}`;
+    return "N/A";
+  })();
 
   const marginSignal =
     typeof normalized.profitMarginPercent === "number"
@@ -79,7 +90,9 @@ export const ProductMetrics = React.forwardRef<
       </div>
 
       {!hasMeaningfulMetrics ? (
-        <div className="text-xs text-muted-foreground">No metrics available.</div>
+        <div className="text-xs text-muted-foreground">
+          No metrics available for this product.
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-x-8 gap-y-6">

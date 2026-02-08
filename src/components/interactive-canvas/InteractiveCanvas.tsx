@@ -1533,6 +1533,14 @@ export function InteractiveCanvas({ className }: { className?: string }) {
                   aria-label="Remove canvas item"
                   onClick={(e) => {
                     e.stopPropagation();
+
+                    if (item.linkedSurfaces.length > 0) {
+                      for (const linkedId of item.linkedSurfaces) {
+                        removeSurface(linkedId);
+                        dismissSurface(linkedId);
+                      }
+                    }
+
                     removeSurface(item.id);
                     dismissSurface(item.id);
                     setItems((prev) => prev.filter((p) => p.id !== item.id));

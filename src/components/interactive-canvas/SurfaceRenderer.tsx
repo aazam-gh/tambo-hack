@@ -82,6 +82,8 @@ function RangeButton({
   return (
     <button
       type="button"
+      data-interactable="true"
+      data-gesture-click="true"
       onClick={onClick}
       className={cn(
         "rounded-lg border border-border/50 bg-background/40 px-2 py-1 text-[11px]",
@@ -274,6 +276,8 @@ export function SurfaceRenderer({
         <button
           key={value}
           type="button"
+          data-interactable="true"
+          data-gesture-click="true"
           onClick={() => updateSurfaceQuery(surfaceId, { service: value })}
           className={cn(
             "rounded-lg border px-2 py-1 text-[11px]",

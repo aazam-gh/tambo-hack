@@ -27,7 +27,7 @@ import {
   type SurfaceLinkGroup,
   type SurfaceLinkSuggestion,
 } from "@/lib/surface-linking";
-import { useSurfaceManagerActions } from "@/lib/surface-manager";
+import { useSurfaceManager, useSurfaceManagerActions } from "@/lib/surface-manager";
 import { buildDefaultSurfaceMeta } from "@/lib/surface-meta";
 import { useTamboThread, useTamboThreadInput } from "@tambo-ai/react";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
@@ -244,6 +244,12 @@ function createSurfaceSessionPrefix(): string {
   return `sess-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function cycleRangeDays(current: number): number {
+  if (current <= 7) return 14;
+  if (current <= 14) return 30;
+  return 7;
+}
+
 export function GestureIntentOrchestrator() {
   // Contract: gestures only emit low-entropy signals. This orchestrator is the
   // only place that may translate confirmed intent into `tambo:showComponent`.
@@ -263,7 +269,8 @@ export function GestureIntentOrchestrator() {
     setCommandSurfaceOpen,
     setFocusedSurface,
   } = useInteractionContextActions();
-  const { registerSurface, linkSurfaces } = useSurfaceManagerActions();
+  const { surfaces } = useSurfaceManager();
+  const { registerSurface, linkSurfaces, updateSurfaceQuery } = useSurfaceManagerActions();
   const { submit, setValue, value } = useTamboThreadInput();
   const { thread } = useTamboThread();
   const { hoveredElement } = useSensing();
@@ -801,14 +808,49 @@ export function GestureIntentOrchestrator() {
     }
 
     if (!commandOpen) {
-      if (gestureSignal.type === "select") {
-        const hoveredItem = hoveredElement?.closest("[data-canvas-item-id]") as HTMLElement | null;
-        if (hoveredItem?.dataset.canvasItemId) {
-          handleCanvasItemSelection(hoveredItem.dataset.canvasItemId);
-          clearGestureSignal();
-          return;
+      const hoveredItem = hoveredElement?.closest(
+        "[data-canvas-item-id]",
+      ) as HTMLElement | null;
+      const hoveredSurfaceId = hoveredItem?.dataset.canvasItemId;
+
+      const canGestureClick =
+        hoveredElement?.dataset.gestureClick === "true" &&
+        (gestureSignal.type === "select" || gestureSignal.type === "confirm");
+
+      if (canGestureClick && hoveredElement) {
+        hoveredElement.click();
+        if (hoveredSurfaceId) {
+          setFocusedSurface(hoveredSurfaceId);
         }
+        pushRecentAction(`gesture_click:${hoveredElement.tagName.toLowerCase()}`);
+        clearGestureSignal();
+        return;
       }
+
+      if (gestureSignal.type === "select") {
+        if (hoveredSurfaceId) {
+          handleCanvasItemSelection(hoveredSurfaceId);
+        }
+        clearGestureSignal();
+        return;
+      }
+
+      if (gestureSignal.type === "confirm") {
+        if (hoveredSurfaceId && hoveredSurfaceId in surfaces) {
+          const meta = surfaces[hoveredSurfaceId];
+          const current =
+            typeof meta?.query.rangeDays === "number" ? meta.query.rangeDays : 14;
+          const next = cycleRangeDays(current);
+          updateSurfaceQuery(hoveredSurfaceId, { rangeDays: next });
+          setFocusedSurface(hoveredSurfaceId);
+          pushRecentAction(`gesture_adjust:${hoveredSurfaceId}:rangeDays:${next}`);
+        }
+
+        clearGestureSignal();
+        return;
+      }
+
+      clearGestureSignal();
       return;
     }
 
@@ -856,6 +898,10 @@ export function GestureIntentOrchestrator() {
     openCommandSurface,
     hoveredElement,
     handleCanvasItemSelection,
+    pushRecentAction,
+    setFocusedSurface,
+    surfaces,
+    updateSurfaceQuery,
   ]);
 
   return (

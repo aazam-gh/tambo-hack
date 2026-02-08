@@ -1158,16 +1158,18 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     if (gestureSignal.type === "confirm") {
       if (pendingOperation) {
         commitPendingOperation();
+        clearGestureSignal();
+        return;
       }
-      clearGestureSignal();
       return;
     }
 
     if (gestureSignal.type === "dismiss") {
       if (pendingOperation) {
         clearPendingOperation();
+        clearGestureSignal();
+        return;
       }
-      clearGestureSignal();
       return;
     }
 

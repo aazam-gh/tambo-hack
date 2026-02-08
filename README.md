@@ -44,7 +44,7 @@ If you prefer using the CLI to set this up:
 npm run init
 ```
 
-(`npm run init` runs `npx tambo init`, which may prompt you for configuration and help scaffold env variables. If you still don’t end up with a working `.env.local`, create it manually as shown above.)
+This repo defines an `init` script (`"init": "npx tambo init"`) that may prompt you for configuration and help scaffold env variables. If you still don’t end up with a working `.env.local`, create it manually as shown above.
 
 ### 3) Run
 
@@ -72,6 +72,8 @@ Open `http://localhost:5173`.
 
 Current gesture bindings live in `src/lib/gesture-mapping.ts`:
 
+(The list below is a quick summary; `src/lib/gesture-mapping.ts` is the source of truth.)
+
 - **Open palm** → summon/dismiss the command surface
 - **Peace sign** → select (cycle options)
 - **Thumbs up** → confirm (spawn a surface)
@@ -84,6 +86,39 @@ Use the “Gesture Data Explorer” button (top-right) to record short gesture s
 Note: this is an experimental/debugging view (no persistence; UX can vary by browser/camera).
 
 ## Extending
+
+### Tambo integration (registry shapes)
+
+Tambo is wired up via the `TamboProvider` in `src/routes/__root.tsx`, and the registry lives in `src/lib/tambo.ts`. The two key exports are:
+
+```ts
+export const tools: TamboTool<any, any>[] = [
+  {
+    name: "product_metrics_read",
+    description: "Get key sales metrics for a product from the bundled mock sales dataset.",
+    tool: async (args: { productName: string }) => {
+      // Implementation lives in `src/lib/tambo.ts`.
+    },
+    toolSchema: {
+      type: "object",
+      properties: {
+        productName: { type: "string", description: "The product name" },
+      },
+      required: ["productName"],
+    } as any,
+  },
+];
+
+export const components: TamboComponent[] = [
+  {
+    name: "ProductMetrics",
+    description:
+      "Key product metrics like sales, profit, margin, units sold, and unit price range.",
+    component: ProductMetrics,
+    propsSchema: productMetricsSchema as any,
+  },
+];
+```
 
 ### Register new Tambo components
 

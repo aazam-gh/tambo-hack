@@ -23,7 +23,7 @@ export const ProfitSentiment = React.forwardRef<
   HTMLDivElement,
   ProfitSentimentProps
 >(({ productName, data }, ref) => {
-  const latest = data[data.length - 1];
+  const latest = data && data.length > 0 ? data[data.length - 1] : null;
   const isHealthy = (latest?.profitMarginPercent ?? 0) >= 0;
 
   return (

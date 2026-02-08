@@ -27,12 +27,18 @@ function normalizeSymbol(symbol: string): string {
     return symbol.trim().toUpperCase();
 }
 
-const TICKER_PATTERN = /^[A-Z0-9.]{1,10}$/;
+const TICKER_PATTERN = /^[A-Z0-9.]{1,10}$/i;
+
+const tickerSymbolSchema = z
+    .string()
+    .trim()
+    .regex(TICKER_PATTERN, "Enter a valid ticker symbol (e.g. AAPL)")
+    .transform((value) => value.toUpperCase());
 
 export const companyNewsSchema = z.object({
-    symbol: z
-        .string()
-        .describe("The stock symbol (e.g. AAPL) to fetch company news for"),
+    symbol: tickerSymbolSchema.describe(
+        "The stock symbol (e.g. AAPL) to fetch company news for",
+    ),
     rangeDays: z
         .number()
         .int()
@@ -289,5 +295,5 @@ export const InteractableCompanyNews = withInteractable(CompanyNews, {
     componentName: "CompanyNewsWidget",
     description:
         "A pre-placed company news panel that can update its symbol and rangeDays to show recent company news from Finnhub.",
-    propsSchema: companyNewsSchema as any,
+    propsSchema: companyNewsSchema,
 });

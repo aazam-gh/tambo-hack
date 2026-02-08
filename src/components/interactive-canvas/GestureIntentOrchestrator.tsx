@@ -819,7 +819,11 @@ export function GestureIntentOrchestrator() {
         (gestureSignal.type === "select" || gestureSignal.type === "confirm");
 
       if (canGestureClick && gestureTarget) {
-        gestureTarget.click();
+        try {
+          gestureTarget.click();
+        } catch (error) {
+          console.error("Gesture click handler threw", { error, gestureTarget });
+        }
         if (hoveredSurfaceId) {
           setFocusedSurface(hoveredSurfaceId);
         }

@@ -350,10 +350,22 @@ export const ComposableGraph = React.forwardRef<HTMLDivElement, ComposableGraphP
 
     const availableRanges = React.useMemo(() => {
       const length = data.labels.length;
-      return [7, 14, 30].filter((range) => range < length);
+      return [7, 14, 30, 60, 90, 180].filter((range) => range < length);
     }, [data.labels.length]);
 
     const [selectedRange, setSelectedRange] = React.useState<number | null>(null);
+
+    React.useEffect(() => {
+      if (!showFilterControl) {
+        return;
+      }
+      if (selectedRange === null) {
+        return;
+      }
+      if (!availableRanges.includes(selectedRange)) {
+        setSelectedRange(availableRanges[0] ?? null);
+      }
+    }, [availableRanges, selectedRange, showFilterControl]);
 
     React.useEffect(() => {
       setActiveLabels(new Set(validDatasets.map((d) => d.label)));

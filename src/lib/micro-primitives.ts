@@ -63,7 +63,7 @@ function compositionsForIntent(
     ];
   }
 
-  if (intent === "explain" || intent === "debug") {
+  if (intent === "explain") {
     return [];
   }
 

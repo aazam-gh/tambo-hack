@@ -1,5 +1,3 @@
-import type { DomainId } from "@/lib/domains";
-
 function mulberry32(seed: number) {
   return function next() {
     let t = (seed += 0x6d2b79f5);
@@ -401,7 +399,7 @@ export type DomainDataResult =
   | { domain: "dev"; data: DevData };
 
 // Convenience helper for sampling default (unfiltered) data per domain.
-export function fetchDomainData(domain: DomainId): DomainDataResult {
+export function fetchDomainData(domain: DomainDataResult["domain"]): DomainDataResult {
   switch (domain) {
     case "sales":
       return { domain: "sales", data: fetchSalesData() };
@@ -413,7 +411,5 @@ export function fetchDomainData(domain: DomainId): DomainDataResult {
       return { domain: "legal", data: fetchLegalData() };
     case "dev":
       return { domain: "dev", data: fetchDevData() };
-    case "stripe":
-      return { domain: "sales", data: fetchSalesData() };
   }
 }

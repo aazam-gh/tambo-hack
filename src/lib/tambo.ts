@@ -28,9 +28,37 @@ import {
   BasicFinancials,
   basicFinancialsSchema,
 } from "@/components/tambo/basic-financials";
+import {
+  InsiderSentimentChart,
+  insiderSentimentChartSchema,
+} from "@/components/tambo/insider-sentiment-chart";
+import {
+  StockPriceChart,
+  stockPriceChartSchema,
+} from "@/components/tambo/stock-price-chart";
+import {
+  StockVolumeChart,
+  stockVolumeChartSchema,
+} from "@/components/tambo/stock-volume-chart";
+import { finnhubGetJson } from "@/services/finnhub";
 import type { TamboComponent } from "@tambo-ai/react";
 import { TamboTool } from "@tambo-ai/react";
-import { z } from "zod";
+
+type FinnhubQuoteResponse = {
+  c: number;
+  h: number;
+  l: number;
+  o: number;
+  pc: number;
+  d: number;
+  dp: number;
+};
+
+type FinnhubMarketNewsItem = Record<string, unknown>;
+
+type FinnhubInsiderSentimentResponse = { data: unknown[] };
+
+type FinnhubBasicFinancialsResponse = { metric: Record<string, unknown> };
 
 export const tools: TamboTool<any, any>[] = [
   {
@@ -38,24 +66,24 @@ export const tools: TamboTool<any, any>[] = [
     description: "Get real-time quote data for a stock symbol from Finnhub.",
     tool: async (args: { symbol: string }) => {
       const { symbol } = args;
-      const apiKey = "d646mq1r01ql6dj2d1t0d646mq1r01ql6dj2d1tg";
-      const response = await fetch(
-        `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`
-      );
-      if (!response.ok) {
-        throw new Error(`Failed to fetch quote for ${symbol}`);
+      try {
+        const data = await finnhubGetJson<FinnhubQuoteResponse>("/quote", {
+          symbol,
+        });
+        return {
+          symbol,
+          currentPrice: data.c,
+          highPrice: data.h,
+          lowPrice: data.l,
+          openPrice: data.o,
+          previousClose: data.pc,
+          change: data.d,
+          percentChange: data.dp,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch quote for ${symbol}: ${message}`);
       }
-      const data = await response.json();
-      return {
-        symbol,
-        currentPrice: data.c,
-        highPrice: data.h,
-        lowPrice: data.l,
-        openPrice: data.o,
-        previousClose: data.pc,
-        change: data.d,
-        percentChange: data.dp,
-      };
     },
     toolSchema: {
       type: "object",
@@ -73,14 +101,14 @@ export const tools: TamboTool<any, any>[] = [
     description: "Get general company information for a given symbol from Finnhub.",
     tool: async (args: { symbol: string }) => {
       const { symbol } = args;
-      const apiKey = "d646mq1r01ql6dj2d1t0d646mq1r01ql6dj2d1tg";
-      const response = await fetch(
-        `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${apiKey}`
-      );
-      if (!response.ok) {
-        throw new Error(`Failed to fetch profile for ${symbol}`);
+      try {
+        return await finnhubGetJson<Record<string, unknown>>("/stock/profile2", {
+          symbol,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch profile for ${symbol}: ${message}`);
       }
-      return await response.json();
     },
     toolSchema: {
       type: "object",
@@ -95,19 +123,20 @@ export const tools: TamboTool<any, any>[] = [
   },
   {
     name: "market_news_read",
-    description: "Get latest market news from Finnhub.",
+    description: "Get latest market news from Finnhub (up to 5 items).",
     tool: async (args: { category: string } = { category: "general" }) => {
       const { category } = args;
-      const apiKey = "d646mq1r01ql6dj2d1t0d646mq1r01ql6dj2d1tg";
-      const response = await fetch(
-        `https://finnhub.io/api/v1/news?category=${category}&token=${apiKey}`
-      );
-      if (!response.ok) {
-        throw new Error(`Failed to fetch news for ${category}`);
+      try {
+        const data = await finnhubGetJson<FinnhubMarketNewsItem[]>("/news", {
+          category,
+        });
+        return {
+          news: Array.isArray(data) ? data.slice(0, 5) : [],
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch market news (${category}): ${message}`);
       }
-      const data = await response.json();
-      // Slice to top 5 news items to avoid token limits
-      return { news: Array.isArray(data) ? data.slice(0, 5) : [] };
     },
     toolSchema: {
       type: "object",
@@ -121,19 +150,26 @@ export const tools: TamboTool<any, any>[] = [
   },
   {
     name: "insider_sentiment_read",
-    description: "Get insider sentiment data for a stock symbol from Finnhub.",
+    description:
+      "Get insider sentiment data for a stock symbol from Finnhub (up to the latest 12 data points).",
     tool: async (args: { symbol: string }) => {
       const { symbol } = args;
-      const apiKey = "d646mq1r01ql6dj2d1t0d646mq1r01ql6dj2d1tg";
-      const response = await fetch(
-        `https://finnhub.io/api/v1/stock/insider-sentiment?symbol=${symbol}&from=2024-01-01&token=${apiKey}`
-      );
-      if (!response.ok) {
-        throw new Error(`Failed to fetch insider sentiment for ${symbol}`);
+      try {
+        const data = await finnhubGetJson<FinnhubInsiderSentimentResponse>(
+          "/stock/insider-sentiment",
+          {
+            symbol,
+            from: "2024-01-01",
+          },
+        );
+        return {
+          symbol,
+          data: data.data.slice(0, 12),
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch insider sentiment for ${symbol}: ${message}`);
       }
-      const data = await response.json();
-      // Slice to recent 12 months to avoid token limits
-      return { symbol, data: Array.isArray(data.data) ? data.data.slice(0, 12) : [] };
     },
     toolSchema: {
       type: "object",
@@ -151,15 +187,19 @@ export const tools: TamboTool<any, any>[] = [
     description: "Get basic financial metrics for a stock symbol from Finnhub.",
     tool: async (args: { symbol: string }) => {
       const { symbol } = args;
-      const apiKey = "d646mq1r01ql6dj2d1t0d646mq1r01ql6dj2d1tg";
-      const response = await fetch(
-        `https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${apiKey}`
-      );
-      if (!response.ok) {
-        throw new Error(`Failed to fetch financials for ${symbol}`);
+      try {
+        const data = await finnhubGetJson<FinnhubBasicFinancialsResponse>(
+          "/stock/metric",
+          {
+            symbol,
+            metric: "all",
+          },
+        );
+        return { symbol, metric: data.metric };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to fetch financial metrics for ${symbol}: ${message}`);
       }
-      const data = await response.json();
-      return { symbol, metric: data.metric };
     },
     toolSchema: {
       type: "object",
@@ -216,5 +256,26 @@ export const components: TamboComponent[] = [
       "A component showing key financial metrics like P/E ratio, EPS, Dividend Yield, and Beta.",
     component: BasicFinancials,
     propsSchema: basicFinancialsSchema as any,
+  },
+  {
+    name: "StockPriceChart",
+    description:
+      "An interactive line chart of a stock's daily close price (with moving averages) fetched from Finnhub.",
+    component: StockPriceChart,
+    propsSchema: stockPriceChartSchema as any,
+  },
+  {
+    name: "StockVolumeChart",
+    description:
+      "An interactive bar chart of a stock's daily trading volume fetched from Finnhub.",
+    component: StockVolumeChart,
+    propsSchema: stockVolumeChartSchema as any,
+  },
+  {
+    name: "InsiderSentimentChart",
+    description:
+      "An interactive chart of insider sentiment (MSPR) and holdings change fetched from Finnhub.",
+    component: InsiderSentimentChart,
+    propsSchema: insiderSentimentChartSchema as any,
   },
 ];

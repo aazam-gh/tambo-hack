@@ -31,7 +31,7 @@ export const ProductProfile = React.forwardRef<
       totalSales,
       totalProfit,
       totalUnits,
-      regions,
+      regions = [],
     },
     ref,
   ) => {

@@ -10,6 +10,7 @@ import { Summary } from "@/components/tambo/summary";
 import { Table } from "@/components/tambo/table";
 import { Domains } from "@/lib/domains";
 import { normalizeMicroPrimitives, type MicroPrimitive } from "@/lib/micro-primitives";
+import { cycleRangeDays, DEFAULT_RANGE_DAYS } from "@/lib/surface-range";
 import { useSurfaceManager, useSurfaceManagerActions } from "@/lib/surface-manager";
 import type { SurfaceId, SurfaceMeta } from "@/lib/surfaces";
 import { cn } from "@/lib/utils";
@@ -66,12 +67,6 @@ function queryMicroPrimitives(query: Record<string, unknown>): MicroPrimitive[] 
   return normalized.length > 0 ? normalized : null;
 }
 
-function cycleRangeDays(current: number): number {
-  if (current <= 7) return 14;
-  if (current <= 14) return 30;
-  return 7;
-}
-
 function RangeButton({
   value,
   onClick,
@@ -82,6 +77,9 @@ function RangeButton({
   return (
     <button
       type="button"
+      data-interactable="true"
+      data-gesture-click="true"
+      data-gesture-key="rangeDays"
       onClick={onClick}
       className={cn(
         "rounded-lg border border-border/50 bg-background/40 px-2 py-1 text-[11px]",
@@ -134,7 +132,7 @@ export function SurfaceRenderer({
     );
   }
 
-  const rangeDays = queryNumber(meta.query, "rangeDays") ?? 14;
+  const rangeDays = queryNumber(meta.query, "rangeDays") ?? DEFAULT_RANGE_DAYS;
   const onCycleRange = () =>
     updateSurfaceQuery(surfaceId, { rangeDays: cycleRangeDays(rangeDays) });
 
@@ -274,6 +272,9 @@ export function SurfaceRenderer({
         <button
           key={value}
           type="button"
+          data-interactable="true"
+          data-gesture-click="true"
+          data-gesture-key={`service:${value}`}
           onClick={() => updateSurfaceQuery(surfaceId, { service: value })}
           className={cn(
             "rounded-lg border px-2 py-1 text-[11px]",

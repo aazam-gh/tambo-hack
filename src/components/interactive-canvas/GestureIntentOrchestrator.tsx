@@ -27,7 +27,8 @@ import {
   type SurfaceLinkGroup,
   type SurfaceLinkSuggestion,
 } from "@/lib/surface-linking";
-import { useSurfaceManagerActions } from "@/lib/surface-manager";
+import { cycleRangeDays, DEFAULT_RANGE_DAYS } from "@/lib/surface-range";
+import { useSurfaceManager, useSurfaceManagerActions } from "@/lib/surface-manager";
 import { buildDefaultSurfaceMeta } from "@/lib/surface-meta";
 import { useTamboThread, useTamboThreadInput } from "@tambo-ai/react";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
@@ -37,6 +38,7 @@ const MAX_COMMAND_OPTIONS = 5;
 const PREDICTIVE_AUTO_OPEN_MIN_CONFIDENCE = 0.75;
 const LINKED_SURFACE_OFFSET_X = 360;
 const LINKED_SURFACE_OFFSET_Y = 280;
+const GESTURE_CLICK_DEBOUNCE_MS = 500;
 
 function dedupeDomains(domains: DomainId[]): DomainId[] {
   return [...new Set(domains)];
@@ -263,11 +265,13 @@ export function GestureIntentOrchestrator() {
     setCommandSurfaceOpen,
     setFocusedSurface,
   } = useInteractionContextActions();
-  const { registerSurface, linkSurfaces } = useSurfaceManagerActions();
+  const { surfaces } = useSurfaceManager();
+  const { registerSurface, linkSurfaces, updateSurfaceQuery } = useSurfaceManagerActions();
   const { submit, setValue, value } = useTamboThreadInput();
   const { thread } = useTamboThread();
   const { hoveredElement } = useSensing();
   const pendingPromptRef = React.useRef<string | null>(null);
+  const lastGestureClickRef = React.useRef<{ at: number; key: string } | null>(null);
 
   React.useEffect(() => {
     if (pendingPromptRef.current && value === pendingPromptRef.current) {
@@ -801,14 +805,100 @@ export function GestureIntentOrchestrator() {
     }
 
     if (!commandOpen) {
-      if (gestureSignal.type === "select") {
-        const hoveredItem = hoveredElement?.closest("[data-canvas-item-id]") as HTMLElement | null;
-        if (hoveredItem?.dataset.canvasItemId) {
-          handleCanvasItemSelection(hoveredItem.dataset.canvasItemId);
+      const hoveredItem = hoveredElement?.closest(
+        "[data-canvas-item-id]",
+      ) as HTMLElement | null;
+      const hoveredSurfaceId = hoveredItem?.dataset.canvasItemId;
+
+      const gestureTarget = hoveredElement?.closest(
+        'button[data-interactable="true"][data-gesture-click="true"]',
+      ) as HTMLButtonElement | null;
+
+      const canGestureClick =
+        gestureTarget != null &&
+        hoveredItem != null &&
+        hoveredItem.contains(gestureTarget) &&
+        (gestureSignal.type === "select" || gestureSignal.type === "confirm");
+
+      if (canGestureClick && gestureTarget) {
+        const gestureKey = gestureTarget.dataset.gestureKey;
+        if (!gestureKey) {
+          if (import.meta.env.DEV) {
+            console.warn(
+              "Gesture clickable control missing data-gesture-key",
+              gestureTarget,
+            );
+          }
           clearGestureSignal();
           return;
         }
+
+        const now =
+          typeof performance !== "undefined" && typeof performance.now === "function"
+            ? performance.now()
+            : Date.now();
+        const lastClick = lastGestureClickRef.current;
+        const targetKey = `${hoveredSurfaceId ?? "global"}:${gestureKey}`;
+        if (
+          lastClick &&
+          lastClick.key === targetKey &&
+          now - lastClick.at < GESTURE_CLICK_DEBOUNCE_MS
+        ) {
+          clearGestureSignal();
+          return;
+        }
+        lastGestureClickRef.current = { at: now, key: targetKey };
+
+        if (hoveredSurfaceId && surfaces[hoveredSurfaceId]) {
+          setFocusedSurface(hoveredSurfaceId);
+        }
+
+        const tagName = gestureTarget.tagName.toLowerCase();
+        let clickSucceeded = false;
+        try {
+          gestureTarget.click();
+          clickSucceeded = true;
+        } catch (error) {
+          console.error("Gesture click handler threw", { error, gestureTarget });
+        }
+
+        if (clickSucceeded) {
+          pushRecentAction(`gesture_click:${tagName}`);
+        } else {
+          pushRecentAction(`gesture_click_error:${tagName}`);
+        }
+
+        clearGestureSignal();
+        return;
       }
+
+      if (gestureSignal.type === "select") {
+        if (hoveredSurfaceId) {
+          handleCanvasItemSelection(hoveredSurfaceId);
+        }
+        clearGestureSignal();
+        return;
+      }
+
+      if (gestureSignal.type === "confirm") {
+        const meta = hoveredSurfaceId != null ? surfaces[hoveredSurfaceId] : undefined;
+
+        if (hoveredSurfaceId && meta) {
+          const current =
+            typeof meta.query.rangeDays === "number"
+              ? meta.query.rangeDays
+              : DEFAULT_RANGE_DAYS;
+          const next = cycleRangeDays(current);
+          updateSurfaceQuery(hoveredSurfaceId, { rangeDays: next });
+          setFocusedSurface(hoveredSurfaceId);
+          pushRecentAction(`gesture_adjust:${hoveredSurfaceId}:rangeDays:${next}`);
+        }
+
+        clearGestureSignal();
+        return;
+      }
+
+      clearGestureSignal();
       return;
     }
 
@@ -856,6 +946,10 @@ export function GestureIntentOrchestrator() {
     openCommandSurface,
     hoveredElement,
     handleCanvasItemSelection,
+    pushRecentAction,
+    setFocusedSurface,
+    surfaces,
+    updateSurfaceQuery,
   ]);
 
   return (

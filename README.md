@@ -60,12 +60,12 @@ VITE_TAMBO_API_KEY=your_key_here
 Optional: use the Tambo CLI to set this up:
 
 ```bash
-npm run init
+npx tambo init
 ```
 
-This repo includes an `init` script in `package.json` that runs `npx tambo init`. If it fails due to `npx`/network restrictions (or you prefer manual setup), skip it and configure `.env.local` manually.
+If `npm run init` is available, it should be equivalent to running `npx tambo init`.
 
-If the `init` script is missing for any reason, you can run `npx tambo init` directly.
+If the CLI step fails due to `npx`/network restrictions (or you prefer manual setup), skip it and configure `.env.local` manually.
 
 ### 3) Run
 
@@ -132,7 +132,7 @@ Tambo is wired up via the `TamboProvider` in `src/routes/__root.tsx`, and the re
 
 To extend what the model can do, add entries to the exported `tools` and `components` arrays in `src/lib/tambo.ts`.
 
-**Important:** this demo uses `as any` in a few places (notably in `src/lib/tambo.ts`) to keep the wiring simple while experimenting. In production apps, avoid `any` and prefer fully typed schemas + tool signatures so you get end-to-end type safety.
+**Important:** this demo intentionally cuts some type-safety corners (for example, using `as any` in the Tambo wiring) to keep experimentation fast. In production apps, avoid `any` and prefer fully typed schemas + tool signatures so you get end-to-end type safety.
 
 If you adapt this into a production app, start by:
 

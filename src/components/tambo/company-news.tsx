@@ -92,10 +92,15 @@ export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
 
         React.useEffect(() => {
             const normalized = normalizeSymbol(symbol);
-            setDraftSymbol(normalized);
             const nextRangeDays = clampRangeDays(rangeDays);
-            setDraftRangeDays(nextRangeDays);
-            setApplied({ symbol: normalized, rangeDays: nextRangeDays });
+
+            setDraftSymbol((prev) => (prev === normalized ? prev : normalized));
+            setDraftRangeDays((prev) => (prev === nextRangeDays ? prev : nextRangeDays));
+            setApplied((prev) =>
+                prev.symbol === normalized && prev.rangeDays === nextRangeDays
+                    ? prev
+                    : { symbol: normalized, rangeDays: nextRangeDays },
+            );
         }, [rangeDays, symbol]);
 
         React.useEffect(() => {
@@ -169,6 +174,7 @@ export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
             };
         }, [applied.rangeDays, applied.symbol, refreshIndex]);
 
+        // `limit` is display-only. Finnhub `/company-news` does not accept a limit parameter.
         const news = state.status === "ready" ? state.news.slice(0, limit) : [];
 
         return (
@@ -312,6 +318,6 @@ CompanyNews.displayName = "CompanyNews";
 export const InteractableCompanyNews = withInteractable(CompanyNews, {
     componentName: "CompanyNewsWidget",
     description:
-        "A pre-placed company news panel that can update its symbol and rangeDays to show recent company news from Finnhub.",
+        "An interactable company news panel that shows recent Finnhub headlines for a stock symbol. The canvas may pre-place an instance for quick access.",
     propsSchema: companyNewsSchema,
 });

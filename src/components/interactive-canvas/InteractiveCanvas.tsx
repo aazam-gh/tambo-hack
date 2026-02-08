@@ -344,7 +344,12 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     const baseMeta = buildDefaultSurfaceMeta("news", "summarize");
     const bootstrapMeta: SurfaceMeta = {
       ...baseMeta,
-      query: { ...baseMeta.query, symbol: BOOTSTRAP_COMPANY_NEWS_SYMBOL },
+      query: {
+        ...baseMeta.query,
+        symbol: BOOTSTRAP_COMPANY_NEWS_SYMBOL,
+        rangeDays: BOOTSTRAP_COMPANY_NEWS_RANGE_DAYS,
+        limit: BOOTSTRAP_COMPANY_NEWS_LIMIT,
+      },
     };
 
     registerSurfaceMeta(BOOTSTRAP_COMPANY_NEWS_SURFACE_ID, bootstrapMeta);

@@ -889,8 +889,27 @@ export function InteractiveCanvas({ className }: { className?: string }) {
 
     const activeSession = handSessionRef.current;
     if (!activeSession) {
-      const startItemId = hoveredCanvasItemId;
+      const effectiveFocusedSurface =
+        focusedSurface && itemsRef.current.some((item) => item.id === focusedSurface)
+          ? focusedSurface
+          : undefined;
+
+      if (focusedSurface && !effectiveFocusedSurface) {
+        setFocusedSurface(undefined);
+      }
+
+      const startItemId = effectiveFocusedSurface ?? hoveredCanvasItemId;
       if (!startItemId) {
+        return;
+      }
+
+      // When a surface is focused, ignore pinch interactions over other surfaces
+      // until focus is cleared so gestures only manipulate the selected surface.
+      if (
+        effectiveFocusedSurface &&
+        hoveredCanvasItemId &&
+        hoveredCanvasItemId !== effectiveFocusedSurface
+      ) {
         return;
       }
 
@@ -950,6 +969,9 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     if (!target) {
       handSessionRef.current = null;
       setCombineCandidate(null);
+      if (focusedSurface === activeSession.itemId) {
+        setFocusedSurface(undefined);
+      }
       return;
     }
 
@@ -1002,6 +1024,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   }, [
     clearPendingOperation,
     combineCandidate,
+    focusedSurface,
     flushHandUpdate,
     handGesture,
     handPosition,
@@ -1009,6 +1032,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     itemsRef,
     maybeBeginCombinePreview,
     pinchDistance,
+    setFocusedSurface,
     setItems,
     updateCombineCandidate,
     hoveredCanvasItemId,
@@ -1146,29 +1170,17 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     };
   }, [clearPendingOperation, pendingOperation]);
 
-  React.useEffect(() => {
-    if (!gestureSignal || gestureSignal.type === "summon_ui") {
-      return;
+  const handleDismissGesture = React.useCallback(() => {
+    if (focusedSurface) {
+      setFocusedSurface(undefined);
     }
 
     if (commandSurfaceOpen) {
       return;
     }
 
-    if (gestureSignal.type === "confirm") {
-      if (pendingOperation) {
-        commitPendingOperation();
-      }
-      clearGestureSignal();
-      return;
-    }
-
-    if (gestureSignal.type === "dismiss") {
-      if (pendingOperation) {
-        clearPendingOperation();
-      }
-      clearGestureSignal();
-      return;
+    if (pendingOperation) {
+      clearPendingOperation();
     }
 
     clearGestureSignal();
@@ -1176,9 +1188,81 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     clearGestureSignal,
     clearPendingOperation,
     commandSurfaceOpen,
-    commitPendingOperation,
-    gestureSignal,
+    focusedSurface,
     pendingOperation,
+    setFocusedSurface,
+  ]);
+
+  const handleConfirmGesture = React.useCallback(() => {
+    if (pendingOperation) {
+      commitPendingOperation();
+      clearGestureSignal();
+      return;
+    }
+
+    if (hoveredCanvasItemId) {
+      // No pending operation: select the hovered surface.
+      setFocusedSurface(hoveredCanvasItemId);
+      const now = performance.now();
+      setItems((prev) =>
+        prev.map((surface) =>
+          surface.id === hoveredCanvasItemId
+            ? {
+                ...surface,
+                metrics: {
+                  ...surface.metrics,
+                  manualUntil: now + MANUAL_LOCK_MS,
+                  lastInteractedAt: now,
+                  interactionCount: surface.metrics.interactionCount + 1,
+                },
+              }
+            : surface,
+        ),
+      );
+
+      clearGestureSignal();
+      return;
+    }
+
+    // No pending operation and no hovered surface: confirm is a no-op.
+    clearGestureSignal();
+  }, [
+    clearGestureSignal,
+    commitPendingOperation,
+    hoveredCanvasItemId,
+    pendingOperation,
+    setFocusedSurface,
+    setItems,
+  ]);
+
+  React.useEffect(() => {
+    if (!gestureSignal || gestureSignal.type === "summon_ui") {
+      return;
+    }
+
+    if (gestureSignal.type === "dismiss") {
+      handleDismissGesture();
+      return;
+    }
+
+    if (commandSurfaceOpen) {
+      return;
+    }
+
+    // Confirm/dismiss semantics:
+    // - If a surface operation is pending, confirm/dismiss commits/cancels it.
+    // - Otherwise, confirm selects the hovered surface and dismiss clears selection.
+    if (gestureSignal.type === "confirm") {
+      handleConfirmGesture();
+      return;
+    }
+
+    clearGestureSignal();
+  }, [
+    commandSurfaceOpen,
+    gestureSignal,
+    handleConfirmGesture,
+    handleDismissGesture,
   ]);
 
   const combinePreview =

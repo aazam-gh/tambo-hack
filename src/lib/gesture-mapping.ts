@@ -18,9 +18,14 @@ export const gestureMappings = {
     description: "Confirm",
     signalType: "confirm",
   },
+  thumbsDown: {
+    label: "Thumbs down",
+    description: "Cancel / clear selection",
+    signalType: "dismiss",
+  },
   peaceSign: {
     label: "Peace sign",
-    description: "Select",
+    description: "Cycle",
     signalType: "select",
   },
   openPalm: {

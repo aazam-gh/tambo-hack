@@ -270,6 +270,7 @@ export function GestureIntentOrchestrator() {
   const { thread } = useTamboThread();
   const { hoveredElement } = useSensing();
   const pendingPromptRef = React.useRef<string | null>(null);
+  const lastGestureClickRef = React.useRef<{ at: number; target: HTMLElement } | null>(null);
 
   React.useEffect(() => {
     if (pendingPromptRef.current && value === pendingPromptRef.current) {
@@ -819,6 +820,14 @@ export function GestureIntentOrchestrator() {
         (gestureSignal.type === "select" || gestureSignal.type === "confirm");
 
       if (canGestureClick && gestureTarget) {
+        const now = performance.now();
+        const lastClick = lastGestureClickRef.current;
+        if (lastClick && lastClick.target === gestureTarget && now - lastClick.at < 250) {
+          clearGestureSignal();
+          return;
+        }
+        lastGestureClickRef.current = { at: now, target: gestureTarget };
+
         if (hoveredSurfaceId && surfaces[hoveredSurfaceId]) {
           setFocusedSurface(hoveredSurfaceId);
         }

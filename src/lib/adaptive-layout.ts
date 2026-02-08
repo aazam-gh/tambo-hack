@@ -47,6 +47,8 @@ function domainBasePriority(domain: DomainId): number {
       return 0.62;
     case "legal":
       return 0.5;
+    case "stripe":
+      return 0.4;
   }
 }
 

@@ -28,6 +28,7 @@ import {
 } from "@/lib/surface-linking";
 import { useSurfaceManagerActions } from "@/lib/surface-manager";
 import { buildDefaultSurfaceMeta } from "@/lib/surface-meta";
+import { useTamboThread, useTamboThreadInput } from "@tambo-ai/react";
 import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
 
 const COMMAND_SURFACE_IDLE_MS = 6500;
@@ -65,7 +66,9 @@ function labelForOption(domain: DomainId, intent: DomainIntent): string {
           ? "Filter"
           : intent === "debug"
             ? "Debug"
-            : "Explain";
+            : intent === "summarize"
+              ? "Summarize"
+              : "Explain";
 
   return `${verb} ${domainLabel.toLowerCase()}`;
 }
@@ -80,6 +83,7 @@ function buildCommandOptions(
     ...activeDomains,
     primaryDomain,
     "infra",
+    "stripe",
     "sales",
     "dev",
     "marketing",
@@ -266,6 +270,35 @@ export function GestureIntentOrchestrator() {
     setCommandSurfaceOpen,
   } = useInteractionContextActions();
   const { registerSurface, linkSurfaces } = useSurfaceManagerActions();
+  const { submit, setValue } = useTamboThreadInput();
+  const { thread } = useTamboThread();
+
+  const processedMessageIdsRef = React.useRef(new Set<string>());
+  const lastGestureHandPositionRef = React.useRef<{ x: number; y: number } | null>(
+    null,
+  );
+
+  React.useEffect(() => {
+    const lastMessage = thread.messages[thread.messages.length - 1];
+    if (
+      lastMessage?.role === "assistant" &&
+      !!lastMessage.renderedComponent &&
+      !processedMessageIdsRef.current.has(lastMessage.id)
+    ) {
+      processedMessageIdsRef.current.add(lastMessage.id);
+
+      const anchor =
+        lastGestureHandPositionRef.current ??
+        anchorForSurface(focusedSurfaceSnapshot);
+
+      emitTamboShowComponent({
+        messageId: lastMessage.id,
+        component: lastMessage.renderedComponent,
+        clientX: anchor?.x,
+        clientY: anchor?.y,
+      });
+    }
+  }, [thread.messages, focusedSurfaceSnapshot]);
 
   const [commandOpen, setCommandOpen] = React.useState(false);
   const [commandAnchor, setCommandAnchor] = React.useState<
@@ -454,6 +487,18 @@ export function GestureIntentOrchestrator() {
       return;
     }
 
+    lastGestureHandPositionRef.current = commandAnchor;
+
+    if (selected.domain === "stripe") {
+      const prompt = `[GESTURE_SYSTEM]: User confirmed intent "${selected.intent}" for Stripe. 
+        Please use the Stripe tools to fetch the relevant data and display it using the most appropriate Tambo UI component (Graph, Table, or Summary).`;
+
+      setValue(prompt);
+      submit();
+      dismissCommandSurface();
+      return;
+    }
+
     const compositions = getMicroCompositions(selected.domain, selected.intent);
     if (compositions && compositions.length > 0) {
       setCommandOpen(false);
@@ -489,6 +534,8 @@ export function GestureIntentOrchestrator() {
     setActiveDomains,
     setCommandSurfaceOpen,
     spawnSurfaceForSelection,
+    submit,
+    setValue,
   ]);
 
   const confirmSelectedComposition = React.useCallback(() => {

@@ -413,5 +413,7 @@ export function fetchDomainData(domain: DomainId): DomainDataResult {
       return { domain: "legal", data: fetchLegalData() };
     case "dev":
       return { domain: "dev", data: fetchDevData() };
+    case "stripe":
+      return { domain: "sales", data: fetchSalesData() };
   }
 }

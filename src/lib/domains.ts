@@ -1,5 +1,6 @@
 import {
   Code2,
+  CreditCard,
   DollarSign,
   Megaphone,
   Scale,
@@ -7,14 +8,21 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type DomainId = "sales" | "infra" | "marketing" | "legal" | "dev";
+export type DomainId =
+  | "sales"
+  | "infra"
+  | "marketing"
+  | "legal"
+  | "dev"
+  | "stripe";
 
 export type DomainIntent =
   | "inspect"
   | "compare"
   | "explain"
   | "filter"
-  | "debug";
+  | "debug"
+  | "summarize";
 
 export type DomainUiComponent =
   | "Graph"
@@ -41,6 +49,14 @@ export const Domains = {
     intents: ["inspect", "compare", "explain"],
     components: ["Graph", "Table", "Summary"],
     dataSource: "sales",
+  },
+  stripe: {
+    id: "stripe",
+    label: "Stripe",
+    icon: CreditCard,
+    intents: ["inspect", "summarize", "compare"],
+    components: ["Graph", "Table", "Summary"],
+    dataSource: "stripe",
   },
   infra: {
     id: "infra",

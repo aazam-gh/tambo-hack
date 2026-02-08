@@ -28,9 +28,76 @@ import { Summary, summarySchema } from "@/components/tambo/summary";
 import { Table, tableSchema } from "@/components/tambo/table";
 import type { TamboComponent } from "@tambo-ai/react";
 import { TamboTool } from "@tambo-ai/react";
+import { z } from "zod";
 
-export const tools: TamboTool[] = [
-  // Add tools here
+export const tools: TamboTool<any, any>[] = [
+  {
+    name: "balance_read",
+    description: "Get the current Stripe account balance. Returns dummy data.",
+    tool: async () => {
+      return {
+        available: [{ amount: 1254050, currency: "usd" }],
+        pending: [{ amount: 45000, currency: "usd" }],
+      };
+    },
+    toolSchema: {
+      type: "object",
+      properties: {},
+      required: [],
+    } as any,
+  },
+  {
+    name: "charges_read",
+    description: "List recent Stripe charges. Returns dummy data.",
+    tool: async (args: { limit?: number } = {}) => {
+      const limit = args.limit ?? 10;
+      return {
+        data: Array.from({ length: limit }, (_, i) => ({
+          id: `ch_${Math.random().toString(36).slice(2, 10)}`,
+          amount: Math.floor(Math.random() * 10000) + 500,
+          currency: "usd",
+          status: "succeeded",
+          created: Math.floor(Date.now() / 1000) - i * 3600,
+          customer: `cus_${Math.random().toString(36).slice(2, 10)}`,
+        })),
+        has_more: false,
+      };
+    },
+    toolSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Limit the number of charges to return",
+        },
+      },
+    } as any,
+  },
+  {
+    name: "customers_read",
+    description: "List Stripe customers. Returns dummy data.",
+    tool: async (args: { limit?: number } = {}) => {
+      const limit = args.limit ?? 10;
+      return {
+        data: Array.from({ length: limit }, (_, i) => ({
+          id: `cus_${Math.random().toString(36).slice(2, 10)}`,
+          email: `client_${i}@example.com`,
+          name: `Mock Client ${i}`,
+          created: Math.floor(Date.now() / 1000) - i * 86400,
+        })),
+        has_more: false,
+      };
+    },
+    toolSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Limit the number of customers to return",
+        },
+      },
+    } as any,
+  },
 ];
 
 /**

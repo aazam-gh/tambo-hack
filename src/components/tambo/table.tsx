@@ -16,7 +16,7 @@ export const tableSchema = z.object({
     .max(8)
     .describe("Ordered list of table columns"),
   rows: z
-    .array(z.record(z.union([z.string(), z.number()])))
+    .array(z.any())
     .min(1)
     .max(20)
     .describe("Row objects keyed by column key"),

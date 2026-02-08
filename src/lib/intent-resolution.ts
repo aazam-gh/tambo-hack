@@ -36,6 +36,8 @@ function toResolvedIntent(intent: DomainIntent): ResolvedIntent {
       return "filter_domain";
     case "debug":
       return "debug_domain";
+    case "summarize":
+      return "explain_domain";
   }
 }
 

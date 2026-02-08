@@ -123,7 +123,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     (signalId: number) => {
       // Delay clearing one tick so other consumers (e.g. GestureIntentOrchestrator)
       // can observe and handle confirm/dismiss signals.
-      window.setTimeout(() => {
+      setTimeout(() => {
         if (activeGestureSignalIdRef.current === signalId) {
           clearGestureSignal();
         }

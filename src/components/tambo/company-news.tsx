@@ -27,6 +27,8 @@ function normalizeSymbol(symbol: string): string {
     return symbol.trim().toUpperCase();
 }
 
+const TICKER_PATTERN = /^[A-Z0-9.]{1,10}$/;
+
 export const companyNewsSchema = z.object({
     symbol: z
         .string()
@@ -77,6 +79,14 @@ export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
             let cancelled = false;
 
             async function load() {
+                if (!TICKER_PATTERN.test(applied.symbol)) {
+                    setState({
+                        status: "error",
+                        message: "Enter a valid ticker symbol (e.g. AAPL).",
+                    });
+                    return;
+                }
+
                 const toDate = new Date();
                 const fromDate = new Date(Date.now() - applied.rangeDays * 24 * 60 * 60 * 1000);
 
@@ -104,8 +114,15 @@ export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
                     if (cancelled) {
                         return;
                     }
-                    const message = error instanceof Error ? error.message : String(error);
-                    setState({ status: "error", message });
+                    console.warn("CompanyNews: Finnhub request failed", {
+                        symbol: applied.symbol,
+                        rangeDays: applied.rangeDays,
+                        error,
+                    });
+                    setState({
+                        status: "error",
+                        message: "Unable to load company news right now.",
+                    });
                 }
             }
 

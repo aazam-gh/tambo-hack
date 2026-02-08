@@ -57,15 +57,13 @@ VITE_TAMBO_API_KEY=your_key_here
 # VITE_TAMBO_URL=https://...
 ```
 
-If you prefer using the CLI to set this up:
+Optional: use the Tambo CLI to set this up:
 
 ```bash
 npm run init
 ```
 
-This repo defines an `init` script (`"init": "npx tambo init"`) to run the Tambo CLI setup. If you prefer not to use the CLI (or it doesn’t set up env vars the way you expect), create `.env.local` manually as shown above.
-
-If `npm run init` fails due to `npx`/network restrictions, skip it and configure `.env.local` manually.
+`npm run init` runs `npx tambo init`. If it fails due to `npx`/network restrictions (or you prefer manual setup), skip it and configure `.env.local` manually.
 
 ### 3) Run
 
@@ -116,6 +114,8 @@ Current gesture bindings live in `src/lib/gesture-mapping.ts`:
 - **Thumbs up** → confirm (spawn a surface)
 - **Pinch** → drag and drop items
 
+To customize bindings, edit `src/lib/gesture-mapping.ts` (and `src/lib/hand-gestures.ts` if you add a new gesture).
+
 ### Gesture Data Explorer
 
 Use the “Gesture Data Explorer” button (top-right) to record short gesture sequences and show a gesture-driven analytics view.
@@ -124,40 +124,13 @@ Note: this is an experimental/debugging view (no persistence; UX can vary by bro
 
 ## Extending
 
-### Tambo integration (registry shapes)
+### Tambo integration
 
-Tambo is wired up via the `TamboProvider` in `src/routes/__root.tsx`, and the registry lives in `src/lib/tambo.ts`. The two key exports are:
+Tambo is wired up via the `TamboProvider` in `src/routes/__root.tsx`, and the registry lives in `src/lib/tambo.ts`.
 
-```ts
-export const tools: TamboTool<any, any>[] = [
-  {
-    name: "product_metrics_read",
-    description: "Get key sales metrics for a product from the bundled mock sales dataset.",
-    tool: async (args: { productName: string }) => {
-      // Implementation lives in `src/lib/tambo.ts`.
-    },
-    toolSchema: {
-      type: "object",
-      properties: {
-        productName: { type: "string", description: "The product name" },
-      },
-      required: ["productName"],
-    } as any,
-  },
-];
+To extend what the model can do, add entries to the exported `tools` and `components` arrays in `src/lib/tambo.ts`.
 
-export const components: TamboComponent[] = [
-  {
-    name: "ProductMetrics",
-    description:
-      "Key product metrics like sales, profit, margin, units sold, and unit price range.",
-    component: ProductMetrics,
-    propsSchema: productMetricsSchema as any,
-  },
-];
-```
-
-**Important:** this demo uses `as any` in a few places to keep the wiring simple. For production apps, avoid `any` and prefer fully typed schemas and tool signatures.
+**Important:** this demo uses `as any` in a few places to keep the wiring simple while experimenting. In production apps, avoid `any` and prefer fully typed schemas + tool signatures so you get end-to-end type safety.
 
 This repo optimizes for fast experimentation (gestures + surfaces + prompt orchestration) over perfect end-to-end typing.
 

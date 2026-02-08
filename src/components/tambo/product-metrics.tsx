@@ -25,26 +25,46 @@ export const ProductMetrics = React.forwardRef<
   HTMLDivElement,
   ProductMetricsProps
 >(({ productName, metrics }, ref) => {
-  const hasMetrics = Boolean(metrics);
-
   const toFiniteNumber = (value: unknown): number | undefined =>
     typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
-  const totalSales = toFiniteNumber(metrics?.totalSales);
-  const totalProfit = toFiniteNumber(metrics?.totalProfit);
-  const avgUnitPrice = toFiniteNumber(metrics?.avgUnitPrice);
-  const profitMarginPercent = toFiniteNumber(metrics?.profitMarginPercent);
-  const lowUnitPrice = toFiniteNumber(metrics?.lowUnitPrice);
-  const highUnitPrice = toFiniteNumber(metrics?.highUnitPrice);
-  const unitsSold = toFiniteNumber(metrics?.unitsSold);
-  const orderCount = toFiniteNumber(metrics?.orderCount);
+  const normalized = {
+    totalSales: toFiniteNumber(metrics?.totalSales),
+    totalProfit: toFiniteNumber(metrics?.totalProfit),
+    avgUnitPrice: toFiniteNumber(metrics?.avgUnitPrice),
+    profitMarginPercent: toFiniteNumber(metrics?.profitMarginPercent),
+    lowUnitPrice: toFiniteNumber(metrics?.lowUnitPrice),
+    highUnitPrice: toFiniteNumber(metrics?.highUnitPrice),
+    unitsSold: toFiniteNumber(metrics?.unitsSold),
+    orderCount: toFiniteNumber(metrics?.orderCount),
+  };
+
+  const hasMeaningfulMetrics = Object.values(normalized).some(
+    (value) => typeof value === "number",
+  );
+
+  const formatCurrency = (value?: number): string =>
+    typeof value === "number" ? `$${value.toFixed(2)}` : "N/A";
+
+  const formatInteger = (value?: number): string =>
+    typeof value === "number" ? value.toLocaleString() : "N/A";
+
+  const formatPercent = (value?: number): string =>
+    typeof value === "number" ? `${value.toFixed(1)}%` : "N/A";
 
   const unitPriceRangeLabel =
-    typeof lowUnitPrice === "number" && typeof highUnitPrice === "number"
-      ? `$${lowUnitPrice.toFixed(2)} - $${highUnitPrice.toFixed(2)}`
+    typeof normalized.lowUnitPrice === "number" &&
+    typeof normalized.highUnitPrice === "number" &&
+    normalized.lowUnitPrice <= normalized.highUnitPrice
+      ? `${formatCurrency(normalized.lowUnitPrice)} - ${formatCurrency(normalized.highUnitPrice)}`
       : "N/A";
 
-  const hasProfitMarginPercent = typeof profitMarginPercent === "number";
+  const marginSignal =
+    typeof normalized.profitMarginPercent === "number"
+      ? Math.abs(normalized.profitMarginPercent) > 25
+        ? "Strong"
+        : "Moderate"
+      : "Unknown";
 
   return (
     <div
@@ -58,7 +78,7 @@ export const ProductMetrics = React.forwardRef<
         </h3>
       </div>
 
-      {!hasMetrics ? (
+      {!hasMeaningfulMetrics ? (
         <div className="text-xs text-muted-foreground">No metrics available.</div>
       ) : (
         <>
@@ -67,41 +87,27 @@ export const ProductMetrics = React.forwardRef<
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 Total sales
               </div>
-              <div className="text-lg font-bold">
-                {typeof totalSales === "number"
-                  ? `$${totalSales.toFixed(2)}`
-                  : "N/A"}
-              </div>
+              <div className="text-lg font-bold">{formatCurrency(normalized.totalSales)}</div>
             </div>
             <div className="space-y-1">
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 Profit
               </div>
-              <div className="text-lg font-bold">
-                {typeof totalProfit === "number"
-                  ? `$${totalProfit.toFixed(2)}`
-                  : "N/A"}
-              </div>
+              <div className="text-lg font-bold">{formatCurrency(normalized.totalProfit)}</div>
             </div>
             <div className="space-y-1">
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 Avg unit price
               </div>
               <div className="text-lg font-bold text-emerald-500">
-                {typeof avgUnitPrice === "number"
-                  ? `$${avgUnitPrice.toFixed(2)}`
-                  : "N/A"}
+                {formatCurrency(normalized.avgUnitPrice)}
               </div>
             </div>
             <div className="space-y-1">
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 Profit margin
               </div>
-              <div className="text-lg font-bold">
-                {hasProfitMarginPercent
-                  ? `${profitMarginPercent.toFixed(1)}%`
-                  : "N/A"}
-              </div>
+              <div className="text-lg font-bold">{formatPercent(normalized.profitMarginPercent)}</div>
             </div>
           </div>
 
@@ -126,9 +132,7 @@ export const ProductMetrics = React.forwardRef<
                 </span>
               </div>
               <span className="text-xs font-bold">
-                {typeof unitsSold === "number"
-                  ? unitsSold.toLocaleString()
-                  : "N/A"}
+                {formatInteger(normalized.unitsSold)}
               </span>
             </div>
             <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-3">
@@ -139,9 +143,7 @@ export const ProductMetrics = React.forwardRef<
                 </span>
               </div>
               <span className="text-xs font-bold">
-                {typeof orderCount === "number"
-                  ? orderCount.toLocaleString()
-                  : "N/A"}
+                {formatInteger(normalized.orderCount)}
               </span>
             </div>
           </div>
@@ -154,11 +156,7 @@ export const ProductMetrics = React.forwardRef<
               </span>
             </div>
             <span className="text-xs font-bold">
-              {!hasProfitMarginPercent
-                ? "Unknown"
-                : Math.abs(profitMarginPercent) > 25
-                  ? "Strong"
-                  : "Moderate"}
+              {marginSignal}
             </span>
           </div>
         </>

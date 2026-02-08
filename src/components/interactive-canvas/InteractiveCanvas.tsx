@@ -54,7 +54,36 @@ const MIN_SURFACE_SCALE = 0.7;
 const MAX_SURFACE_SCALE = 2.2;
 const COMBINE_DISTANCE_PX = 140;
 const COMBINE_MIN_OVERLAP_RATIO = 0.08;
+// Gesture mapping is intended to keep the canvas light-weight.
 const MAX_GESTURE_MODE_ITEMS = 5;
+
+function gestureModeEvictionIds(items: CanvasItem[], overflow: number): string[] {
+  if (overflow <= 0) {
+    return [];
+  }
+
+  const safeTime = (value: number) =>
+    Number.isFinite(value) && value > 0 ? value : 0;
+
+  // Sort by least recently interacted, then oldest created first.
+  return [...items]
+    .sort((a, b) => {
+      const byInteraction =
+        safeTime(a.metrics.lastInteractedAt) - safeTime(b.metrics.lastInteractedAt);
+      if (Math.abs(byInteraction) > 0.001) {
+        return byInteraction;
+      }
+      return safeTime(a.metrics.createdAt) - safeTime(b.metrics.createdAt);
+    })
+    .slice(0, overflow)
+    .map((item) => item.id);
+}
+
+function gestureModeEvictionPlan(items: CanvasItem[], willAddNew: boolean): string[] {
+  const nextCount = items.length + (willAddNew ? 1 : 0);
+  const overflow = nextCount - MAX_GESTURE_MODE_ITEMS;
+  return gestureModeEvictionIds(items, overflow);
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -230,6 +259,8 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         return;
       }
 
+      // Both `removeSurface` and `dismissSurface` are idempotent, so it's safe to
+      // call them even if the surface was never registered.
       for (const id of ids) {
         removeSurface(id);
         dismissSurface(id);
@@ -270,13 +301,15 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   );
 
   React.useEffect(() => {
-    if (!gestureMappingEnabled || items.length <= MAX_GESTURE_MODE_ITEMS) {
+    if (!gestureMappingEnabled) {
       return;
     }
 
-    const overflow = items.length - MAX_GESTURE_MODE_ITEMS;
-    const ids = items.slice(0, overflow).map((item) => item.id);
-    evictCanvasItemIds(ids);
+    if (items.length <= MAX_GESTURE_MODE_ITEMS) {
+      return;
+    }
+
+    evictCanvasItemIds(gestureModeEvictionPlan(items, false));
   }, [evictCanvasItemIds, gestureMappingEnabled, items]);
 
   const onShowComponent = React.useCallback(
@@ -286,15 +319,14 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         return;
       }
 
-      const existingIndex = itemsRef.current.findIndex((i) => i.id === detail.messageId);
+      const alreadyOnCanvas = itemsRef.current.some((item) => item.id === detail.messageId);
       if (
         gestureMappingEnabled &&
-        existingIndex === -1 &&
-        itemsRef.current.length >= MAX_GESTURE_MODE_ITEMS
+        !alreadyOnCanvas
       ) {
-        const overflow = itemsRef.current.length + 1 - MAX_GESTURE_MODE_ITEMS;
-        const ids = itemsRef.current.slice(0, overflow).map((item) => item.id);
-        evictCanvasItemIds(ids);
+        evictCanvasItemIds(
+          gestureModeEvictionPlan(itemsRef.current, true),
+        );
       }
 
       const now = performance.now();
@@ -346,8 +378,8 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       };
 
       setItems((prev) => {
-        const index = prev.findIndex((i) => i.id === detail.messageId);
-        if (index === -1) {
+        const existing = prev.some((item) => item.id === detail.messageId);
+        if (!existing) {
           return [
             ...prev,
             {
@@ -366,13 +398,13 @@ export function InteractiveCanvas({ className }: { className?: string }) {
           ];
         }
 
-        return prev.map((item, idx) =>
-          idx === index
+        return prev.map((item) =>
+          item.id === detail.messageId
             ? {
-              ...item,
-              node: detail.component,
-              surfaceMeta: detail.surfaceMeta ?? item.surfaceMeta,
-            }
+                ...item,
+                node: detail.component,
+                surfaceMeta: detail.surfaceMeta ?? item.surfaceMeta,
+              }
             : item,
         );
       });

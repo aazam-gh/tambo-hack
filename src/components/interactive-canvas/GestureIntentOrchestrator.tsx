@@ -266,15 +266,10 @@ export function GestureIntentOrchestrator() {
   } = useInteractionContextActions();
   const { surfaces } = useSurfaceManager();
   const { registerSurface, linkSurfaces, updateSurfaceQuery } = useSurfaceManagerActions();
-  const surfacesRef = React.useRef(surfaces);
   const { submit, setValue, value } = useTamboThreadInput();
   const { thread } = useTamboThread();
   const { hoveredElement } = useSensing();
   const pendingPromptRef = React.useRef<string | null>(null);
-
-  React.useEffect(() => {
-    surfacesRef.current = surfaces;
-  }, [surfaces]);
 
   React.useEffect(() => {
     if (pendingPromptRef.current && value === pendingPromptRef.current) {
@@ -813,20 +808,22 @@ export function GestureIntentOrchestrator() {
       ) as HTMLElement | null;
       const hoveredSurfaceId = hoveredItem?.dataset.canvasItemId;
 
+      const gestureTarget = hoveredElement?.closest(
+        '[data-interactable="true"][data-gesture-click="true"]',
+      ) as HTMLElement | null;
+
       const canGestureClick =
-        hoveredElement != null &&
+        gestureTarget != null &&
         hoveredItem != null &&
-        hoveredItem.contains(hoveredElement) &&
-        hoveredElement.dataset.interactable === "true" &&
-        hoveredElement.dataset.gestureClick === "true" &&
+        hoveredItem.contains(gestureTarget) &&
         (gestureSignal.type === "select" || gestureSignal.type === "confirm");
 
-      if (canGestureClick && hoveredElement) {
-        hoveredElement.click();
+      if (canGestureClick && gestureTarget) {
+        gestureTarget.click();
         if (hoveredSurfaceId) {
           setFocusedSurface(hoveredSurfaceId);
         }
-        pushRecentAction(`gesture_click:${hoveredElement.tagName.toLowerCase()}`);
+        pushRecentAction(`gesture_click:${gestureTarget.tagName.toLowerCase()}`);
         clearGestureSignal();
         return;
       }
@@ -840,8 +837,7 @@ export function GestureIntentOrchestrator() {
       }
 
       if (gestureSignal.type === "confirm") {
-        const meta =
-          hoveredSurfaceId != null ? surfacesRef.current[hoveredSurfaceId] : undefined;
+        const meta = hoveredSurfaceId != null ? surfaces[hoveredSurfaceId] : undefined;
 
         if (hoveredSurfaceId && meta) {
           const current =
@@ -906,6 +902,7 @@ export function GestureIntentOrchestrator() {
     handleCanvasItemSelection,
     pushRecentAction,
     setFocusedSurface,
+    surfaces,
     updateSurfaceQuery,
   ]);
 

@@ -113,6 +113,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     gestureSignal,
     clearGestureSignal,
   } = useSensing();
+  // We defer clearing confirm/dismiss gestures by one tick when no canvas-level
+  // operation is pending so other consumers (e.g. GestureIntentOrchestrator) can
+  // react to the signal first. This ref prevents a deferred clear from wiping a
+  // newer gesture signal.
   const activeGestureSignalIdRef = React.useRef<number | null>(null);
 
   const requestDeferredGestureClear = React.useCallback(

@@ -821,7 +821,10 @@ export function GestureIntentOrchestrator() {
         (gestureSignal.type === "select" || gestureSignal.type === "confirm");
 
       if (canGestureClick && gestureTarget) {
-        const now = performance.now();
+        const now =
+          typeof performance !== "undefined" && typeof performance.now === "function"
+            ? performance.now()
+            : Date.now();
         const lastClick = lastGestureClickRef.current;
         const targetKey = `${hoveredSurfaceId ?? "global"}:${gestureTarget.dataset.gestureKey ?? "unknown"}`;
         if (

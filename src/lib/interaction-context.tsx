@@ -7,6 +7,7 @@ import type { SurfaceMeta } from "@/lib/surfaces";
 export type InteractionContext = {
   route: string;
   focusedSurface?: string;
+  commandSurfaceOpen: boolean;
   activeDomains: DomainId[];
   recentActions: string[];
   recentDomains: DomainId[];
@@ -18,6 +19,7 @@ export type InteractionContext = {
 
 export type InteractionContextActions = {
   setFocusedSurface: (surfaceId: string | undefined) => void;
+  setCommandSurfaceOpen: (open: boolean) => void;
   setActiveDomains: (domains: DomainId[]) => void;
   pushRecentAction: (action: string) => void;
   pushRecentDomain: (domain: DomainId) => void;
@@ -61,6 +63,7 @@ export function InteractionContextProvider({
   >(
     undefined,
   );
+  const [commandSurfaceOpen, setCommandSurfaceOpen] = React.useState(false);
   const [activeDomains, setActiveDomainsState] = React.useState<DomainId[]>([]);
   const [recentActions, setRecentActions] = React.useState<string[]>([]);
   const [recentDomains, setRecentDomains] = React.useState<DomainId[]>([]);
@@ -101,6 +104,7 @@ export function InteractionContextProvider({
           touchSurface(surfaceId, surfaceMetaById[surfaceId]);
         }
       },
+      setCommandSurfaceOpen,
       setActiveDomains: (domains) => setActiveDomainsState(dedupeDomains(domains)),
       pushRecentAction: (action) => {
         setRecentActions((prev) => {
@@ -173,6 +177,7 @@ export function InteractionContextProvider({
     () => ({
       route,
       focusedSurface,
+      commandSurfaceOpen,
       activeDomains,
       recentActions,
       recentDomains,
@@ -182,13 +187,14 @@ export function InteractionContextProvider({
       userRole,
     }),
     [
-      activeDomains,
+      route,
       focusedSurface,
+      commandSurfaceOpen,
+      activeDomains,
       lastInteractionTimestamps,
       recentActions,
       recentDomains,
       recentIntents,
-      route,
       surfaceDependencies,
       userRole,
     ],

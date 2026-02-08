@@ -408,6 +408,7 @@ export function GestureIntentOrchestrator() {
     setActiveDomains,
     setSurfaceDependencies,
     pushRecentAction,
+    setCommandSurfaceOpen,
   } = useInteractionContextActions();
 
   const [commandOpen, setCommandOpen] = React.useState(false);
@@ -428,7 +429,14 @@ export function GestureIntentOrchestrator() {
     setCommandSelectedIndex(0);
     lastCommandActivityAtRef.current = null;
     intentConfidenceRef.current = undefined;
-  }, []);
+    setCommandSurfaceOpen(false);
+  }, [setCommandSurfaceOpen]);
+
+  React.useEffect(() => {
+    return () => {
+      setCommandSurfaceOpen(false);
+    };
+  }, [setCommandSurfaceOpen]);
 
   const openCommandSurface = React.useCallback(
     (signal: GestureSignal) => {
@@ -459,11 +467,12 @@ export function GestureIntentOrchestrator() {
       setCommandOptions(options);
       setCommandSelectedIndex(0);
       setCommandOpen(true);
+      setCommandSurfaceOpen(true);
       lastCommandActivityAtRef.current = performance.now();
       intentConfidenceRef.current = signal.confidence;
       pushRecentAction("command_surface:open");
     },
-    [handPosition, interactionContext, pushRecentAction],
+    [handPosition, interactionContext, pushRecentAction, setCommandSurfaceOpen],
   );
 
   const confirmSelectedOption = React.useCallback(() => {
@@ -613,7 +622,6 @@ export function GestureIntentOrchestrator() {
     }
 
     if (!commandOpen) {
-      clearGestureSignal();
       return;
     }
 

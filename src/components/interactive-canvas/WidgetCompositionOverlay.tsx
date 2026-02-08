@@ -175,6 +175,8 @@ export function WidgetCompositionOverlay({
               id={domId}
               role="option"
               aria-selected={selected}
+              data-interactable="true"
+              data-composition-option-index={idx}
               onClick={() => onSelectIndex(idx)}
               className={cn(
                 "w-full rounded-2xl border p-3 text-left",
@@ -206,6 +208,7 @@ export function WidgetCompositionOverlay({
         <div className="flex items-center gap-2">
           <button
             type="button"
+            data-interactable="true"
             onClick={onBack}
             className="rounded-md px-2 py-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
           >
@@ -213,6 +216,7 @@ export function WidgetCompositionOverlay({
           </button>
           <button
             type="button"
+            data-interactable="true"
             onClick={onConfirm}
             className="rounded-md bg-emerald-500/10 px-2 py-1 font-medium text-emerald-300 hover:bg-emerald-500/15"
           >

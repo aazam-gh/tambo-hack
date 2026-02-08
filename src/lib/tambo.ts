@@ -130,7 +130,9 @@ export const tools: TamboTool<any, any>[] = [
         const data = await finnhubGetJson<FinnhubMarketNewsItem[]>("/news", {
           category,
         });
-        return { news: data };
+        return {
+          news: Array.isArray(data) ? data.slice(0, 5) : [],
+        };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to fetch market news (${category}): ${message}`);
@@ -155,11 +157,14 @@ export const tools: TamboTool<any, any>[] = [
         const data = await finnhubGetJson<FinnhubInsiderSentimentResponse>(
           "/stock/insider-sentiment",
           {
-          symbol,
-          from: "2024-01-01",
+            symbol,
+            from: "2024-01-01",
           },
         );
-        return { symbol, data: data.data };
+        return {
+          symbol,
+          data: data.data.slice(0, 12),
+        };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to fetch insider sentiment for ${symbol}: ${message}`);
@@ -185,8 +190,8 @@ export const tools: TamboTool<any, any>[] = [
         const data = await finnhubGetJson<FinnhubBasicFinancialsResponse>(
           "/stock/metric",
           {
-          symbol,
-          metric: "all",
+            symbol,
+            metric: "all",
           },
         );
         return { symbol, metric: data.metric };

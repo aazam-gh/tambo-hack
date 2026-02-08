@@ -106,7 +106,8 @@ export const tools: TamboTool<any, any>[] = [
         throw new Error(`Failed to fetch news for ${category}`);
       }
       const data = await response.json();
-      return { news: data };
+      // Slice to top 5 news items to avoid token limits
+      return { news: Array.isArray(data) ? data.slice(0, 5) : [] };
     },
     toolSchema: {
       type: "object",
@@ -131,7 +132,8 @@ export const tools: TamboTool<any, any>[] = [
         throw new Error(`Failed to fetch insider sentiment for ${symbol}`);
       }
       const data = await response.json();
-      return { symbol, data: data.data };
+      // Slice to recent 12 months to avoid token limits
+      return { symbol, data: Array.isArray(data.data) ? data.data.slice(0, 12) : [] };
     },
     toolSchema: {
       type: "object",

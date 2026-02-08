@@ -480,6 +480,8 @@ export function GestureIntentOrchestrator() {
       if (linkGroup?.linkType && linkedSurfaceIds.length > 0) {
         linkSurfaces(surfaceId, linkedSurfaceIds, linkGroup.linkType);
       }
+
+      setFocusedSurface(surfaceId);
     },
     [
       interactionContext.focusedSurface,
@@ -487,6 +489,7 @@ export function GestureIntentOrchestrator() {
       registerSurface,
       registerSurfaceMeta,
       setSurfaceDependencies,
+      setFocusedSurface,
     ],
   );
 
@@ -500,11 +503,32 @@ export function GestureIntentOrchestrator() {
     lastGestureHandPositionRef.current = commandAnchor;
 
     if (selected.domain === "news" || selected.domain === "trading" || selected.domain === "research") {
-      const prompt = `[GESTURE_SYSTEM]: User confirmed intent "${selected.intent}" for ${selected.domain}. 
-        Please use the Finnhub tools to fetch the relevant data and display it using the most appropriate Finnhub UI component (StockQuote, CompanyProfile, MarketNews, InsiderSentiment, or BasicFinancials).`;
+      const prompt = `[GESTURE_SYSTEM]: [REF_${Date.now()}] User confirmed intent "${selected.intent}" for ${selected.domain}. 
+        Please use the Finnhub tools to fetch the relevant data and display it using the most appropriate Finnhub UI component (StockQuote, CompanyProfile, MarketNews, InsiderSentiment, or BasicFinancials).
+        IMPORTANT: If no stock symbol is currently active or mentioned in the conversation history, default to "AAPL" (Apple Inc.) so that the data can be shown immediately.`;
 
       setValue(prompt);
       pendingPromptRef.current = prompt;
+
+      // Emit a temporary loading state to give immediate feedback
+      const loadingId = `loading-${Date.now()}`;
+      emitTamboShowComponent({
+        messageId: loadingId,
+        component: (
+          <div className="w-64 p-4 rounded-xl border border-emerald-500/30 bg-background/80 backdrop-blur-md shadow-xl flex items-center gap-3">
+            <div className="w-5 h-5 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" />
+            <div className="text-sm font-medium text-emerald-600">Analyzing {selected.domain}...</div>
+          </div>
+        ),
+        clientX: commandAnchor?.x,
+        clientY: commandAnchor?.y,
+      });
+
+      setActiveDomains(
+        dedupeDomains([selected.domain, ...interactionContext.activeDomains]),
+      );
+      pushRecentAction(`confirm:${selected.domain}:${selected.intent}`);
+
       dismissCommandSurface();
       return;
     }
@@ -663,6 +687,26 @@ export function GestureIntentOrchestrator() {
     recentDomainsSnapshot,
     pushRecentAction,
   ]);
+
+  React.useEffect(() => {
+    if (!hoveredElement) return;
+
+    if (commandOpen) {
+      const commandIdx = hoveredElement.dataset.commandOptionIndex;
+      if (commandIdx !== undefined) {
+        setCommandSelectedIndex(parseInt(commandIdx, 10));
+        lastCommandActivityAtRef.current = performance.now();
+      }
+    }
+
+    if (compositionOpen) {
+      const compositionIdx = hoveredElement.dataset.compositionOptionIndex;
+      if (compositionIdx !== undefined) {
+        setCompositionSelectedIndex(parseInt(compositionIdx, 10));
+        lastCommandActivityAtRef.current = performance.now();
+      }
+    }
+  }, [hoveredElement, commandOpen, compositionOpen]);
 
   const linkedPreview = React.useMemo(() => {
     const selected = commandOptions[commandSelectedIndex];

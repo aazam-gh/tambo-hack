@@ -113,6 +113,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     gestureSignal,
     clearGestureSignal,
   } = useSensing();
+  const activeGestureSignalIdRef = React.useRef<number | null>(null);
   const interactionContext = useInteractionContext();
   const { focusedSurface, commandSurfaceOpen } = interactionContext;
   const { removeSurface, setFocusedSurface, setCommandSurfaceOpen } = useInteractionContextActions();
@@ -1147,6 +1148,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   }, [clearPendingOperation, pendingOperation]);
 
   React.useEffect(() => {
+    activeGestureSignalIdRef.current = gestureSignal?.id ?? null;
+  }, [gestureSignal?.id]);
+
+  React.useEffect(() => {
     if (!gestureSignal || gestureSignal.type === "summon_ui") {
       return;
     }
@@ -1161,6 +1166,13 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         clearGestureSignal();
         return;
       }
+
+      const signalId = gestureSignal.id;
+      window.setTimeout(() => {
+        if (activeGestureSignalIdRef.current === signalId) {
+          clearGestureSignal();
+        }
+      }, 0);
       return;
     }
 
@@ -1170,6 +1182,13 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         clearGestureSignal();
         return;
       }
+
+      const signalId = gestureSignal.id;
+      window.setTimeout(() => {
+        if (activeGestureSignalIdRef.current === signalId) {
+          clearGestureSignal();
+        }
+      }, 0);
       return;
     }
 

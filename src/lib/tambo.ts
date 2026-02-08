@@ -50,7 +50,20 @@ function summarizeToolArgs(args: unknown): unknown {
   const entries = Object.entries(args as Record<string, unknown>).map(
     ([key, value]) => {
       if (typeof value !== "string") {
-        return [key, value] as const;
+        if (value === null || typeof value === "number" || typeof value === "boolean") {
+          return [key, value] as const;
+        }
+
+        if (Array.isArray(value)) {
+          return [key, { kind: "array", length: value.length }] as const;
+        }
+
+        if (typeof value === "object") {
+          const keys = Object.keys(value as Record<string, unknown>).slice(0, 8);
+          return [key, { kind: "object", keys }] as const;
+        }
+
+        return [key, typeof value] as const;
       }
 
       const normalized = value.trim();
@@ -68,12 +81,13 @@ function summarizeToolArgs(args: unknown): unknown {
 function withToolLogging<TArgs, TResult>(
   name: string,
   tool: (args: TArgs) => Promise<TResult>,
+  summarizeArgs: (args: TArgs) => unknown = summarizeToolArgs as (args: TArgs) => unknown,
 ): (args: TArgs) => Promise<TResult> {
   return async (args: TArgs) => {
     appendLogSummaryEvent({
       kind: "tambo_tool",
       label: `Tool call: ${name}`,
-      detail: { args: summarizeToolArgs(args) },
+      detail: { args: summarizeArgs(args) },
     });
 
     const startedAt = Date.now();

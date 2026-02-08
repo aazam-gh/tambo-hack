@@ -48,13 +48,11 @@ export function appendLogSummaryEvent(
   };
 
   nextEventId += 1;
-  const nextEvents = snapshot.events;
-  nextEvents.push(entry);
-  if (nextEvents.length > MAX_EVENTS) {
-    nextEvents.splice(0, nextEvents.length - MAX_EVENTS);
-  }
+  const nextEvents = [...snapshot.events, entry];
+  const overflow = nextEvents.length - MAX_EVENTS;
+  const trimmedEvents = overflow > 0 ? nextEvents.slice(overflow) : nextEvents;
 
-  snapshot = { version: snapshot.version + 1, events: nextEvents };
+  snapshot = { version: snapshot.version + 1, events: trimmedEvents };
   emitChange();
 }
 
@@ -66,7 +64,7 @@ export function clearLogSummaryEvents() {
 export function resetLogSummaryStore() {
   nextEventId = 1;
   snapshot = { version: snapshot.version + 1, events: [] };
-  listeners.clear();
+  emitChange();
 }
 
 export function useLogSummaryEvents(): LogSummaryEvent[] {

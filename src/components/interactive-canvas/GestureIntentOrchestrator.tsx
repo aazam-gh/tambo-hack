@@ -2,13 +2,7 @@ import * as React from "react";
 
 import { useSensing } from "@/components/SensingProvider";
 import { CommandSurfaceOverlay } from "@/components/interactive-canvas/CommandSurfaceOverlay";
-import { DomainSurfaceFrame } from "@/components/interactive-canvas/DomainSurfaceFrame";
-import { AlertList } from "@/components/tambo/alert-list";
-import { Graph } from "@/components/tambo/graph";
-import { LogViewer } from "@/components/tambo/log-viewer";
-import { PipelineStatus } from "@/components/tambo/pipeline-status";
-import { Summary } from "@/components/tambo/summary";
-import { Table } from "@/components/tambo/table";
+import { SurfaceRenderer } from "@/components/interactive-canvas/SurfaceRenderer";
 import { Domains, type DomainId, type DomainIntent } from "@/lib/domains";
 import type { CommandOption } from "@/lib/command-surface";
 import {
@@ -21,19 +15,21 @@ import {
 } from "@/lib/interaction-context";
 import type { GestureSignal } from "@/lib/gesture-signals";
 import { predictIntentHypothesis } from "@/lib/predictive-surfaces";
-import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
-import type { SurfaceMeta } from "@/lib/surfaces";
 import {
-  fetchDevData,
-  fetchInfraData,
-  fetchLegalData,
-  fetchMarketingData,
-  fetchSalesData,
-} from "@/services/domain-data";
+  describeLinkType,
+  getAutoLinkedSurfaceGroup,
+  type SurfaceLinkGroup,
+  type SurfaceLinkSuggestion,
+} from "@/lib/surface-linking";
+import { useSurfaceManagerActions } from "@/lib/surface-manager";
+import { buildDefaultSurfaceMeta } from "@/lib/surface-meta";
+import { emitTamboShowComponent } from "@/lib/tambo-canvas-events";
 
 const COMMAND_SURFACE_IDLE_MS = 6500;
 const MAX_COMMAND_OPTIONS = 5;
 const PREDICTIVE_AUTO_OPEN_MIN_CONFIDENCE = 0.75;
+const LINKED_SURFACE_OFFSET_X = 360;
+const LINKED_SURFACE_OFFSET_Y = 280;
 
 function dedupeDomains(domains: DomainId[]): DomainId[] {
   return [...new Set(domains)];
@@ -197,199 +193,53 @@ function anchorForSurface(surfaceId: string | undefined): { x: number; y: number
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
 
-function buildSurfaceMeta(domain: DomainId, intent: DomainIntent): SurfaceMeta {
-  const domainDef = Domains[domain];
-  const query = { rangeDays: 14 };
-  const actions = domainDef.intents.filter((i) => i !== intent);
-
+function toPreview(
+  linkType: SurfaceLinkGroup["linkType"],
+  suggestion: SurfaceLinkSuggestion,
+): {
+  label: string;
+  description: string;
+} {
   return {
-    domain,
-    intent,
-    query,
-    actions: [...actions],
+    label: suggestion.label,
+    description: `${Domains[suggestion.domain].label} • ${describeLinkType(linkType)}`,
   };
 }
 
-function buildSurfaceNode(domain: DomainId, intent: DomainIntent): React.ReactNode {
-  if (domain === "sales") {
-    const sales = fetchSalesData();
-    if (intent === "explain") {
-      const delta = (sales.revenue.values.at(-1) ?? 0) - (sales.revenue.values[0] ?? 0);
-      const direction = delta >= 0 ? "up" : "down";
-      return (
-        <DomainSurfaceFrame domain={domain} intent={intent} title="Sales summary">
-          <Summary
-            title="What changed"
-            bullets={[
-              `Revenue is ${direction} ${Math.abs(delta).toLocaleString()} over the period.`,
-              "NA continues to lead; APAC is growing steadily.",
-              "Enterprise conversions are the biggest driver of variance.",
-            ]}
-          />
-        </DomainSurfaceFrame>
-      );
+function mergeShallowSurfaceQuery(
+  base: Record<string, unknown>,
+  patch?: Record<string, unknown>,
+): Record<string, unknown> {
+  // Surface queries are intentionally shallow (top-level keys only). If we
+  // introduce nested query structures later, switch to a more explicit merge
+  // strategy.
+  if (patch && import.meta.env.DEV) {
+    for (const key of Object.keys(patch)) {
+      if (key in base) {
+        console.warn("Surface link preset overwrote query key", { key });
+      }
     }
+  }
+  return patch ? { ...base, ...patch } : base;
+}
 
-    return (
-      <DomainSurfaceFrame domain={domain} intent={intent} title="Sales performance">
-        <div className="space-y-3">
-          <Graph
-            title="Revenue"
-            variant="solid"
-            size="sm"
-            showLegend={false}
-            data={{
-              type: "line",
-              labels: sales.revenue.labels,
-              datasets: [
-                {
-                  label: "Revenue",
-                  data: sales.revenue.values,
-                  color: "hsl(160, 82%, 47%)",
-                },
-              ],
-            }}
-          />
-          <Table
-            title="By region"
-            columns={[
-              { key: "region", label: "Region" },
-              { key: "revenue", label: "Revenue" },
-            ]}
-            rows={sales.byRegion.map((r) => ({
-              region: r.region,
-              revenue: r.revenue.toLocaleString(),
-            }))}
-          />
-        </div>
-      </DomainSurfaceFrame>
-    );
+function getLinkedSurfaceOffset(idx: number): { dx: number; dy: number } {
+  const row = Math.floor(idx / 2);
+  const col = idx % 2;
+
+  if (col === 0) {
+    return { dx: LINKED_SURFACE_OFFSET_X, dy: row * LINKED_SURFACE_OFFSET_Y };
   }
 
-  if (domain === "infra") {
-    const infra = fetchInfraData();
-    if (intent === "explain") {
-      const last = infra.errorRate.values.at(-1) ?? 0;
-      const peak = Math.max(...infra.errorRate.values);
-      return (
-        <DomainSurfaceFrame domain={domain} intent={intent} title="Infra explanation">
-          <Summary
-            title="Likely cause"
-            bullets={[
-              `Error rate peaked at ${peak.toFixed(2)}% and is now ${last.toFixed(2)}%.`,
-              "Logs show elevated 502s consistent with an upstream dependency issue.",
-              "Prioritize API and DB retry pressure if alerts persist.",
-            ]}
-          />
-        </DomainSurfaceFrame>
-      );
-    }
+  return { dx: 0, dy: (row + 1) * LINKED_SURFACE_OFFSET_Y };
+}
 
-    if (intent === "filter") {
-      return (
-        <DomainSurfaceFrame domain={domain} intent={intent} title="Infra alerts">
-          <AlertList title="Alerts" alerts={infra.alerts} />
-        </DomainSurfaceFrame>
-      );
-    }
-
-    return (
-      <DomainSurfaceFrame domain={domain} intent={intent} title="Infra health">
-        <div className="space-y-3">
-          <Graph
-            title="Error rate (%)"
-            variant="solid"
-            size="sm"
-            showLegend={false}
-            data={{
-              type: "line",
-              labels: infra.errorRate.labels,
-              datasets: [
-                {
-                  label: "Error rate",
-                  data: infra.errorRate.values,
-                  color: "hsl(340, 82%, 66%)",
-                },
-              ],
-            }}
-          />
-          <LogViewer title="Recent logs" lines={infra.logs.slice(-16)} />
-        </div>
-      </DomainSurfaceFrame>
-    );
+function createSurfaceSessionPrefix(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `sess-${crypto.randomUUID().slice(0, 8)}`;
   }
 
-  if (domain === "dev") {
-    const dev = fetchDevData();
-    return (
-      <DomainSurfaceFrame domain={domain} intent={intent} title="Dev pipelines">
-        <PipelineStatus title="Recent runs" pipelines={dev.pipelines} />
-      </DomainSurfaceFrame>
-    );
-  }
-
-  if (domain === "marketing") {
-    const marketing = fetchMarketingData();
-    if (intent === "explain") {
-      const peak = Math.max(...marketing.ctr.values);
-      return (
-        <DomainSurfaceFrame domain={domain} intent={intent} title="Marketing">
-          <Summary
-            title="CTR explanation"
-            bullets={[
-              `CTR peaked at ${peak.toFixed(2)}%.`,
-              "Top campaigns are driving the majority of engagement.",
-              "Consider shifting spend toward the highest-CTR segments.",
-            ]}
-          />
-        </DomainSurfaceFrame>
-      );
-    }
-
-    return (
-      <DomainSurfaceFrame domain={domain} intent={intent} title="Marketing performance">
-        <div className="space-y-3">
-          <Graph
-            title="CTR (%)"
-            variant="solid"
-            size="sm"
-            showLegend={false}
-            data={{
-              type: "line",
-              labels: marketing.ctr.labels,
-              datasets: [
-                {
-                  label: "CTR",
-                  data: marketing.ctr.values,
-                  color: "hsl(220, 100%, 62%)",
-                },
-              ],
-            }}
-          />
-          <Table
-            title="Top campaigns"
-            columns={[
-              { key: "campaign", label: "Campaign" },
-              { key: "ctr", label: "CTR" },
-              { key: "spend", label: "Spend" },
-            ]}
-            rows={marketing.topCampaigns.map((c) => ({
-              campaign: c.campaign,
-              ctr: `${c.ctr.toFixed(2)}%`,
-              spend: `$${c.spend.toLocaleString()}`,
-            }))}
-          />
-        </div>
-      </DomainSurfaceFrame>
-    );
-  }
-
-  const legal = fetchLegalData();
-  return (
-    <DomainSurfaceFrame domain={domain} intent={intent} title="Legal overview">
-      <Summary title="Notes" bullets={legal.summary} />
-    </DomainSurfaceFrame>
-  );
+  return `sess-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function GestureIntentOrchestrator() {
@@ -410,6 +260,7 @@ export function GestureIntentOrchestrator() {
     pushRecentAction,
     setCommandSurfaceOpen,
   } = useInteractionContextActions();
+  const { registerSurface, linkSurfaces } = useSurfaceManagerActions();
 
   const [commandOpen, setCommandOpen] = React.useState(false);
   const [commandAnchor, setCommandAnchor] = React.useState<
@@ -419,6 +270,7 @@ export function GestureIntentOrchestrator() {
   const [commandSelectedIndex, setCommandSelectedIndex] = React.useState(0);
   const lastCommandActivityAtRef = React.useRef<number | null>(null);
   const surfaceIdRef = React.useRef(0);
+  const surfaceSessionPrefixRef = React.useRef(createSurfaceSessionPrefix());
   const lastPredictiveKeyRef = React.useRef<string | null>(null);
   const intentConfidenceRef = React.useRef<number | undefined>(undefined);
 
@@ -482,13 +334,17 @@ export function GestureIntentOrchestrator() {
       return;
     }
 
+    const linkGroup = getAutoLinkedSurfaceGroup(selected.domain, selected.intent);
+    const linkedSuggestions = linkGroup?.linkedSurfaces ?? [];
+
     surfaceIdRef.current += 1;
-    const surfaceId = `surface-${surfaceIdRef.current}-${Date.now()}`;
+    const surfaceId = `${surfaceSessionPrefixRef.current}-surface-${surfaceIdRef.current}`;
     const meta = {
-      ...buildSurfaceMeta(selected.domain, selected.intent),
+      ...buildDefaultSurfaceMeta(selected.domain, selected.intent),
       intentConfidence: intentConfidenceRef.current,
     };
-    const node = buildSurfaceNode(selected.domain, selected.intent);
+
+    registerSurface(surfaceId, meta);
 
     const dependency = interactionContext.focusedSurface
       ? [interactionContext.focusedSurface]
@@ -496,7 +352,7 @@ export function GestureIntentOrchestrator() {
 
     emitTamboShowComponent({
       messageId: surfaceId,
-      component: node,
+      component: <SurfaceRenderer surfaceId={surfaceId} initialMeta={meta} />,
       clientX: commandAnchor?.x,
       clientY: commandAnchor?.y,
       surfaceMeta: meta,
@@ -505,6 +361,42 @@ export function GestureIntentOrchestrator() {
     registerSurfaceMeta(surfaceId, meta);
     if (dependency.length > 0) {
       setSurfaceDependencies(surfaceId, dependency);
+    }
+
+    const linkedSurfaceIds: string[] = [];
+    linkedSuggestions.forEach((suggestion, idx) => {
+      const linkedId = `${surfaceId}-linked-${idx + 1}`;
+      const linkedMeta = {
+        ...buildDefaultSurfaceMeta(suggestion.domain, suggestion.intent),
+        intentConfidence: intentConfidenceRef.current,
+      };
+      const mergedQuery = mergeShallowSurfaceQuery(
+        linkedMeta.query,
+        suggestion.presetQuery,
+      );
+      const normalizedMeta = { ...linkedMeta, query: mergedQuery };
+
+      const offset = getLinkedSurfaceOffset(idx);
+
+      registerSurface(linkedId, normalizedMeta);
+
+      emitTamboShowComponent({
+        messageId: linkedId,
+        component: (
+          <SurfaceRenderer surfaceId={linkedId} initialMeta={normalizedMeta} />
+        ),
+        clientX:
+          commandAnchor?.x != null ? commandAnchor.x + offset.dx : undefined,
+        clientY:
+          commandAnchor?.y != null ? commandAnchor.y + offset.dy : undefined,
+        surfaceMeta: normalizedMeta,
+      });
+      registerSurfaceMeta(linkedId, normalizedMeta);
+      linkedSurfaceIds.push(linkedId);
+    });
+
+    if (linkGroup?.linkType && linkedSurfaceIds.length > 0) {
+      linkSurfaces(surfaceId, linkedSurfaceIds, linkGroup.linkType);
     }
 
     setActiveDomains(
@@ -520,7 +412,9 @@ export function GestureIntentOrchestrator() {
     dismissCommandSurface,
     interactionContext.activeDomains,
     interactionContext.focusedSurface,
+    linkSurfaces,
     pushRecentAction,
+    registerSurface,
     registerSurfaceMeta,
     setActiveDomains,
     setSurfaceDependencies,
@@ -584,6 +478,18 @@ export function GestureIntentOrchestrator() {
     recentDomainsSnapshot,
     pushRecentAction,
   ]);
+
+  const linkedPreview = React.useMemo(() => {
+    const selected = commandOptions[commandSelectedIndex];
+    if (!selected) {
+      return [];
+    }
+    const group = getAutoLinkedSurfaceGroup(selected.domain, selected.intent);
+    if (!group) {
+      return [];
+    }
+    return group.linkedSurfaces.map((surface) => toPreview(group.linkType, surface));
+  }, [commandOptions, commandSelectedIndex]);
 
   React.useEffect(() => {
     if (!commandOpen) {
@@ -664,6 +570,7 @@ export function GestureIntentOrchestrator() {
       anchor={commandAnchor}
       options={commandOptions}
       selectedIndex={commandSelectedIndex}
+      linkedPreview={linkedPreview}
       onSelectIndex={(index) => {
         setCommandSelectedIndex(index);
         lastCommandActivityAtRef.current = performance.now();

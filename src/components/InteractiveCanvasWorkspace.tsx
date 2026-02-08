@@ -6,6 +6,7 @@ import { InteractiveCanvas } from "@/components/interactive-canvas/InteractiveCa
 import { SensingProvider } from "@/components/SensingProvider";
 import { SensingStatus } from "@/components/SensingStatus";
 import { VirtualCursor } from "@/components/VirtualCursor";
+import { SurfaceManagerProvider } from "@/lib/surface-manager";
 import { cn } from "@/lib/utils";
 
 export type InteractiveCanvasWorkspaceProps = {
@@ -20,12 +21,14 @@ export function InteractiveCanvasWorkspace({
   return (
     <SensingProvider>
       <div className={cn("flex w-full", className)} data-sensing-surface="true">
-        <GestureSidebar
-          open={sidebarOpen}
-          onToggle={() => setSidebarOpen((v) => !v)}
-        />
-        <InteractiveCanvas className="flex-1" />
-        <GestureIntentOrchestrator />
+        <SurfaceManagerProvider>
+          <GestureSidebar
+            open={sidebarOpen}
+            onToggle={() => setSidebarOpen((v) => !v)}
+          />
+          <InteractiveCanvas className="flex-1" />
+          <GestureIntentOrchestrator />
+        </SurfaceManagerProvider>
       </div>
       <VirtualCursor />
       <SensingStatus />

@@ -403,6 +403,11 @@ export type DomainDataResult =
 // Convenience helper for sampling default (unfiltered) data per domain.
 export function fetchDomainData(domain: DomainId): DomainDataResult {
   switch (domain) {
+    // In this template we keep the legacy domain ids, but all three are backed by the
+    // bundled mock sales dataset.
+    case "research":
+    case "trading":
+    case "news":
     case "sales":
       return { domain: "sales", data: fetchSalesData() };
     case "infra":
@@ -413,7 +418,7 @@ export function fetchDomainData(domain: DomainId): DomainDataResult {
       return { domain: "legal", data: fetchLegalData() };
     case "dev":
       return { domain: "dev", data: fetchDevData() };
-    case "stripe":
+    default:
       return { domain: "sales", data: fetchSalesData() };
   }
 }

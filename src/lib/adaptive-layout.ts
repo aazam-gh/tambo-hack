@@ -37,17 +37,23 @@ function clamp(value: number, min: number, max: number): number {
 
 function domainBasePriority(domain: DomainId): number {
   switch (domain) {
+    case "research":
+      return 0.9;
+    case "trading":
+      return 0.84;
+    case "news":
+      return 0.76;
     case "infra":
       return 1;
     case "dev":
-      return 0.86;
+      return 0.88;
     case "sales":
       return 0.74;
     case "marketing":
       return 0.62;
     case "legal":
       return 0.5;
-    case "stripe":
+    default:
       return 0.4;
   }
 }

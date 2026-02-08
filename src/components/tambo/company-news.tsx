@@ -29,6 +29,13 @@ function normalizeSymbol(symbol: string): string {
 
 const TICKER_PATTERN = /^[A-Z0-9.]{1,10}$/i;
 
+function clampRangeDays(value: number): number {
+    if (!Number.isFinite(value)) {
+        return 14;
+    }
+    return Math.min(60, Math.max(1, Math.floor(value)));
+}
+
 const tickerSymbolSchema = z
     .string()
     .trim()
@@ -61,10 +68,10 @@ export type CompanyNewsProps = z.infer<typeof companyNewsSchema>;
 export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
     ({ symbol, rangeDays = 14, limit = 6, className }, ref) => {
         const [draftSymbol, setDraftSymbol] = React.useState(() => normalizeSymbol(symbol));
-        const [draftRangeDays, setDraftRangeDays] = React.useState(rangeDays);
+        const [draftRangeDays, setDraftRangeDays] = React.useState(() => clampRangeDays(rangeDays));
         const [applied, setApplied] = React.useState(() => ({
             symbol: normalizeSymbol(symbol),
-            rangeDays,
+            rangeDays: clampRangeDays(rangeDays),
         }));
         const [refreshIndex, setRefreshIndex] = React.useState(0);
 
@@ -77,8 +84,9 @@ export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
         React.useEffect(() => {
             const normalized = normalizeSymbol(symbol);
             setDraftSymbol(normalized);
-            setDraftRangeDays(rangeDays);
-            setApplied({ symbol: normalized, rangeDays });
+            const nextRangeDays = clampRangeDays(rangeDays);
+            setDraftRangeDays(nextRangeDays);
+            setApplied({ symbol: normalized, rangeDays: nextRangeDays });
         }, [rangeDays, symbol]);
 
         React.useEffect(() => {
@@ -218,7 +226,7 @@ export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
                         onClick={() =>
                             setApplied({
                                 symbol: normalizeSymbol(draftSymbol),
-                                rangeDays: draftRangeDays,
+                                rangeDays: clampRangeDays(draftRangeDays),
                             })
                         }
                         className="h-9 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90 active:scale-[0.98]"
@@ -237,7 +245,7 @@ export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
                     </div>
                 ) : news.length === 0 ? (
                     <div className="py-10 flex items-center justify-center text-muted-foreground text-sm">
-                        No news returned for {applied.symbol}.
+                        No news returned for {applied.symbol}. Try a longer date range or check the symbol.
                     </div>
                 ) : (
                     <div className="space-y-5">

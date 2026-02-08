@@ -327,32 +327,41 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     }
 
     window.addEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);
-
-    if (!bootstrappedRef.current) {
-      bootstrappedRef.current = true;
-      const baseMeta = buildDefaultSurfaceMeta("news", "summarize");
-      const bootstrapMeta: SurfaceMeta = {
-        ...baseMeta,
-        query: { ...baseMeta.query, symbol: BOOTSTRAP_COMPANY_NEWS_SYMBOL },
-      };
-      registerSurfaceMeta(BOOTSTRAP_COMPANY_NEWS_SURFACE_ID, bootstrapMeta);
-      emitTamboShowComponent({
-        messageId: BOOTSTRAP_COMPANY_NEWS_SURFACE_ID,
-        component: (
-          <InteractableCompanyNews
-            symbol={BOOTSTRAP_COMPANY_NEWS_SYMBOL}
-            rangeDays={BOOTSTRAP_COMPANY_NEWS_RANGE_DAYS}
-            limit={BOOTSTRAP_COMPANY_NEWS_LIMIT}
-          />
-        ),
-        surfaceMeta: bootstrapMeta,
-      });
-    }
-
     return () => {
       window.removeEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);
     };
-  }, [onShowComponent, registerSurfaceMeta]);
+  }, [onShowComponent]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (bootstrappedRef.current) {
+      return;
+    }
+
+    const baseMeta = buildDefaultSurfaceMeta("news", "summarize");
+    const bootstrapMeta: SurfaceMeta = {
+      ...baseMeta,
+      query: { ...baseMeta.query, symbol: BOOTSTRAP_COMPANY_NEWS_SYMBOL },
+    };
+
+    registerSurfaceMeta(BOOTSTRAP_COMPANY_NEWS_SURFACE_ID, bootstrapMeta);
+    emitTamboShowComponent({
+      messageId: BOOTSTRAP_COMPANY_NEWS_SURFACE_ID,
+      component: (
+        <InteractableCompanyNews
+          symbol={BOOTSTRAP_COMPANY_NEWS_SYMBOL}
+          rangeDays={BOOTSTRAP_COMPANY_NEWS_RANGE_DAYS}
+          limit={BOOTSTRAP_COMPANY_NEWS_LIMIT}
+        />
+      ),
+      surfaceMeta: bootstrapMeta,
+    });
+
+    bootstrappedRef.current = true;
+  }, [registerSurfaceMeta]);
 
   React.useEffect(() => {
     if (!focusedSurface) {

@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { GestureDataButton } from "@/components/GestureDataButton";
+import { GestureCanvasController } from "@/components/interactive-canvas/GestureCanvasController";
 import { GestureIntentOrchestrator } from "@/components/interactive-canvas/GestureIntentOrchestrator";
 import { GestureSidebar } from "@/components/interactive-canvas/GestureSidebar";
 import { InteractiveCanvas } from "@/components/interactive-canvas/InteractiveCanvas";
@@ -31,12 +31,11 @@ export function InteractiveCanvasWorkspace({
           <GestureIntentOrchestrator />
         </SurfaceManagerProvider>
       </div>
-      {/* Gesture Data Explorer Button - Fixed position in top right */}
-      <div className="fixed top-4 right-4 z-40">
-        <GestureDataButton />
-      </div>
+      {/* Gesture Canvas Controller - Integrated gesture-to-component spawning */}
+      <GestureCanvasController />
       <VirtualCursor />
       <SensingStatus />
     </SensingProvider>
   );
 }
+

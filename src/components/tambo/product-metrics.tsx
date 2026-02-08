@@ -24,6 +24,15 @@ export const ProductMetrics = React.forwardRef<
   HTMLDivElement,
   ProductMetricsProps
 >(({ productName, metrics }, ref) => {
+  const totalSales = metrics?.totalSales ?? 0;
+  const totalProfit = metrics?.totalProfit ?? 0;
+  const avgUnitPrice = metrics?.avgUnitPrice ?? 0;
+  const profitMarginPercent = metrics?.profitMarginPercent ?? 0;
+  const lowUnitPrice = metrics?.lowUnitPrice ?? 0;
+  const highUnitPrice = metrics?.highUnitPrice ?? 0;
+  const unitsSold = metrics?.unitsSold ?? 0;
+  const orderCount = metrics?.orderCount ?? 0;
+
   return (
     <div
       ref={ref}
@@ -41,27 +50,27 @@ export const ProductMetrics = React.forwardRef<
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             Total sales
           </div>
-          <div className="text-lg font-bold">${metrics.totalSales.toFixed(2)}</div>
+          <div className="text-lg font-bold">${totalSales.toFixed(2)}</div>
         </div>
         <div className="space-y-1">
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             Profit
           </div>
-          <div className="text-lg font-bold">${metrics.totalProfit.toFixed(2)}</div>
+          <div className="text-lg font-bold">${totalProfit.toFixed(2)}</div>
         </div>
         <div className="space-y-1">
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             Avg unit price
           </div>
           <div className="text-lg font-bold text-emerald-500">
-            ${metrics.avgUnitPrice.toFixed(2)}
+            ${avgUnitPrice.toFixed(2)}
           </div>
         </div>
         <div className="space-y-1">
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             Profit margin
           </div>
-          <div className="text-lg font-bold">{metrics.profitMarginPercent.toFixed(1)}%</div>
+          <div className="text-lg font-bold">{profitMarginPercent.toFixed(1)}%</div>
         </div>
       </div>
 
@@ -70,7 +79,7 @@ export const ProductMetrics = React.forwardRef<
           <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase text-muted-foreground">
             <span>Unit price range</span>
             <span className="text-primary">
-              ${metrics.lowUnitPrice.toFixed(2)} - ${metrics.highUnitPrice.toFixed(2)}
+              ${lowUnitPrice.toFixed(2)} - ${highUnitPrice.toFixed(2)}
             </span>
           </div>
           <div className="h-1.5 w-full rounded-full bg-muted/30 relative">
@@ -88,7 +97,7 @@ export const ProductMetrics = React.forwardRef<
             </span>
           </div>
           <span className="text-xs font-bold">
-            {metrics.unitsSold.toLocaleString()}
+            {unitsSold.toLocaleString()}
           </span>
         </div>
         <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-3">
@@ -99,7 +108,7 @@ export const ProductMetrics = React.forwardRef<
             </span>
           </div>
           <span className="text-xs font-bold">
-            {metrics.orderCount.toLocaleString()}
+            {orderCount.toLocaleString()}
           </span>
         </div>
       </div>
@@ -112,7 +121,7 @@ export const ProductMetrics = React.forwardRef<
           </span>
         </div>
         <span className="text-xs font-bold">
-          {Math.abs(metrics.profitMarginPercent) > 25 ? "Strong" : "Moderate"}
+          {Math.abs(profitMarginPercent) > 25 ? "Strong" : "Moderate"}
         </span>
       </div>
     </div>

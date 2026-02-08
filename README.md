@@ -65,6 +65,8 @@ npm run init
 
 This repo includes an `init` script in `package.json` that runs `npx tambo init`. If it fails due to `npx`/network restrictions (or you prefer manual setup), skip it and configure `.env.local` manually.
 
+If the `init` script is missing for any reason, you can run `npx tambo init` directly.
+
 ### 3) Run
 
 ```bash
@@ -107,12 +109,7 @@ Open `http://localhost:5173`.
 
 Current gesture bindings live in `src/lib/gesture-mapping.ts`:
 
-(The list below is only a summary of the defaults in this repo; `src/lib/gesture-mapping.ts` is the source of truth.)
-
-- **Open palm** → summon/dismiss the command surface
-- **Peace sign** → select (cycle options)
-- **Thumbs up** → confirm (spawn a surface)
-- **Pinch** → drag and drop items
+(At a high level: one gesture summons/dismisses the command surface, one cycles/selects options, one confirms/spawns a surface, and one supports drag/drop. See the code for the up-to-date exact mappings.)
 
 To customize bindings, edit `src/lib/gesture-mapping.ts` (and `src/lib/hand-gestures.ts` if you add a new gesture).
 
@@ -121,6 +118,11 @@ To customize bindings, edit `src/lib/gesture-mapping.ts` (and `src/lib/hand-gest
 Use the “Gesture Data Explorer” button (top-right) to record short gesture sequences and show a gesture-driven analytics view.
 
 Note: this is an experimental/debugging view (no persistence; UX can vary by browser/camera).
+
+Limitations:
+
+- Recordings are in-memory only (no export or persistence).
+- Behavior and performance can vary significantly by browser and camera; if nothing appears, try Chrome on desktop with good lighting.
 
 ## Extending
 
@@ -131,6 +133,11 @@ Tambo is wired up via the `TamboProvider` in `src/routes/__root.tsx`, and the re
 To extend what the model can do, add entries to the exported `tools` and `components` arrays in `src/lib/tambo.ts`.
 
 **Important:** this demo uses `as any` in a few places (notably in `src/lib/tambo.ts`) to keep the wiring simple while experimenting. In production apps, avoid `any` and prefer fully typed schemas + tool signatures so you get end-to-end type safety.
+
+If you adapt this into a production app, start by:
+
+- Replacing `as any` in `src/lib/tambo.ts` with concrete Zod schemas and strongly typed tool signatures.
+- Wiring `TamboComponent`/`TamboTool` generics so schemas and implementations line up without assertions.
 
 This repo optimizes for fast experimentation (gestures + surfaces + prompt orchestration) over perfect end-to-end typing.
 

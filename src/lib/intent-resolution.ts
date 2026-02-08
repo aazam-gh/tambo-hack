@@ -8,6 +8,9 @@ export type ResolvedIntent =
   | "explain_domain"
   | "filter_domain"
   | "debug_domain"
+  | "move_surface"
+  | "resize_surface"
+  | "combine_surface"
   | "confirm_intent"
   | "dismiss_surface"
   | "navigate"
@@ -49,6 +52,9 @@ export function domainIntentFromResolvedIntent(
     case "debug_domain":
       return "debug";
     case "inspect_domain":
+    case "move_surface":
+    case "resize_surface":
+    case "combine_surface":
     case "confirm_intent":
     case "dismiss_surface":
     case "navigate":
@@ -72,6 +78,18 @@ export function resolveIntentHypothesis(
   signal: GestureSignal,
   context: InteractionContext,
 ): IntentHypothesis {
+  if (signal.type === "move_surface") {
+    return { primary: "move_surface", alternatives: [] };
+  }
+
+  if (signal.type === "resize_surface") {
+    return { primary: "resize_surface", alternatives: [] };
+  }
+
+  if (signal.type === "combine_surface") {
+    return { primary: "combine_surface", alternatives: [] };
+  }
+
   if (signal.type === "confirm") {
     return { primary: "confirm_intent", alternatives: [] };
   }

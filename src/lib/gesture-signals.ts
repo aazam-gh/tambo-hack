@@ -4,7 +4,10 @@ export type GestureSignalType =
   | "dismiss"
   | "navigate"
   | "adjust_value"
-  | "select";
+  | "select"
+  | "move_surface"
+  | "resize_surface"
+  | "combine_surface";
 
 export type GestureSignal = {
   // Opaque unique id assigned by the sensing layer for each emitted signal.

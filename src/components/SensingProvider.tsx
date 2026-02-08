@@ -29,6 +29,7 @@ function clamp(value: number, min: number, max: number): number {
 interface SensingContextType {
     handPosition: { x: number; y: number } | null;
     hoveredElement: HTMLElement | null;
+    pinchDistance: number | null;
     handTrackingEnabled: boolean;
     setHandTrackingEnabled: (enabled: boolean) => void;
     handTrackingInitializing: boolean;
@@ -45,6 +46,7 @@ const SensingContext = createContext<SensingContextType | undefined>(undefined);
 export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [handPosition, setHandPosition] = useState<{ x: number; y: number } | null>(null);
     const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
+    const [pinchDistance, setPinchDistance] = useState<number | null>(null);
     const [handTrackingEnabled, setHandTrackingEnabledState] = useState(false);
     const [handTrackingInitializing, setHandTrackingInitializing] = useState(false);
     const [handTrackingError, setHandTrackingError] = useState<string | null>(null);
@@ -162,6 +164,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         setHandPosition(null);
         setHoveredElement(null);
+        setPinchDistance(null);
         hitTestCacheRef.current = null;
         resetGestureDetection(now);
         setGestureSignal(null);
@@ -296,6 +299,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         if (!indexFingerTip) {
                             setHandPosition(null);
                             setHoveredElement(null);
+                            setPinchDistance(null);
                             hitTestCacheRef.current = null;
                             setHandGesture(null);
                             if (
@@ -326,6 +330,16 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                         const clientY = top + normalizedY * height;
 
                         setHandPosition({ x: clientX, y: clientY });
+
+                        const thumbTip = handLandmarks[4];
+                        const indexTip = handLandmarks[8];
+                        if (thumbTip && indexTip) {
+                            const dx = thumbTip.x - indexTip.x;
+                            const dy = thumbTip.y - indexTip.y;
+                            setPinchDistance(Math.sqrt(dx * dx + dy * dy));
+                        } else {
+                            setPinchDistance(null);
+                        }
 
                         const maxHitTestX = Math.max(0, window.innerWidth - 1);
                         const maxHitTestY = Math.max(0, window.innerHeight - 1);
@@ -361,14 +375,13 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                             isOverCanvasDraggable = Boolean(canvasItem);
 
-                            interactable = canvasItem
-                                ? canvasItem
-                                : element
-                                  ? ((element.closest(
-                                        "[data-interactable]",
-                                    ) as HTMLElement) ||
-                                        null)
-                                  : null;
+                            interactable = element
+                                ? ((element.closest(
+                                      "[data-interactable]",
+                                  ) as HTMLElement) ||
+                                      canvasItem ||
+                                      null)
+                                : null;
 
                             hitTestCacheRef.current = {
                                 x: hitTestX,
@@ -415,7 +428,23 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                             }
 
                             const mappingSignalType = mapping?.signalType ?? null;
-                            const shouldSuppressSignal = mappingSignalType === null;
+                            const isOverResizeHandle = Boolean(
+                                interactable?.dataset.canvasResizeHandle ===
+                                    "true",
+                            );
+
+                            const derivedSignalType: GestureSignal["type"] | null =
+                                gesture === "pinch"
+                                    ? isOverResizeHandle
+                                        ? "resize_surface"
+                                        : isOverCanvasDraggable
+                                          ? "move_surface"
+                                          : null
+                                    : null;
+
+                            const signalType =
+                                derivedSignalType ?? mappingSignalType ?? null;
+                            const shouldSuppressSignal = signalType === null;
 
                             if (
                                 gestureMappingEnabledRef.current &&
@@ -435,7 +464,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                                 setGestureSignal({
                                     id: gestureSignalIdRef.current,
-                                    type: mappingSignalType,
+                                    type: signalType,
                                     at: now,
                                     confidence,
                                     clientX,
@@ -446,6 +475,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     } else {
                         setHandPosition(null);
                         setHoveredElement(null);
+                        setPinchDistance(null);
                         hitTestCacheRef.current = null;
                         setHandGesture(null);
                         if (
@@ -535,6 +565,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             value={{
                 handPosition,
                 hoveredElement,
+                pinchDistance,
                 handTrackingEnabled,
                 setHandTrackingEnabled,
                 handTrackingInitializing,

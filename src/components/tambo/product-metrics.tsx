@@ -24,9 +24,29 @@ export const ProductMetrics = React.forwardRef<
   HTMLDivElement,
   ProductMetricsProps
 >(({ productName, metrics }, ref) => {
+  if (!metrics) {
+    return (
+      <div
+        ref={ref}
+        className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-6 text-foreground shadow-sm backdrop-blur"
+      >
+        <div className="mb-2 flex items-center gap-2">
+          <BarChart3 className="text-primary" size={20} />
+          <h3 className="text-sm font-bold uppercase tracking-tight">
+            Key metrics • {productName}
+          </h3>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          No metrics available.
+        </div>
+      </div>
+    );
+  }
+
   const totalSales = metrics?.totalSales ?? 0;
   const totalProfit = metrics?.totalProfit ?? 0;
   const avgUnitPrice = metrics?.avgUnitPrice ?? 0;
+  const hasProfitMarginPercent = typeof metrics?.profitMarginPercent === "number";
   const profitMarginPercent = metrics?.profitMarginPercent ?? 0;
   const lowUnitPrice = metrics?.lowUnitPrice ?? 0;
   const highUnitPrice = metrics?.highUnitPrice ?? 0;
@@ -121,7 +141,11 @@ export const ProductMetrics = React.forwardRef<
           </span>
         </div>
         <span className="text-xs font-bold">
-          {Math.abs(profitMarginPercent) > 25 ? "Strong" : "Moderate"}
+          {!hasProfitMarginPercent
+            ? "Unknown"
+            : Math.abs(profitMarginPercent) > 25
+              ? "Strong"
+              : "Moderate"}
         </span>
       </div>
     </div>

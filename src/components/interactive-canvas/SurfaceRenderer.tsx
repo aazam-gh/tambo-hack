@@ -10,6 +10,7 @@ import { Summary } from "@/components/tambo/summary";
 import { Table } from "@/components/tambo/table";
 import { Domains } from "@/lib/domains";
 import { normalizeMicroPrimitives, type MicroPrimitive } from "@/lib/micro-primitives";
+import { cycleRangeDays } from "@/lib/surface-range";
 import { useSurfaceManager, useSurfaceManagerActions } from "@/lib/surface-manager";
 import type { SurfaceId, SurfaceMeta } from "@/lib/surfaces";
 import { cn } from "@/lib/utils";
@@ -64,12 +65,6 @@ function queryMicroPrimitives(query: Record<string, unknown>): MicroPrimitive[] 
   );
   const normalized = normalizeMicroPrimitives(filtered);
   return normalized.length > 0 ? normalized : null;
-}
-
-function cycleRangeDays(current: number): number {
-  if (current <= 7) return 14;
-  if (current <= 14) return 30;
-  return 7;
 }
 
 function RangeButton({

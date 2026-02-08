@@ -27,6 +27,7 @@ import {
   type SurfaceLinkGroup,
   type SurfaceLinkSuggestion,
 } from "@/lib/surface-linking";
+import { cycleRangeDays } from "@/lib/surface-range";
 import { useSurfaceManager, useSurfaceManagerActions } from "@/lib/surface-manager";
 import { buildDefaultSurfaceMeta } from "@/lib/surface-meta";
 import { useTamboThread, useTamboThreadInput } from "@tambo-ai/react";
@@ -244,12 +245,6 @@ function createSurfaceSessionPrefix(): string {
   return `sess-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function cycleRangeDays(current: number): number {
-  if (current <= 7) return 14;
-  if (current <= 14) return 30;
-  return 7;
-}
-
 export function GestureIntentOrchestrator() {
   // Contract: gestures only emit low-entropy signals. This orchestrator is the
   // only place that may translate confirmed intent into `tambo:showComponent`.
@@ -271,10 +266,15 @@ export function GestureIntentOrchestrator() {
   } = useInteractionContextActions();
   const { surfaces } = useSurfaceManager();
   const { registerSurface, linkSurfaces, updateSurfaceQuery } = useSurfaceManagerActions();
+  const surfacesRef = React.useRef(surfaces);
   const { submit, setValue, value } = useTamboThreadInput();
   const { thread } = useTamboThread();
   const { hoveredElement } = useSensing();
   const pendingPromptRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    surfacesRef.current = surfaces;
+  }, [surfaces]);
 
   React.useEffect(() => {
     if (pendingPromptRef.current && value === pendingPromptRef.current) {
@@ -814,7 +814,11 @@ export function GestureIntentOrchestrator() {
       const hoveredSurfaceId = hoveredItem?.dataset.canvasItemId;
 
       const canGestureClick =
-        hoveredElement?.dataset.gestureClick === "true" &&
+        hoveredElement != null &&
+        hoveredItem != null &&
+        hoveredItem.contains(hoveredElement) &&
+        hoveredElement.dataset.interactable === "true" &&
+        hoveredElement.dataset.gestureClick === "true" &&
         (gestureSignal.type === "select" || gestureSignal.type === "confirm");
 
       if (canGestureClick && hoveredElement) {
@@ -836,10 +840,12 @@ export function GestureIntentOrchestrator() {
       }
 
       if (gestureSignal.type === "confirm") {
-        if (hoveredSurfaceId && hoveredSurfaceId in surfaces) {
-          const meta = surfaces[hoveredSurfaceId];
+        const meta =
+          hoveredSurfaceId != null ? surfacesRef.current[hoveredSurfaceId] : undefined;
+
+        if (hoveredSurfaceId && meta) {
           const current =
-            typeof meta?.query.rangeDays === "number" ? meta.query.rangeDays : 14;
+            typeof meta.query.rangeDays === "number" ? meta.query.rangeDays : 14;
           const next = cycleRangeDays(current);
           updateSurfaceQuery(hoveredSurfaceId, { rangeDays: next });
           setFocusedSurface(hoveredSurfaceId);
@@ -900,7 +906,6 @@ export function GestureIntentOrchestrator() {
     handleCanvasItemSelection,
     pushRecentAction,
     setFocusedSurface,
-    surfaces,
     updateSurfaceQuery,
   ]);
 

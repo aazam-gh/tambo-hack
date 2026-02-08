@@ -11,13 +11,20 @@ import {
 export type DomainId =
   | "research"
   | "trading"
-  | "news";
+  | "news"
+  | "sales"
+  | "infra"
+  | "dev"
+  | "marketing"
+  | "legal";
 
 export type DomainIntent =
   | "inspect"
   | "analyze"
   | "summarize"
-  | "compare";
+  | "compare"
+  | "explain"
+  | "filter";
 
 export type DomainUiComponent =
   | "StockQuote"
@@ -59,5 +66,45 @@ export const Domains = {
     intents: ["summarize"],
     components: ["MarketNews"],
     dataSource: "news",
+  },
+  sales: {
+    id: "sales",
+    label: "Sales Hub",
+    icon: DollarSign,
+    intents: ["inspect", "explain"],
+    components: [],
+    dataSource: "sales",
+  },
+  infra: {
+    id: "infra",
+    label: "Infrastructure",
+    icon: Server,
+    intents: ["inspect", "explain", "filter"],
+    components: [],
+    dataSource: "infra",
+  },
+  dev: {
+    id: "dev",
+    label: "Development",
+    icon: Code2,
+    intents: ["inspect"],
+    components: [],
+    dataSource: "dev",
+  },
+  marketing: {
+    id: "marketing",
+    label: "Marketing",
+    icon: Megaphone,
+    intents: ["inspect", "explain"],
+    components: [],
+    dataSource: "marketing",
+  },
+  legal: {
+    id: "legal",
+    label: "Legal & Compliance",
+    icon: Scale,
+    intents: ["inspect"],
+    components: [],
+    dataSource: "legal",
   },
 } as const satisfies Record<DomainId, DomainDefinition>;

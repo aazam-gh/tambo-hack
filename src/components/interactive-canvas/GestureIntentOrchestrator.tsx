@@ -260,10 +260,22 @@ export function GestureIntentOrchestrator() {
     setSurfaceDependencies,
     pushRecentAction,
     setCommandSurfaceOpen,
+    setFocusedSurface,
   } = useInteractionContextActions();
   const { registerSurface, linkSurfaces } = useSurfaceManagerActions();
-  const { submit, setValue } = useTamboThreadInput();
+  const { submit, setValue, value } = useTamboThreadInput();
   const { thread } = useTamboThread();
+  const { hoveredElement } = useSensing();
+  const pendingPromptRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (pendingPromptRef.current && value === pendingPromptRef.current) {
+      submit({ streamResponse: true }).catch((err) => {
+        console.error("Gesture intent submission failed:", err);
+      });
+      pendingPromptRef.current = null;
+    }
+  }, [value, submit]);
 
   const processedMessageIdsRef = React.useRef(new Set<string>());
   const lastGestureHandPositionRef = React.useRef<{ x: number; y: number } | null>(
@@ -346,6 +358,12 @@ export function GestureIntentOrchestrator() {
     dismissCompositionOverlay();
     dismissCommandSurface();
   }, [dismissCommandSurface, dismissCompositionOverlay]);
+
+  React.useEffect(() => {
+    if (!interactionContext.commandSurfaceOpen && (commandOpen || compositionOpen)) {
+      dismissAllTransientOverlays();
+    }
+  }, [interactionContext.commandSurfaceOpen, commandOpen, compositionOpen, dismissAllTransientOverlays]);
 
   const openCommandSurface = React.useCallback(
     (signal: GestureSignal) => {
@@ -486,7 +504,7 @@ export function GestureIntentOrchestrator() {
         Please use the Finnhub tools to fetch the relevant data and display it using the most appropriate Finnhub UI component (StockQuote, CompanyProfile, MarketNews, InsiderSentiment, or BasicFinancials).`;
 
       setValue(prompt);
-      submit();
+      pendingPromptRef.current = prompt;
       dismissCommandSurface();
       return;
     }
@@ -529,6 +547,12 @@ export function GestureIntentOrchestrator() {
     submit,
     setValue,
   ]);
+
+  const handleCanvasItemSelection = React.useCallback((itemId: string) => {
+    setFocusedSurface(itemId);
+    pushRecentAction(`select_surface:${itemId}`);
+    dismissAllTransientOverlays();
+  }, [dismissAllTransientOverlays, pushRecentAction, setFocusedSurface]);
 
   const confirmSelectedComposition = React.useCallback(() => {
     if (!compositionTarget) {
@@ -720,6 +744,14 @@ export function GestureIntentOrchestrator() {
     }
 
     if (!commandOpen) {
+      if (gestureSignal.type === "select") {
+        const hoveredItem = hoveredElement?.closest("[data-canvas-item-id]") as HTMLElement | null;
+        if (hoveredItem?.dataset.canvasItemId) {
+          handleCanvasItemSelection(hoveredItem.dataset.canvasItemId);
+          clearGestureSignal();
+          return;
+        }
+      }
       return;
     }
 
@@ -732,6 +764,13 @@ export function GestureIntentOrchestrator() {
     }
 
     if (gestureSignal.type === "select") {
+      const hoveredItem = hoveredElement?.closest("[data-canvas-item-id]") as HTMLElement | null;
+      if (hoveredItem?.dataset.canvasItemId) {
+        handleCanvasItemSelection(hoveredItem.dataset.canvasItemId);
+        clearGestureSignal();
+        return;
+      }
+
       setCommandSelectedIndex((prev) =>
         commandOptions.length === 0 ? 0 : (prev + 1) % commandOptions.length,
       );
@@ -758,6 +797,8 @@ export function GestureIntentOrchestrator() {
     dismissCommandSurface,
     gestureSignal,
     openCommandSurface,
+    hoveredElement,
+    handleCanvasItemSelection,
   ]);
 
   return (

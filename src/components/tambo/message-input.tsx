@@ -1,9 +1,3 @@
-import { ElicitationUI } from "@/components/tambo/elicitation-ui";
-import {
-  McpPromptButton,
-  McpResourceButton,
-} from "@/components/tambo/mcp-components";
-import { McpConfigModal } from "@/components/tambo/mcp-config-modal";
 import {
   Tooltip,
   TooltipProvider,
@@ -15,11 +9,6 @@ import {
   useTamboThreadInput,
   type StagedImage,
 } from "@tambo-ai/react";
-import {
-  useTamboElicitationContext,
-  type TamboElicitationRequest,
-  type TamboElicitationResponse,
-} from "@tambo-ai/react/mcp";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   ArrowUp,
@@ -94,8 +83,6 @@ interface MessageInputContextValue {
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   submitError: string | null;
   setSubmitError: React.Dispatch<React.SetStateAction<string | null>>;
-  elicitation: TamboElicitationRequest | null;
-  resolveElicitation: ((response: TamboElicitationResponse) => void) | null;
 }
 
 /**
@@ -193,8 +180,6 @@ const MessageInputInternal = React.forwardRef<
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const dragCounter = React.useRef(0);
 
-  // Use elicitation context (optional)
-  const { elicitation, resolveElicitation } = useTamboElicitationContext();
 
   React.useEffect(() => {
     setDisplayValue(value);
@@ -306,15 +291,6 @@ const MessageInputInternal = React.forwardRef<
     [addImages],
   );
 
-  const handleElicitationResponse = React.useCallback(
-    (response: TamboElicitationResponse) => {
-      // Calling resolveElicitation automatically clears the elicitation state
-      if (resolveElicitation) {
-        resolveElicitation(response);
-      }
-    },
-    [resolveElicitation],
-  );
 
   const contextValue = React.useMemo(
     () => ({
@@ -331,8 +307,6 @@ const MessageInputInternal = React.forwardRef<
       textareaRef: inputRef ?? textareaRef,
       submitError,
       setSubmitError,
-      elicitation,
-      resolveElicitation,
     }),
     [
       displayValue,
@@ -346,8 +320,6 @@ const MessageInputInternal = React.forwardRef<
       inputRef,
       textareaRef,
       submitError,
-      elicitation,
-      resolveElicitation,
     ],
   );
   return (
@@ -380,17 +352,8 @@ const MessageInputInternal = React.forwardRef<
               </p>
             </div>
           )}
-          {elicitation ? (
-            <ElicitationUI
-              request={elicitation}
-              onResponse={handleElicitationResponse}
-            />
-          ) : (
-            <>
-              <MessageInputStagedImages />
-              {children}
-            </>
-          )}
+          <MessageInputStagedImages />
+          {children}
         </div>
       </form>
     </MessageInputContext.Provider>
@@ -574,83 +537,6 @@ const MessageInputSubmitButton = React.forwardRef<
 });
 MessageInputSubmitButton.displayName = "MessageInput.SubmitButton";
 
-const MCPIcon = () => {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      width="24"
-      height="24"
-      color="#000000"
-      fill="none"
-    >
-      <path
-        d="M3.49994 11.7501L11.6717 3.57855C12.7762 2.47398 14.5672 2.47398 15.6717 3.57855C16.7762 4.68312 16.7762 6.47398 15.6717 7.57855M15.6717 7.57855L9.49994 13.7501M15.6717 7.57855C16.7762 6.47398 18.5672 6.47398 19.6717 7.57855C20.7762 8.68312 20.7762 10.474 19.6717 11.5785L12.7072 18.543C12.3167 18.9335 12.3167 19.5667 12.7072 19.9572L13.9999 21.2499"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      ></path>
-      <path
-        d="M17.4999 9.74921L11.3282 15.921C10.2237 17.0255 8.43272 17.0255 7.32823 15.921C6.22373 14.8164 6.22373 13.0255 7.32823 11.921L13.4999 5.74939"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      ></path>
-    </svg>
-  );
-};
-/**
- * MCP Config Button component for opening the MCP configuration modal.
- * @component MessageInput.McpConfigButton
- * @example
- * ```tsx
- * <MessageInput>
- *   <MessageInput.Textarea />
- *   <MessageInput.Toolbar>
- *     <MessageInput.McpConfigButton />
- *     <MessageInput.SubmitButton />
- *   </MessageInput.Toolbar>
- * </MessageInput>
- * ```
- */
-const MessageInputMcpConfigButton = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    className?: string;
-  }
->(({ className, ...props }, ref) => {
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
-
-  const buttonClasses = cn(
-    "w-10 h-10 rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-muted disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    className,
-  );
-
-  return (
-    <>
-      <Tooltip content="Configure MCP Servers" side="right">
-        <button
-          ref={ref}
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-          className={buttonClasses}
-          aria-label="Open MCP Configuration"
-          data-slot="message-input-mcp-config"
-          {...props}
-        >
-          <MCPIcon />
-        </button>
-      </Tooltip>
-      <McpConfigModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
-    </>
-  );
-});
-MessageInputMcpConfigButton.displayName = "MessageInput.McpConfigButton";
 
 /**
  * Props for the MessageInputError component.
@@ -773,82 +659,6 @@ const MessageInputFileButton = React.forwardRef<
 });
 MessageInputFileButton.displayName = "MessageInput.FileButton";
 
-/**
- * Props for the MessageInputMcpPromptButton component.
- */
-export type MessageInputMcpPromptButtonProps =
-  React.ButtonHTMLAttributes<HTMLButtonElement>;
-
-/**
- * MCP Prompt picker button component for inserting prompts from MCP servers.
- * Wraps McpPromptButton and connects it to MessageInput context.
- * @component MessageInput.McpPromptButton
- * @example
- * ```tsx
- * <MessageInput>
- *   <MessageInput.Textarea />
- *   <MessageInput.Toolbar>
- *     <MessageInput.FileButton />
- *     <MessageInput.McpPromptButton />
- *     <MessageInput.SubmitButton />
- *   </MessageInput.Toolbar>
- * </MessageInput>
- * ```
- */
-const MessageInputMcpPromptButton = React.forwardRef<
-  HTMLButtonElement,
-  MessageInputMcpPromptButtonProps
->(({ ...props }, ref) => {
-  const { setValue, value } = useMessageInputContext();
-  return (
-    <McpPromptButton
-      ref={ref}
-      {...props}
-      value={value as string}
-      onInsertText={setValue}
-    />
-  );
-});
-MessageInputMcpPromptButton.displayName = "MessageInput.McpPromptButton";
-
-/**
- * Props for the MessageInputMcpResourceButton component.
- */
-export type MessageInputMcpResourceButtonProps =
-  React.ButtonHTMLAttributes<HTMLButtonElement>;
-
-/**
- * MCP Resource picker button component for inserting resource references from MCP servers.
- * Wraps McpResourceButton and connects it to MessageInput context.
- * @component MessageInput.McpResourceButton
- * @example
- * ```tsx
- * <MessageInput>
- *   <MessageInput.Textarea />
- *   <MessageInput.Toolbar>
- *     <MessageInput.FileButton />
- *     <MessageInput.McpPromptButton />
- *     <MessageInput.McpResourceButton />
- *     <MessageInput.SubmitButton />
- *   </MessageInput.Toolbar>
- * </MessageInput>
- * ```
- */
-const MessageInputMcpResourceButton = React.forwardRef<
-  HTMLButtonElement,
-  MessageInputMcpResourceButtonProps
->(({ ...props }, ref) => {
-  const { setValue, value } = useMessageInputContext();
-  return (
-    <McpResourceButton
-      ref={ref}
-      {...props}
-      value={value as string}
-      onInsertText={setValue}
-    />
-  );
-});
-MessageInputMcpResourceButton.displayName = "MessageInput.McpResourceButton";
 
 /**
  * Props for the ImageContextBadge component.
@@ -1008,7 +818,7 @@ MessageInputStagedImages.displayName = "MessageInput.StagedImages";
  * <MessageInput>
  *   <MessageInput.Textarea />
  *   <MessageInput.Toolbar>
- *     <MessageInput.McpConfigButton />
+ *     <MessageInput.FileButton />
  *     <MessageInput.SubmitButton />
  *   </MessageInput.Toolbar>
  * ```
@@ -1063,9 +873,6 @@ export {
   MessageInput,
   MessageInputError,
   MessageInputFileButton,
-  MessageInputMcpConfigButton,
-  MessageInputMcpPromptButton,
-  MessageInputMcpResourceButton,
   MessageInputStagedImages,
   MessageInputSubmitButton,
   MessageInputTextarea,

@@ -115,7 +115,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   } = useSensing();
   const interactionContext = useInteractionContext();
   const { focusedSurface, commandSurfaceOpen } = interactionContext;
-  const { removeSurface, setFocusedSurface } = useInteractionContextActions();
+  const { removeSurface, setFocusedSurface, setCommandSurfaceOpen } = useInteractionContextActions();
   const { dismissSurface } = useSurfaceManagerActions();
   const hoveredCanvasItemId =
     (hoveredElement?.closest(
@@ -301,10 +301,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         return prev.map((item, idx) =>
           idx === existingIndex
             ? {
-                ...item,
-                node: detail.component,
-                surfaceMeta: detail.surfaceMeta ?? item.surfaceMeta,
-              }
+              ...item,
+              node: detail.component,
+              surfaceMeta: detail.surfaceMeta ?? item.surfaceMeta,
+            }
             : item,
         );
       });
@@ -560,9 +560,9 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         prev.map((item) =>
           item.id === session.itemId
             ? {
-                ...item,
-                metrics: { ...item.metrics, manualUntil: now + MANUAL_LOCK_MS },
-              }
+              ...item,
+              metrics: { ...item.metrics, manualUntil: now + MANUAL_LOCK_MS },
+            }
             : item,
         ),
       );
@@ -736,6 +736,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       }
 
       (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+
+      if (commandSurfaceOpen) {
+        setCommandSurfaceOpen(false);
+      }
 
       panRef.current = {
         pointerId: e.pointerId,
@@ -1051,10 +1055,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
         prev.map((surface) =>
           surface.id === pending.surfaceId
             ? {
-                ...surface,
-                scale: item.previewScale ?? surface.scale,
-                previewScale: undefined,
-              }
+              ...surface,
+              scale: item.previewScale ?? surface.scale,
+              previewScale: undefined,
+            }
             : surface,
         ),
       );
@@ -1180,11 +1184,11 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   const combinePreview =
     pendingOperation?.kind === "combine"
       ? {
-          source:
-            items.find((surface) => surface.id === pendingOperation.sourceId) ?? null,
-          target:
-            items.find((surface) => surface.id === pendingOperation.targetId) ?? null,
-        }
+        source:
+          items.find((surface) => surface.id === pendingOperation.sourceId) ?? null,
+        target:
+          items.find((surface) => surface.id === pendingOperation.targetId) ?? null,
+      }
       : null;
 
   const interactionContextRef = React.useRef(interactionContext);
@@ -1440,7 +1444,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
               className={cn(
                 "absolute pointer-events-auto will-change-transform",
                 !dragging &&
-                  "transition-[transform,opacity] duration-300 ease-out",
+                "transition-[transform,opacity] duration-300 ease-out",
               )}
               style={{
                 transform: `translate3d(${item.x}px, ${item.y}px, 0) scale(${item.visualScale})`,
@@ -1455,13 +1459,13 @@ export function InteractiveCanvas({ className }: { className?: string }) {
                   prev.map((surface) =>
                     surface.id === item.id
                       ? {
-                          ...surface,
-                          metrics: {
-                            ...surface.metrics,
-                            lastInteractedAt: now,
-                            interactionCount: surface.metrics.interactionCount + 1,
-                          },
-                        }
+                        ...surface,
+                        metrics: {
+                          ...surface.metrics,
+                          lastInteractedAt: now,
+                          interactionCount: surface.metrics.interactionCount + 1,
+                        },
+                      }
                       : surface,
                   ),
                 );

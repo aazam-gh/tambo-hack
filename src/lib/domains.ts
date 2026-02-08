@@ -30,6 +30,7 @@ export type DomainUiComponent =
   | "StockQuote"
   | "CompanyProfile"
   | "MarketNews"
+  | "CompanyNews"
   | "InsiderSentiment"
   | "BasicFinancials";
 
@@ -64,7 +65,7 @@ export const Domains = {
     label: "Market News",
     icon: Megaphone,
     intents: ["summarize"],
-    components: ["MarketNews"],
+    components: ["MarketNews", "CompanyNews"],
     dataSource: "news",
   },
   sales: {

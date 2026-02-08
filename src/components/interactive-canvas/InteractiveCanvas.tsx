@@ -9,15 +9,18 @@ import {
 } from "@/lib/adaptive-layout";
 import {
   TAMBO_SHOW_COMPONENT_EVENT,
+  emitTamboShowComponent,
   type TamboShowComponentDetail,
 } from "@/lib/tambo-canvas-events";
 import {
   useInteractionContext,
   useInteractionContextActions,
 } from "@/lib/interaction-context";
+import { buildDefaultSurfaceMeta } from "@/lib/surface-meta";
 import { useSurfaceManagerActions } from "@/lib/surface-manager";
 import type { SurfaceMeta } from "@/lib/surfaces";
 import { cn } from "@/lib/utils";
+import { InteractableCompanyNews } from "@/components/tambo/company-news";
 
 type CanvasView = {
   x: number;
@@ -115,7 +118,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   } = useSensing();
   const interactionContext = useInteractionContext();
   const { focusedSurface, commandSurfaceOpen } = interactionContext;
-  const { removeSurface, setFocusedSurface, setCommandSurfaceOpen } = useInteractionContextActions();
+  const { removeSurface, setFocusedSurface, setCommandSurfaceOpen, registerSurfaceMeta } = useInteractionContextActions();
   const { dismissSurface } = useSurfaceManagerActions();
   const hoveredCanvasItemId =
     (hoveredElement?.closest(
@@ -318,10 +321,24 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     }
 
     window.addEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);
+
+    const bootstrapSurfaceId = "bootstrap-company-news";
+    const baseMeta = buildDefaultSurfaceMeta("news", "summarize");
+    const bootstrapMeta: SurfaceMeta = {
+      ...baseMeta,
+      query: { ...baseMeta.query, symbol: "AAPL" },
+    };
+    registerSurfaceMeta(bootstrapSurfaceId, bootstrapMeta);
+    emitTamboShowComponent({
+      messageId: bootstrapSurfaceId,
+      component: <InteractableCompanyNews symbol="AAPL" rangeDays={14} limit={6} />,
+      surfaceMeta: bootstrapMeta,
+    });
+
     return () => {
       window.removeEventListener(TAMBO_SHOW_COMPONENT_EVENT, onShowComponent);
     };
-  }, [onShowComponent]);
+  }, [onShowComponent, registerSurfaceMeta]);
 
   React.useEffect(() => {
     if (!focusedSurface) {

@@ -21,6 +21,10 @@ import {
   marketNewsSchema,
 } from "@/components/tambo/market-news";
 import {
+  CompanyNews,
+  companyNewsSchema,
+} from "@/components/tambo/company-news";
+import {
   InsiderSentiment,
   insiderSentimentSchema,
 } from "@/components/tambo/insider-sentiment";
@@ -242,6 +246,13 @@ export const components: TamboComponent[] = [
       "A list of the latest market news articles with headlines, summaries, and images.",
     component: MarketNews,
     propsSchema: marketNewsSchema as any,
+  },
+  {
+    name: "CompanyNews",
+    description:
+      "A company-specific news panel that fetches recent headlines for a stock symbol from Finnhub.",
+    component: CompanyNews,
+    propsSchema: companyNewsSchema as any,
   },
   {
     name: "InsiderSentiment",

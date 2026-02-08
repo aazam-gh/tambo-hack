@@ -43,15 +43,31 @@ export const ProductMetrics = React.forwardRef<
     );
   }
 
-  const totalSales = metrics?.totalSales ?? 0;
-  const totalProfit = metrics?.totalProfit ?? 0;
-  const avgUnitPrice = metrics?.avgUnitPrice ?? 0;
-  const hasProfitMarginPercent = typeof metrics?.profitMarginPercent === "number";
-  const profitMarginPercent = metrics?.profitMarginPercent ?? 0;
-  const lowUnitPrice = metrics?.lowUnitPrice ?? 0;
-  const highUnitPrice = metrics?.highUnitPrice ?? 0;
-  const unitsSold = metrics?.unitsSold ?? 0;
-  const orderCount = metrics?.orderCount ?? 0;
+  const totalSales =
+    typeof metrics?.totalSales === "number" ? metrics.totalSales : undefined;
+  const totalProfit =
+    typeof metrics?.totalProfit === "number" ? metrics.totalProfit : undefined;
+  const avgUnitPrice =
+    typeof metrics?.avgUnitPrice === "number" ? metrics.avgUnitPrice : undefined;
+  const profitMarginPercent =
+    typeof metrics?.profitMarginPercent === "number"
+      ? metrics.profitMarginPercent
+      : undefined;
+  const lowUnitPrice =
+    typeof metrics?.lowUnitPrice === "number" ? metrics.lowUnitPrice : undefined;
+  const highUnitPrice =
+    typeof metrics?.highUnitPrice === "number" ? metrics.highUnitPrice : undefined;
+  const unitsSold =
+    typeof metrics?.unitsSold === "number" ? metrics.unitsSold : undefined;
+  const orderCount =
+    typeof metrics?.orderCount === "number" ? metrics.orderCount : undefined;
+
+  const unitPriceRangeLabel =
+    typeof lowUnitPrice === "number" && typeof highUnitPrice === "number"
+      ? `$${lowUnitPrice.toFixed(2)} - $${highUnitPrice.toFixed(2)}`
+      : "N/A";
+
+  const hasProfitMarginPercent = typeof profitMarginPercent === "number";
 
   return (
     <div
@@ -70,27 +86,33 @@ export const ProductMetrics = React.forwardRef<
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             Total sales
           </div>
-          <div className="text-lg font-bold">${totalSales.toFixed(2)}</div>
+          <div className="text-lg font-bold">
+            {typeof totalSales === "number" ? `$${totalSales.toFixed(2)}` : "N/A"}
+          </div>
         </div>
         <div className="space-y-1">
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             Profit
           </div>
-          <div className="text-lg font-bold">${totalProfit.toFixed(2)}</div>
+          <div className="text-lg font-bold">
+            {typeof totalProfit === "number" ? `$${totalProfit.toFixed(2)}` : "N/A"}
+          </div>
         </div>
         <div className="space-y-1">
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             Avg unit price
           </div>
           <div className="text-lg font-bold text-emerald-500">
-            ${avgUnitPrice.toFixed(2)}
+            {typeof avgUnitPrice === "number" ? `$${avgUnitPrice.toFixed(2)}` : "N/A"}
           </div>
         </div>
         <div className="space-y-1">
           <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             Profit margin
           </div>
-          <div className="text-lg font-bold">{profitMarginPercent.toFixed(1)}%</div>
+          <div className="text-lg font-bold">
+            {hasProfitMarginPercent ? `${profitMarginPercent.toFixed(1)}%` : "N/A"}
+          </div>
         </div>
       </div>
 
@@ -98,9 +120,7 @@ export const ProductMetrics = React.forwardRef<
         <div>
           <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase text-muted-foreground">
             <span>Unit price range</span>
-            <span className="text-primary">
-              ${lowUnitPrice.toFixed(2)} - ${highUnitPrice.toFixed(2)}
-            </span>
+            <span className="text-primary">{unitPriceRangeLabel}</span>
           </div>
           <div className="h-1.5 w-full rounded-full bg-muted/30 relative">
             <div className="absolute top-0 bottom-0 left-1/4 right-1/4 bg-primary/20 rounded-full" />
@@ -117,7 +137,7 @@ export const ProductMetrics = React.forwardRef<
             </span>
           </div>
           <span className="text-xs font-bold">
-            {unitsSold.toLocaleString()}
+            {typeof unitsSold === "number" ? unitsSold.toLocaleString() : "N/A"}
           </span>
         </div>
         <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-3">
@@ -128,7 +148,7 @@ export const ProductMetrics = React.forwardRef<
             </span>
           </div>
           <span className="text-xs font-bold">
-            {orderCount.toLocaleString()}
+            {typeof orderCount === "number" ? orderCount.toLocaleString() : "N/A"}
           </span>
         </div>
       </div>

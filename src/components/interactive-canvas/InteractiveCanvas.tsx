@@ -54,6 +54,36 @@ const MIN_SURFACE_SCALE = 0.7;
 const MAX_SURFACE_SCALE = 2.2;
 const COMBINE_DISTANCE_PX = 140;
 const COMBINE_MIN_OVERLAP_RATIO = 0.08;
+// Gesture mapping is intended to keep the canvas light-weight.
+const MAX_GESTURE_MODE_ITEMS = 5;
+
+function gestureModeEvictionIds(items: CanvasItem[], overflow: number): string[] {
+  if (overflow <= 0) {
+    return [];
+  }
+
+  const safeTime = (value: number) =>
+    Number.isFinite(value) && value > 0 ? value : 0;
+
+  // Sort by least recently interacted, then oldest created first.
+  return [...items]
+    .sort((a, b) => {
+      const byInteraction =
+        safeTime(a.metrics.lastInteractedAt) - safeTime(b.metrics.lastInteractedAt);
+      if (Math.abs(byInteraction) > 0.001) {
+        return byInteraction;
+      }
+      return safeTime(a.metrics.createdAt) - safeTime(b.metrics.createdAt);
+    })
+    .slice(0, overflow)
+    .map((item) => item.id);
+}
+
+function gestureModeEvictionPlan(items: CanvasItem[], willAddNew: boolean): string[] {
+  const nextCount = items.length + (willAddNew ? 1 : 0);
+  const overflow = nextCount - MAX_GESTURE_MODE_ITEMS;
+  return gestureModeEvictionIds(items, overflow);
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -110,6 +140,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     handPosition,
     hoveredElement,
     pinchDistance,
+    gestureMappingEnabled,
     gestureSignal,
     clearGestureSignal,
   } = useSensing();
@@ -222,11 +253,80 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     startY: number;
   } | null>(null);
 
+  const evictCanvasItemIds = React.useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) {
+        return;
+      }
+
+      // Both `removeSurface` and `dismissSurface` are idempotent, so it's safe to
+      // call them even if the surface was never registered.
+      for (const id of ids) {
+        removeSurface(id);
+        dismissSurface(id);
+      }
+
+      setItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+
+      setPendingOperation((pending) => {
+        if (!pending) {
+          return pending;
+        }
+
+        if (pending.kind === "resize" && ids.includes(pending.surfaceId)) {
+          return null;
+        }
+
+        if (
+          pending.kind === "combine" &&
+          (ids.includes(pending.sourceId) || ids.includes(pending.targetId))
+        ) {
+          return null;
+        }
+
+        return pending;
+      });
+
+      setCombineCandidate((candidate) => {
+        if (!candidate) {
+          return candidate;
+        }
+
+        return ids.includes(candidate.sourceId) || ids.includes(candidate.targetId)
+          ? null
+          : candidate;
+      });
+    },
+    [dismissSurface, removeSurface, setItems],
+  );
+
+  React.useEffect(() => {
+    if (!gestureMappingEnabled) {
+      return;
+    }
+
+    if (items.length <= MAX_GESTURE_MODE_ITEMS) {
+      return;
+    }
+
+    evictCanvasItemIds(gestureModeEvictionPlan(items, false));
+  }, [evictCanvasItemIds, gestureMappingEnabled, items]);
+
   const onShowComponent = React.useCallback(
     (event: Event) => {
       const detail = (event as CustomEvent<TamboShowComponentDetail>).detail;
       if (!detail?.messageId || !detail.component) {
         return;
+      }
+
+      const alreadyOnCanvas = itemsRef.current.some((item) => item.id === detail.messageId);
+      if (
+        gestureMappingEnabled &&
+        !alreadyOnCanvas
+      ) {
+        evictCanvasItemIds(
+          gestureModeEvictionPlan(itemsRef.current, true),
+        );
       }
 
       const now = performance.now();
@@ -278,8 +378,8 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       };
 
       setItems((prev) => {
-        const existingIndex = prev.findIndex((i) => i.id === detail.messageId);
-        if (existingIndex === -1) {
+        const existing = prev.some((item) => item.id === detail.messageId);
+        if (!existing) {
           return [
             ...prev,
             {
@@ -298,18 +398,18 @@ export function InteractiveCanvas({ className }: { className?: string }) {
           ];
         }
 
-        return prev.map((item, idx) =>
-          idx === existingIndex
+        return prev.map((item) =>
+          item.id === detail.messageId
             ? {
-              ...item,
-              node: detail.component,
-              surfaceMeta: detail.surfaceMeta ?? item.surfaceMeta,
-            }
+                ...item,
+                node: detail.component,
+                surfaceMeta: detail.surfaceMeta ?? item.surfaceMeta,
+              }
             : item,
         );
       });
     },
-    [focusedSurface, itemsRef, setItems],
+    [evictCanvasItemIds, focusedSurface, gestureMappingEnabled, itemsRef, setItems],
   );
 
   React.useEffect(() => {

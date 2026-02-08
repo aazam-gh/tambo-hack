@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { components, tools } from "@/lib/tambo";
 import { InteractionContextProvider } from "@/lib/interaction-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -10,7 +12,7 @@ export const Route = createRootRoute({
   errorComponent: RootError,
 });
 
-function RootComponent() {
+function RootShell({ children }: { children: ReactNode }) {
   return (
     <TamboProvider
       apiKey={import.meta.env.VITE_TAMBO_API_KEY!}
@@ -21,10 +23,18 @@ function RootComponent() {
       <InteractionContextProvider>
         <div className="relative min-h-screen bg-background text-foreground selection:bg-emerald-500/30 transition-colors antialiased font-[family-name:var(--font-geist-sans)]">
           <ThemeToggle className="fixed right-4 top-4 z-20" />
-          <Outlet />
+          {children}
         </div>
       </InteractionContextProvider>
     </TamboProvider>
+  );
+}
+
+function RootComponent() {
+  return (
+    <RootShell>
+      <Outlet />
+    </RootShell>
   );
 }
 
@@ -34,7 +44,7 @@ function RootError({ error, reset }: ErrorComponentProps) {
     : "An unexpected error occurred. Please try again.";
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <RootShell>
       <div className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-4 p-8">
         <h1 className="text-2xl font-semibold">Something went wrong</h1>
         <pre className="max-h-72 overflow-auto rounded-xl border border-border/60 bg-card/70 p-4 text-sm text-muted-foreground">
@@ -48,6 +58,6 @@ function RootError({ error, reset }: ErrorComponentProps) {
           Try again
         </button>
       </div>
-    </div>
+    </RootShell>
   );
 }

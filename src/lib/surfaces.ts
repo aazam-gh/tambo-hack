@@ -16,4 +16,6 @@ export type Surface = {
   actions: DomainIntent[];
 };
 
-export type SurfaceMeta = Pick<Surface, "domain" | "intent" | "query" | "actions">;
+export type SurfaceMeta = Pick<Surface, "domain" | "intent" | "query" | "actions"> & {
+  intentConfidence?: number;
+};

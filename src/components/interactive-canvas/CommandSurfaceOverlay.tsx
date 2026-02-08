@@ -86,9 +86,21 @@ export function CommandSurfaceOverlay({
               </div>
               <div className="min-w-0">
                 <div className="truncate font-medium">{opt.label}</div>
-                <div className="text-xs text-muted-foreground">
-                  {domain.label} • {opt.intent}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>
+                    {domain.label} • {opt.intent}
+                  </span>
+                  {opt.suggested && (
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                      Suggested
+                    </span>
+                  )}
                 </div>
+                {opt.suggestedReason && (
+                  <div className="mt-1 text-xs text-muted-foreground/80">
+                    {opt.suggestedReason}
+                  </div>
+                )}
               </div>
             </button>
           );

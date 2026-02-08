@@ -1,3 +1,5 @@
+import * as React from "react";
+
 import { DomainSurfaceFrame } from "@/components/interactive-canvas/DomainSurfaceFrame";
 import { AlertList } from "@/components/tambo/alert-list";
 import { ComposableGraph } from "@/components/tambo/composable-graph";
@@ -110,7 +112,17 @@ export function SurfaceRenderer({
 }) {
   const { surfaces, highlightSourcesBySurface } = useSurfaceManager();
   const { updateSurfaceQuery } = useSurfaceManagerActions();
-  const meta = surfaces[surfaceId] ?? initialMeta;
+  const registeredMeta = surfaces[surfaceId];
+  const hasRegisteredRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (registeredMeta) {
+      hasRegisteredRef.current = true;
+    }
+  }, [registeredMeta]);
+
+  const meta =
+    registeredMeta ?? (!hasRegisteredRef.current ? initialMeta : undefined);
 
   const highlightSources = highlightSourcesBySurface[surfaceId] ?? [];
 

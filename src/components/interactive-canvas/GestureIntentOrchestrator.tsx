@@ -272,6 +272,17 @@ export function GestureIntentOrchestrator() {
   React.useEffect(() => {
     if (pendingPromptRef.current && value === pendingPromptRef.current) {
       submit({ streamResponse: true }).catch((err) => {
+        if (err instanceof Error && err.message.includes("streaming response")) {
+          console.warn(
+            "Gesture intent streaming submission failed, retrying:",
+            err,
+          );
+          submit({ streamResponse: true }).catch((retryErr) => {
+            console.error("Gesture intent retry submission failed:", retryErr);
+          });
+          return;
+        }
+
         console.error("Gesture intent submission failed:", err);
       });
       pendingPromptRef.current = null;

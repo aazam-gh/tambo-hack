@@ -29,12 +29,16 @@ function RootComponent() {
 }
 
 function RootError({ error, reset }: ErrorComponentProps) {
+  const message = import.meta.env.DEV
+    ? error.stack ?? error.message
+    : "An unexpected error occurred. Please try again.";
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-4 p-8">
         <h1 className="text-2xl font-semibold">Something went wrong</h1>
         <pre className="max-h-72 overflow-auto rounded-xl border border-border/60 bg-card/70 p-4 text-sm text-muted-foreground">
-          {error.stack ?? error.message}
+          {message}
         </pre>
         <button
           type="button"

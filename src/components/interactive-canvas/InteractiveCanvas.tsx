@@ -144,6 +144,24 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     gestureSignal,
     clearGestureSignal,
   } = useSensing();
+  // We defer clearing confirm/dismiss gestures by one tick when no canvas-level
+  // operation is pending so other consumers (e.g. GestureIntentOrchestrator) can
+  // react to the signal first. This ref prevents a deferred clear from wiping a
+  // newer gesture signal.
+  const activeGestureSignalIdRef = React.useRef<number | null>(null);
+
+  const requestDeferredGestureClear = React.useCallback(
+    (signalId: number) => {
+      // Delay clearing one tick so other consumers (e.g. GestureIntentOrchestrator)
+      // can observe and handle confirm/dismiss signals.
+      setTimeout(() => {
+        if (activeGestureSignalIdRef.current === signalId) {
+          clearGestureSignal();
+        }
+      }, 0);
+    },
+    [clearGestureSignal],
+  );
   const interactionContext = useInteractionContext();
   const { focusedSurface, commandSurfaceOpen } = interactionContext;
   const { removeSurface, setFocusedSurface, setCommandSurfaceOpen } = useInteractionContextActions();
@@ -1247,6 +1265,10 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   }, [clearPendingOperation, pendingOperation]);
 
   React.useEffect(() => {
+    activeGestureSignalIdRef.current = gestureSignal?.id ?? null;
+  }, [gestureSignal?.id]);
+
+  React.useEffect(() => {
     if (!gestureSignal || gestureSignal.type === "summon_ui") {
       return;
     }
@@ -1258,16 +1280,24 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     if (gestureSignal.type === "confirm") {
       if (pendingOperation) {
         commitPendingOperation();
+        clearGestureSignal();
+        return;
       }
-      clearGestureSignal();
+
+      const signalId = gestureSignal.id;
+      requestDeferredGestureClear(signalId);
       return;
     }
 
     if (gestureSignal.type === "dismiss") {
       if (pendingOperation) {
         clearPendingOperation();
+        clearGestureSignal();
+        return;
       }
-      clearGestureSignal();
+
+      const signalId = gestureSignal.id;
+      requestDeferredGestureClear(signalId);
       return;
     }
 
@@ -1279,6 +1309,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
     commitPendingOperation,
     gestureSignal,
     pendingOperation,
+    requestDeferredGestureClear,
   ]);
 
   const combinePreview =

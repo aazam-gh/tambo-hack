@@ -10,17 +10,17 @@ export type GestureMapping = {
 export const gestureMappings = {
   pinch: {
     label: "Pinch",
-    description: "Drag and drop items",
+    description: "Move/resize hovered surfaces",
     signalType: null,
   },
   thumbsUp: {
     label: "Thumbs up",
-    description: "Confirm",
+    description: "Confirm or adjust hovered surface",
     signalType: "confirm",
   },
   peaceSign: {
     label: "Peace sign",
-    description: "Select",
+    description: "Select or activate hovered control",
     signalType: "select",
   },
   openPalm: {

@@ -15,15 +15,68 @@ export const productMetricsSchema = z.object({
       highUnitPrice: z.number().describe("Highest unit price"),
       lowUnitPrice: z.number().describe("Lowest unit price"),
     })
+    .optional()
     .describe("Core product metrics"),
 });
 
 export type ProductMetricsProps = z.infer<typeof productMetricsSchema>;
 
+const toFiniteNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
+  }
+
+  return undefined;
+};
+
+const formatCurrency = (value?: number): string =>
+  typeof value === "number" ? `$${value.toFixed(2)}` : "N/A";
+
+const formatInteger = (value?: number): string =>
+  typeof value === "number" ? value.toLocaleString() : "N/A";
+
+const formatPercent = (value?: number): string =>
+  typeof value === "number" ? `${value.toFixed(1)}%` : "N/A";
+
 export const ProductMetrics = React.forwardRef<
   HTMLDivElement,
   ProductMetricsProps
 >(({ productName, metrics }, ref) => {
+  const normalized = {
+    totalSales: toFiniteNumber(metrics?.totalSales),
+    totalProfit: toFiniteNumber(metrics?.totalProfit),
+    avgUnitPrice: toFiniteNumber(metrics?.avgUnitPrice),
+    profitMarginPercent: toFiniteNumber(metrics?.profitMarginPercent),
+    lowUnitPrice: toFiniteNumber(metrics?.lowUnitPrice),
+    highUnitPrice: toFiniteNumber(metrics?.highUnitPrice),
+    unitsSold: toFiniteNumber(metrics?.unitsSold),
+    orderCount: toFiniteNumber(metrics?.orderCount),
+  };
+
+  const hasMeaningfulMetrics = Object.values(normalized).some(
+    (value) => value !== undefined,
+  );
+
+  const unitPriceRangeLabel = (() => {
+    const { lowUnitPrice, highUnitPrice } = normalized;
+    if (typeof lowUnitPrice === "number" && typeof highUnitPrice === "number") {
+      if (lowUnitPrice > highUnitPrice) return "N/A";
+      return `${formatCurrency(lowUnitPrice)} - ${formatCurrency(highUnitPrice)}`;
+    }
+    if (typeof lowUnitPrice === "number") return `≥ ${formatCurrency(lowUnitPrice)}`;
+    if (typeof highUnitPrice === "number") return `≤ ${formatCurrency(highUnitPrice)}`;
+    return "N/A";
+  })();
+
+  const marginSignal =
+    typeof normalized.profitMarginPercent === "number"
+      ? Math.abs(normalized.profitMarginPercent) > 25
+        ? "Strong"
+        : "Moderate"
+      : "Unknown";
+
   return (
     <div
       ref={ref}
@@ -36,85 +89,91 @@ export const ProductMetrics = React.forwardRef<
         </h3>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-        <div className="space-y-1">
-          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-            Total sales
-          </div>
-          <div className="text-lg font-bold">${metrics.totalSales.toFixed(2)}</div>
+      {!hasMeaningfulMetrics ? (
+        <div className="text-xs text-muted-foreground">
+          No metrics available for this product.
         </div>
-        <div className="space-y-1">
-          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-            Profit
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+            <div className="space-y-1">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Total sales
+              </div>
+              <div className="text-lg font-bold">{formatCurrency(normalized.totalSales)}</div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Profit
+              </div>
+              <div className="text-lg font-bold">{formatCurrency(normalized.totalProfit)}</div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Avg unit price
+              </div>
+              <div className="text-lg font-bold text-emerald-500">
+                {formatCurrency(normalized.avgUnitPrice)}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Profit margin
+              </div>
+              <div className="text-lg font-bold">{formatPercent(normalized.profitMarginPercent)}</div>
+            </div>
           </div>
-          <div className="text-lg font-bold">${metrics.totalProfit.toFixed(2)}</div>
-        </div>
-        <div className="space-y-1">
-          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-            Avg unit price
-          </div>
-          <div className="text-lg font-bold text-emerald-500">
-            ${metrics.avgUnitPrice.toFixed(2)}
-          </div>
-        </div>
-        <div className="space-y-1">
-          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-            Profit margin
-          </div>
-          <div className="text-lg font-bold">{metrics.profitMarginPercent.toFixed(1)}%</div>
-        </div>
-      </div>
 
-      <div className="mt-8 space-y-4 border-t border-border/40 pt-6">
-        <div>
-          <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase text-muted-foreground">
-            <span>Unit price range</span>
-            <span className="text-primary">
-              ${metrics.lowUnitPrice.toFixed(2)} - ${metrics.highUnitPrice.toFixed(2)}
+          <div className="mt-8 space-y-4 border-t border-border/40 pt-6">
+            <div>
+              <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase text-muted-foreground">
+                <span>Unit price range</span>
+                <span className="text-primary">{unitPriceRangeLabel}</span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted/30 relative">
+                <div className="absolute top-0 bottom-0 left-1/4 right-1/4 bg-primary/20 rounded-full" />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-3">
+              <div className="flex items-center gap-2">
+                <Package size={14} className="text-muted-foreground" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                  Units
+                </span>
+              </div>
+              <span className="text-xs font-bold">
+                {formatInteger(normalized.unitsSold)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp size={14} className="text-muted-foreground" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                  Orders
+                </span>
+              </div>
+              <span className="text-xs font-bold">
+                {formatInteger(normalized.orderCount)}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-3">
+            <div className="flex items-center gap-2">
+              <Percent size={14} className="text-muted-foreground" />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                Margin signal
+              </span>
+            </div>
+            <span className="text-xs font-bold">
+              {marginSignal}
             </span>
           </div>
-          <div className="h-1.5 w-full rounded-full bg-muted/30 relative">
-            <div className="absolute top-0 bottom-0 left-1/4 right-1/4 bg-primary/20 rounded-full" />
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-3">
-          <div className="flex items-center gap-2">
-            <Package size={14} className="text-muted-foreground" />
-            <span className="text-[10px] font-bold text-muted-foreground uppercase">
-              Units
-            </span>
-          </div>
-          <span className="text-xs font-bold">
-            {metrics.unitsSold.toLocaleString()}
-          </span>
-        </div>
-        <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-3">
-          <div className="flex items-center gap-2">
-            <TrendingUp size={14} className="text-muted-foreground" />
-            <span className="text-[10px] font-bold text-muted-foreground uppercase">
-              Orders
-            </span>
-          </div>
-          <span className="text-xs font-bold">
-            {metrics.orderCount.toLocaleString()}
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-3">
-        <div className="flex items-center gap-2">
-          <Percent size={14} className="text-muted-foreground" />
-          <span className="text-[10px] font-bold text-muted-foreground uppercase">
-            Margin signal
-          </span>
-        </div>
-        <span className="text-xs font-bold">
-          {Math.abs(metrics.profitMarginPercent) > 25 ? "Strong" : "Moderate"}
-        </span>
-      </div>
+        </>
+      )}
     </div>
   );
 });

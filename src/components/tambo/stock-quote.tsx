@@ -30,7 +30,7 @@ export const StockQuote = React.forwardRef<HTMLDivElement, StockQuoteProps>(
         },
         ref
     ) => {
-        const isPositive = change >= 0;
+        const isPositive = (change ?? 0) >= 0;
 
         return (
             <div
@@ -43,7 +43,7 @@ export const StockQuote = React.forwardRef<HTMLDivElement, StockQuoteProps>(
                             {symbol}
                         </div>
                         <div className="mt-1 text-3xl font-bold tracking-tight">
-                            ${currentPrice.toFixed(2)}
+                            ${(currentPrice ?? 0).toFixed(2)}
                         </div>
                     </div>
                     <div
@@ -55,26 +55,26 @@ export const StockQuote = React.forwardRef<HTMLDivElement, StockQuoteProps>(
                         )}
                     >
                         {isPositive ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
-                        {Math.abs(percentChange).toFixed(2)}%
+                        {Math.abs(percentChange ?? 0).toFixed(2)}%
                     </div>
                 </div>
 
                 <div className="mt-6 grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <div className="text-xs text-muted-foreground">Open</div>
-                        <div className="font-medium">${openPrice.toFixed(2)}</div>
+                        <div className="font-medium">${(openPrice ?? 0).toFixed(2)}</div>
                     </div>
                     <div className="space-y-1">
                         <div className="text-xs text-muted-foreground">Prev Close</div>
-                        <div className="font-medium">${previousClose.toFixed(2)}</div>
+                        <div className="font-medium">${(previousClose ?? 0).toFixed(2)}</div>
                     </div>
                     <div className="space-y-1">
                         <div className="text-xs text-muted-foreground">High</div>
-                        <div className="font-medium text-emerald-500">${highPrice.toFixed(2)}</div>
+                        <div className="font-medium text-emerald-500">${(highPrice ?? 0).toFixed(2)}</div>
                     </div>
                     <div className="space-y-1">
                         <div className="text-xs text-muted-foreground">Low</div>
-                        <div className="font-medium text-rose-500">${lowPrice.toFixed(2)}</div>
+                        <div className="font-medium text-rose-500">${(lowPrice ?? 0).toFixed(2)}</div>
                     </div>
                 </div>
 
@@ -92,7 +92,7 @@ export const StockQuote = React.forwardRef<HTMLDivElement, StockQuoteProps>(
                     <div>
                         <div className="text-xs text-muted-foreground">Daily Change</div>
                         <div className={cn("text-sm font-semibold", isPositive ? "text-emerald-500" : "text-rose-500")}>
-                            {isPositive ? "+" : ""}{change.toFixed(2)}
+                            {isPositive ? "+" : ""}{(change ?? 0).toFixed(2)}
                         </div>
                     </div>
                 </div>

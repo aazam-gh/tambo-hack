@@ -355,7 +355,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                             now - cachedHit.at < HIT_TEST_CACHE_MAX_AGE_MS &&
                             (!cachedInteractable || cachedInteractable.isConnected) &&
                             Math.hypot(hitTestX - cachedHit.x, hitTestY - cachedHit.y) <
-                                HIT_TEST_CACHE_EPSILON_PX;
+                            HIT_TEST_CACHE_EPSILON_PX;
 
                         let interactable = cachedInteractable;
                         let isOverCanvasDraggable = cachedIsOverCanvasDraggable;
@@ -368,19 +368,19 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                             const canvasItem = element
                                 ? ((element.closest(
-                                      "[data-canvas-item-id]",
-                                  ) as HTMLElement) ||
-                                      null)
+                                    "[data-canvas-item-id]",
+                                ) as HTMLElement) ||
+                                    null)
                                 : null;
 
                             isOverCanvasDraggable = Boolean(canvasItem);
 
                             interactable = element
                                 ? ((element.closest(
-                                      "[data-interactable]",
-                                  ) as HTMLElement) ||
-                                      canvasItem ||
-                                      null)
+                                    "[data-interactable]",
+                                ) as HTMLElement) ||
+                                    canvasItem ||
+                                    null)
                                 : null;
 
                             hitTestCacheRef.current = {
@@ -430,7 +430,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                             const mappingSignalType = mapping?.signalType ?? null;
                             const isOverResizeHandle = Boolean(
                                 interactable?.dataset.canvasResizeHandle ===
-                                    "true",
+                                "true",
                             );
 
                             const derivedSignalType: GestureSignal["type"] | null =
@@ -438,8 +438,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
                                     ? isOverResizeHandle
                                         ? "resize_surface"
                                         : isOverCanvasDraggable
-                                          ? "move_surface"
-                                          : null
+                                            ? "move_surface"
+                                            : null
                                     : null;
 
                             const signalType =
@@ -457,7 +457,7 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                                 const confidence = clamp(
                                     (now - candidate.since) /
-                                        (GESTURE_STABILITY_MS * 1.5),
+                                    (GESTURE_STABILITY_MS * 1.5),
                                     0,
                                     1,
                                 );
@@ -581,6 +581,8 @@ export const SensingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             <video
                 ref={videoRef}
                 style={{ display: "none" }}
+                width={1280}
+                height={720}
                 playsInline
                 muted
             />

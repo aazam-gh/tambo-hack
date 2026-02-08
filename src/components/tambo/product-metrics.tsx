@@ -15,6 +15,8 @@ export const productMetricsSchema = z.object({
       highUnitPrice: z.number().describe("Highest unit price"),
       lowUnitPrice: z.number().describe("Lowest unit price"),
     })
+    .partial()
+    .optional()
     .describe("Core product metrics"),
 });
 
@@ -43,24 +45,17 @@ export const ProductMetrics = React.forwardRef<
     );
   }
 
-  const totalSales =
-    typeof metrics?.totalSales === "number" ? metrics.totalSales : undefined;
-  const totalProfit =
-    typeof metrics?.totalProfit === "number" ? metrics.totalProfit : undefined;
-  const avgUnitPrice =
-    typeof metrics?.avgUnitPrice === "number" ? metrics.avgUnitPrice : undefined;
-  const profitMarginPercent =
-    typeof metrics?.profitMarginPercent === "number"
-      ? metrics.profitMarginPercent
-      : undefined;
-  const lowUnitPrice =
-    typeof metrics?.lowUnitPrice === "number" ? metrics.lowUnitPrice : undefined;
-  const highUnitPrice =
-    typeof metrics?.highUnitPrice === "number" ? metrics.highUnitPrice : undefined;
-  const unitsSold =
-    typeof metrics?.unitsSold === "number" ? metrics.unitsSold : undefined;
-  const orderCount =
-    typeof metrics?.orderCount === "number" ? metrics.orderCount : undefined;
+  const toFiniteNumber = (value: unknown): number | undefined =>
+    typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+  const totalSales = toFiniteNumber(metrics.totalSales);
+  const totalProfit = toFiniteNumber(metrics.totalProfit);
+  const avgUnitPrice = toFiniteNumber(metrics.avgUnitPrice);
+  const profitMarginPercent = toFiniteNumber(metrics.profitMarginPercent);
+  const lowUnitPrice = toFiniteNumber(metrics.lowUnitPrice);
+  const highUnitPrice = toFiniteNumber(metrics.highUnitPrice);
+  const unitsSold = toFiniteNumber(metrics.unitsSold);
+  const orderCount = toFiniteNumber(metrics.orderCount);
 
   const unitPriceRangeLabel =
     typeof lowUnitPrice === "number" && typeof highUnitPrice === "number"

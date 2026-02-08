@@ -42,6 +42,29 @@ import {
   type SalesRecord,
 } from "@/lib/mock-sales";
 
+function summarizeToolArgs(args: unknown): unknown {
+  if (!args || typeof args !== "object") {
+    return args;
+  }
+
+  const entries = Object.entries(args as Record<string, unknown>).map(
+    ([key, value]) => {
+      if (typeof value !== "string") {
+        return [key, value] as const;
+      }
+
+      const normalized = value.trim();
+      if (normalized.length <= 120) {
+        return [key, normalized] as const;
+      }
+
+      return [key, `${normalized.slice(0, 117)}...`] as const;
+    },
+  );
+
+  return Object.fromEntries(entries);
+}
+
 function withToolLogging<TArgs, TResult>(
   name: string,
   tool: (args: TArgs) => Promise<TResult>,
@@ -50,7 +73,7 @@ function withToolLogging<TArgs, TResult>(
     appendLogSummaryEvent({
       kind: "tambo_tool",
       label: `Tool call: ${name}`,
-      detail: { args },
+      detail: { args: summarizeToolArgs(args) },
     });
 
     const startedAt = Date.now();

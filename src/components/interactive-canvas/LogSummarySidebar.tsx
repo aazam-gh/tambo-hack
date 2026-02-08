@@ -9,38 +9,28 @@ import {
 } from "@/lib/log-summary";
 import { cn } from "@/lib/utils";
 
+const KIND_BADGE_CLASS: Record<LogSummaryEventKind, string> = {
+  gesture: "bg-emerald-500/15 text-emerald-300",
+  movement: "bg-sky-500/15 text-sky-300",
+  component: "bg-violet-500/15 text-violet-300",
+  tambo_submit: "bg-amber-500/15 text-amber-300",
+  tambo_tool: "bg-fuchsia-500/15 text-fuchsia-300",
+};
+
+const KIND_LABEL: Record<LogSummaryEventKind, string> = {
+  gesture: "gesture",
+  movement: "move",
+  component: "component",
+  tambo_submit: "tambo",
+  tambo_tool: "tool",
+};
+
 function kindBadgeClass(kind: LogSummaryEventKind): string {
-  switch (kind) {
-    case "gesture":
-      return "bg-emerald-500/15 text-emerald-300";
-    case "movement":
-      return "bg-sky-500/15 text-sky-300";
-    case "component":
-      return "bg-violet-500/15 text-violet-300";
-    case "tambo_submit":
-      return "bg-amber-500/15 text-amber-300";
-    case "tambo_tool":
-      return "bg-fuchsia-500/15 text-fuchsia-300";
-    default:
-      return "bg-muted/40 text-muted-foreground";
-  }
+  return KIND_BADGE_CLASS[kind];
 }
 
 function kindLabel(kind: LogSummaryEventKind): string {
-  switch (kind) {
-    case "gesture":
-      return "gesture";
-    case "movement":
-      return "move";
-    case "component":
-      return "component";
-    case "tambo_submit":
-      return "tambo";
-    case "tambo_tool":
-      return "tool";
-    default:
-      return kind;
-  }
+  return KIND_LABEL[kind];
 }
 
 export function LogSummarySidebar({ className }: { className?: string }) {

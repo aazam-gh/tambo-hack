@@ -1073,6 +1073,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
       return;
     }
 
+    const now = performance.now();
     const combinedId = `surface-combined-${Date.now()}`;
     const combinedX = (source.x + target.x) / 2;
     const combinedY = (source.y + target.y) / 2;
@@ -1103,6 +1104,15 @@ export function InteractiveCanvas({ className }: { className?: string }) {
           scale: 1,
           linkedSurfaces: [source.id, target.id],
           surfaceMeta: source.surfaceMeta,
+          metrics: {
+            createdAt: now,
+            lastInteractedAt: now,
+            interactionCount: 0,
+            manualUntil: now + MANUAL_LOCK_MS,
+          },
+          importance: clamp((source.importance + target.importance) / 2, 0, 1),
+          visualScale: 1,
+          visualOpacity: 1,
         },
       ];
     });

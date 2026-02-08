@@ -30,16 +30,14 @@ export const ProductMetrics = React.forwardRef<
   const toFiniteNumber = (value: unknown): number | undefined =>
     typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
-  const totalSales = hasMetrics ? toFiniteNumber(metrics!.totalSales) : undefined;
-  const totalProfit = hasMetrics ? toFiniteNumber(metrics!.totalProfit) : undefined;
-  const avgUnitPrice = hasMetrics ? toFiniteNumber(metrics!.avgUnitPrice) : undefined;
-  const profitMarginPercent = hasMetrics
-    ? toFiniteNumber(metrics!.profitMarginPercent)
-    : undefined;
-  const lowUnitPrice = hasMetrics ? toFiniteNumber(metrics!.lowUnitPrice) : undefined;
-  const highUnitPrice = hasMetrics ? toFiniteNumber(metrics!.highUnitPrice) : undefined;
-  const unitsSold = hasMetrics ? toFiniteNumber(metrics!.unitsSold) : undefined;
-  const orderCount = hasMetrics ? toFiniteNumber(metrics!.orderCount) : undefined;
+  const totalSales = toFiniteNumber(metrics?.totalSales);
+  const totalProfit = toFiniteNumber(metrics?.totalProfit);
+  const avgUnitPrice = toFiniteNumber(metrics?.avgUnitPrice);
+  const profitMarginPercent = toFiniteNumber(metrics?.profitMarginPercent);
+  const lowUnitPrice = toFiniteNumber(metrics?.lowUnitPrice);
+  const highUnitPrice = toFiniteNumber(metrics?.highUnitPrice);
+  const unitsSold = toFiniteNumber(metrics?.unitsSold);
+  const orderCount = toFiniteNumber(metrics?.orderCount);
 
   const unitPriceRangeLabel =
     typeof lowUnitPrice === "number" && typeof highUnitPrice === "number"

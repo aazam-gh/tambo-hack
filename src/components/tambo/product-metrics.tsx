@@ -21,13 +21,22 @@ export const productMetricsSchema = z.object({
 
 export type ProductMetricsProps = z.infer<typeof productMetricsSchema>;
 
+const toFiniteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+const formatCurrency = (value?: number): string =>
+  typeof value === "number" ? `$${value.toFixed(2)}` : "N/A";
+
+const formatInteger = (value?: number): string =>
+  typeof value === "number" ? value.toLocaleString() : "N/A";
+
+const formatPercent = (value?: number): string =>
+  typeof value === "number" ? `${value.toFixed(1)}%` : "N/A";
+
 export const ProductMetrics = React.forwardRef<
   HTMLDivElement,
   ProductMetricsProps
 >(({ productName, metrics }, ref) => {
-  const toFiniteNumber = (value: unknown): number | undefined =>
-    typeof value === "number" && Number.isFinite(value) ? value : undefined;
-
   const normalized = {
     totalSales: toFiniteNumber(metrics?.totalSales),
     totalProfit: toFiniteNumber(metrics?.totalProfit),
@@ -42,15 +51,6 @@ export const ProductMetrics = React.forwardRef<
   const hasMeaningfulMetrics = Object.values(normalized).some(
     (value) => typeof value === "number",
   );
-
-  const formatCurrency = (value?: number): string =>
-    typeof value === "number" ? `$${value.toFixed(2)}` : "N/A";
-
-  const formatInteger = (value?: number): string =>
-    typeof value === "number" ? value.toLocaleString() : "N/A";
-
-  const formatPercent = (value?: number): string =>
-    typeof value === "number" ? `${value.toFixed(1)}%` : "N/A";
 
   const unitPriceRangeLabel =
     typeof normalized.lowUnitPrice === "number" &&

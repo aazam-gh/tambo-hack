@@ -27,13 +27,20 @@ function normalizeSymbol(symbol: string): string {
     return symbol.trim().toUpperCase();
 }
 
+const COMPANY_NEWS_DEFAULT_RANGE_DAYS = 14;
+const COMPANY_NEWS_MAX_RANGE_DAYS = 60;
+const COMPANY_NEWS_RANGE_PRESETS = [7, 14, 30, 60] as const;
+
 const TICKER_PATTERN = /^[A-Z0-9.]{1,10}$/i;
 
 function clampRangeDays(value: number): number {
     if (!Number.isFinite(value)) {
-        return 14;
+        return COMPANY_NEWS_DEFAULT_RANGE_DAYS;
     }
-    return Math.min(60, Math.max(1, Math.floor(value)));
+    return Math.min(
+        COMPANY_NEWS_MAX_RANGE_DAYS,
+        Math.max(1, Math.floor(value)),
+    );
 }
 
 const tickerSymbolSchema = z
@@ -50,9 +57,11 @@ export const companyNewsSchema = z.object({
         .number()
         .int()
         .min(1)
-        .max(60)
+        .max(COMPANY_NEWS_MAX_RANGE_DAYS)
         .optional()
-        .describe("Number of days of company news to fetch (default: 14)"),
+        .describe(
+            `Number of days of company news to fetch (default: ${COMPANY_NEWS_DEFAULT_RANGE_DAYS})`,
+        ),
     limit: z
         .number()
         .int()
@@ -66,7 +75,7 @@ export const companyNewsSchema = z.object({
 export type CompanyNewsProps = z.infer<typeof companyNewsSchema>;
 
 export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
-    ({ symbol, rangeDays = 14, limit = 6, className }, ref) => {
+    ({ symbol, rangeDays = COMPANY_NEWS_DEFAULT_RANGE_DAYS, limit = 6, className }, ref) => {
         const [draftSymbol, setDraftSymbol] = React.useState(() => normalizeSymbol(symbol));
         const [draftRangeDays, setDraftRangeDays] = React.useState(() => clampRangeDays(rangeDays));
         const [applied, setApplied] = React.useState(() => ({
@@ -214,10 +223,11 @@ export const CompanyNews = React.forwardRef<HTMLDivElement, CompanyNewsProps>(
                             onChange={(e) => setDraftRangeDays(Number(e.target.value))}
                             className="h-9 rounded-xl border border-border/60 bg-background/40 px-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40"
                         >
-                            <option value={7}>7 days</option>
-                            <option value={14}>14 days</option>
-                            <option value={30}>30 days</option>
-                            <option value={60}>60 days</option>
+                            {COMPANY_NEWS_RANGE_PRESETS.map((value) => (
+                                <option key={value} value={value}>
+                                    {value} days
+                                </option>
+                            ))}
                         </select>
                     </label>
 

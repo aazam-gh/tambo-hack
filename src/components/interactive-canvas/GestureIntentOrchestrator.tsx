@@ -37,11 +37,6 @@ const PREDICTIVE_AUTO_OPEN_MIN_CONFIDENCE = 0.75;
 const LINKED_SURFACE_OFFSET_X = 360;
 const LINKED_SURFACE_OFFSET_Y = 280;
 
-const FINNHUB_DOMAINS: DomainId[] = ["research", "trading", "news"];
-const FALLBACK_FINNHUB_COMPONENTS = [
-  ...new Set(FINNHUB_DOMAINS.flatMap((domain) => Domains[domain].components)),
-].join(", ");
-
 function dedupeDomains(domains: DomainId[]): DomainId[] {
   return [...new Set(domains)];
 }
@@ -520,7 +515,7 @@ export function GestureIntentOrchestrator() {
       const allowedComponents =
         configuredComponents.length > 0
           ? configuredComponents.join(", ")
-          : FALLBACK_FINNHUB_COMPONENTS;
+          : "any registered Finnhub UI component";
       const prompt = `[GESTURE_SYSTEM]: [REF_${Date.now()}] User confirmed intent "${selected.intent}" for ${selected.domain}. 
         Please use the Finnhub tools to fetch the relevant data and display it using the most appropriate Finnhub UI component (${allowedComponents}).
         IMPORTANT: If no stock symbol is currently active or mentioned in the conversation history, default to "AAPL" (Apple Inc.) so that the data can be shown immediately.`;

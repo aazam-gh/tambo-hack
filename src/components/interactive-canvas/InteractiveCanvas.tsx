@@ -68,7 +68,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
   const { handGesture, handPosition, hoveredElement } = useSensing();
   const interactionContext = useInteractionContext();
   const { focusedSurface } = interactionContext;
-  const { setFocusedSurface } = useInteractionContextActions();
+  const { removeSurface, setFocusedSurface } = useInteractionContextActions();
   const hoveredCanvasItemId =
     (hoveredElement?.closest(
       "[data-canvas-item-id]",
@@ -885,6 +885,7 @@ export function InteractiveCanvas({ className }: { className?: string }) {
                 aria-label="Remove canvas item"
                 onClick={(e) => {
                   e.stopPropagation();
+                  removeSurface(item.id);
                   setItems((prev) => prev.filter((p) => p.id !== item.id));
                 }}
                 className={cn(

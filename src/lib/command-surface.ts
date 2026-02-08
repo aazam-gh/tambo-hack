@@ -5,4 +5,7 @@ export type CommandOption = {
   label: string;
   domain: DomainId;
   intent: DomainIntent;
+  suggested?: boolean;
+  suggestedReason?: string;
+  confidence?: number;
 };

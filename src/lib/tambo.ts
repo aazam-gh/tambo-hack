@@ -11,6 +11,10 @@
 import { AlertList, alertListSchema } from "@/components/tambo/alert-list";
 import { Callout, calloutSchema } from "@/components/tambo/callout";
 import { Checklist, checklistSchema } from "@/components/tambo/checklist";
+import {
+  ComposableGraph,
+  composableGraphSchema,
+} from "@/components/tambo/composable-graph";
 import { Form, formSchema } from "@/components/tambo/form";
 import { Graph, graphSchema } from "@/components/tambo/graph";
 import { LogViewer, logViewerSchema } from "@/components/tambo/log-viewer";
@@ -64,6 +68,13 @@ export const components: TamboComponent[] = [
       "A component that renders various types of charts (bar, line, pie) using Recharts. Supports customizable data visualization with labels, datasets, and styling options.",
     component: Graph,
     propsSchema: graphSchema,
+  },
+  {
+    name: "ComposableGraph",
+    description:
+      "A composable graph that renders a chart as micro-primitives (Axis, DataLine, Legend, Tooltip, FilterControl). Pass `microPrimitives` to control which parts render, and `incremental` to reveal them in stages.",
+    component: ComposableGraph,
+    propsSchema: composableGraphSchema,
   },
   {
     name: "LogViewer",

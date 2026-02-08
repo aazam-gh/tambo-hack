@@ -3,8 +3,13 @@ import * as React from "react";
 import { useSensing } from "@/components/SensingProvider";
 import { CommandSurfaceOverlay } from "@/components/interactive-canvas/CommandSurfaceOverlay";
 import { SurfaceRenderer } from "@/components/interactive-canvas/SurfaceRenderer";
+import { WidgetCompositionOverlay } from "@/components/interactive-canvas/WidgetCompositionOverlay";
 import { Domains, type DomainId, type DomainIntent } from "@/lib/domains";
 import type { CommandOption } from "@/lib/command-surface";
+import {
+  getMicroCompositions,
+  type MicroComposition,
+} from "@/lib/micro-primitives";
 import {
   domainIntentFromResolvedIntent,
   resolveIntentHypothesis,
@@ -268,6 +273,20 @@ export function GestureIntentOrchestrator() {
   >(null);
   const [commandOptions, setCommandOptions] = React.useState<CommandOption[]>([]);
   const [commandSelectedIndex, setCommandSelectedIndex] = React.useState(0);
+
+  const [compositionOpen, setCompositionOpen] = React.useState(false);
+  const [compositionAnchor, setCompositionAnchor] = React.useState<
+    { x: number; y: number } | null
+  >(null);
+  const [compositionTarget, setCompositionTarget] = React.useState<{
+    domain: DomainId;
+    intent: DomainIntent;
+  } | null>(null);
+  const [compositionOptions, setCompositionOptions] = React.useState<
+    MicroComposition[]
+  >([]);
+  const [compositionSelectedIndex, setCompositionSelectedIndex] = React.useState(0);
+
   const lastCommandActivityAtRef = React.useRef<number | null>(null);
   const surfaceIdRef = React.useRef(0);
   const surfaceSessionPrefixRef = React.useRef(createSurfaceSessionPrefix());
@@ -289,6 +308,19 @@ export function GestureIntentOrchestrator() {
       setCommandSurfaceOpen(false);
     };
   }, [setCommandSurfaceOpen]);
+
+  const dismissCompositionOverlay = React.useCallback(() => {
+    setCompositionOpen(false);
+    setCompositionAnchor(null);
+    setCompositionTarget(null);
+    setCompositionOptions([]);
+    setCompositionSelectedIndex(0);
+  }, []);
+
+  const dismissAllTransientOverlays = React.useCallback(() => {
+    dismissCompositionOverlay();
+    dismissCommandSurface();
+  }, [dismissCommandSurface, dismissCompositionOverlay]);
 
   const openCommandSurface = React.useCallback(
     (signal: GestureSignal) => {
@@ -327,6 +359,94 @@ export function GestureIntentOrchestrator() {
     [handPosition, interactionContext, pushRecentAction, setCommandSurfaceOpen],
   );
 
+  const spawnSurfaceForSelection = React.useCallback(
+    (
+      selection: { domain: DomainId; intent: DomainIntent },
+      {
+        anchor,
+        queryPatch,
+      }: {
+        anchor: { x: number; y: number } | null;
+        queryPatch?: Record<string, unknown>;
+      },
+    ) => {
+      const linkGroup = getAutoLinkedSurfaceGroup(
+        selection.domain,
+        selection.intent,
+      );
+      const linkedSuggestions = linkGroup?.linkedSurfaces ?? [];
+
+      surfaceIdRef.current += 1;
+      const surfaceId = `${surfaceSessionPrefixRef.current}-surface-${surfaceIdRef.current}`;
+      const baseMeta = buildDefaultSurfaceMeta(selection.domain, selection.intent);
+      const meta = {
+        ...baseMeta,
+        query: queryPatch ? { ...baseMeta.query, ...queryPatch } : baseMeta.query,
+        intentConfidence: intentConfidenceRef.current,
+      };
+
+      registerSurface(surfaceId, meta);
+
+      const dependency = interactionContext.focusedSurface
+        ? [interactionContext.focusedSurface]
+        : [];
+
+      emitTamboShowComponent({
+        messageId: surfaceId,
+        component: <SurfaceRenderer surfaceId={surfaceId} initialMeta={meta} />,
+        clientX: anchor?.x,
+        clientY: anchor?.y,
+        surfaceMeta: meta,
+      });
+
+      registerSurfaceMeta(surfaceId, meta);
+      if (dependency.length > 0) {
+        setSurfaceDependencies(surfaceId, dependency);
+      }
+
+      const linkedSurfaceIds: string[] = [];
+      linkedSuggestions.forEach((suggestion, idx) => {
+        const linkedId = `${surfaceId}-linked-${idx + 1}`;
+        const linkedMeta = {
+          ...buildDefaultSurfaceMeta(suggestion.domain, suggestion.intent),
+          intentConfidence: intentConfidenceRef.current,
+        };
+        const mergedQuery = mergeShallowSurfaceQuery(
+          linkedMeta.query,
+          suggestion.presetQuery,
+        );
+        const normalizedMeta = { ...linkedMeta, query: mergedQuery };
+
+        const offset = getLinkedSurfaceOffset(idx);
+
+        registerSurface(linkedId, normalizedMeta);
+
+        emitTamboShowComponent({
+          messageId: linkedId,
+          component: (
+            <SurfaceRenderer surfaceId={linkedId} initialMeta={normalizedMeta} />
+          ),
+          clientX: anchor?.x != null ? anchor.x + offset.dx : undefined,
+          clientY: anchor?.y != null ? anchor.y + offset.dy : undefined,
+          surfaceMeta: normalizedMeta,
+        });
+        registerSurfaceMeta(linkedId, normalizedMeta);
+        linkedSurfaceIds.push(linkedId);
+      });
+
+      if (linkGroup?.linkType && linkedSurfaceIds.length > 0) {
+        linkSurfaces(surfaceId, linkedSurfaceIds, linkGroup.linkType);
+      }
+    },
+    [
+      interactionContext.focusedSurface,
+      linkSurfaces,
+      registerSurface,
+      registerSurfaceMeta,
+      setSurfaceDependencies,
+    ],
+  );
+
   const confirmSelectedOption = React.useCallback(() => {
     const selected = commandOptions[commandSelectedIndex];
     if (!selected) {
@@ -334,70 +454,24 @@ export function GestureIntentOrchestrator() {
       return;
     }
 
-    const linkGroup = getAutoLinkedSurfaceGroup(selected.domain, selected.intent);
-    const linkedSuggestions = linkGroup?.linkedSurfaces ?? [];
-
-    surfaceIdRef.current += 1;
-    const surfaceId = `${surfaceSessionPrefixRef.current}-surface-${surfaceIdRef.current}`;
-    const meta = {
-      ...buildDefaultSurfaceMeta(selected.domain, selected.intent),
-      intentConfidence: intentConfidenceRef.current,
-    };
-
-    registerSurface(surfaceId, meta);
-
-    const dependency = interactionContext.focusedSurface
-      ? [interactionContext.focusedSurface]
-      : [];
-
-    emitTamboShowComponent({
-      messageId: surfaceId,
-      component: <SurfaceRenderer surfaceId={surfaceId} initialMeta={meta} />,
-      clientX: commandAnchor?.x,
-      clientY: commandAnchor?.y,
-      surfaceMeta: meta,
-    });
-
-    registerSurfaceMeta(surfaceId, meta);
-    if (dependency.length > 0) {
-      setSurfaceDependencies(surfaceId, dependency);
+    const compositions = getMicroCompositions(selected.domain, selected.intent);
+    if (compositions && compositions.length > 0) {
+      setCommandOpen(false);
+      setCommandSurfaceOpen(false);
+      setCompositionOpen(true);
+      setCompositionAnchor(commandAnchor);
+      setCompositionTarget({ domain: selected.domain, intent: selected.intent });
+      setCompositionOptions(compositions);
+      setCompositionSelectedIndex(0);
+      lastCommandActivityAtRef.current = performance.now();
+      pushRecentAction(`compose:${selected.domain}:${selected.intent}`);
+      return;
     }
 
-    const linkedSurfaceIds: string[] = [];
-    linkedSuggestions.forEach((suggestion, idx) => {
-      const linkedId = `${surfaceId}-linked-${idx + 1}`;
-      const linkedMeta = {
-        ...buildDefaultSurfaceMeta(suggestion.domain, suggestion.intent),
-        intentConfidence: intentConfidenceRef.current,
-      };
-      const mergedQuery = mergeShallowSurfaceQuery(
-        linkedMeta.query,
-        suggestion.presetQuery,
-      );
-      const normalizedMeta = { ...linkedMeta, query: mergedQuery };
-
-      const offset = getLinkedSurfaceOffset(idx);
-
-      registerSurface(linkedId, normalizedMeta);
-
-      emitTamboShowComponent({
-        messageId: linkedId,
-        component: (
-          <SurfaceRenderer surfaceId={linkedId} initialMeta={normalizedMeta} />
-        ),
-        clientX:
-          commandAnchor?.x != null ? commandAnchor.x + offset.dx : undefined,
-        clientY:
-          commandAnchor?.y != null ? commandAnchor.y + offset.dy : undefined,
-        surfaceMeta: normalizedMeta,
-      });
-      registerSurfaceMeta(linkedId, normalizedMeta);
-      linkedSurfaceIds.push(linkedId);
-    });
-
-    if (linkGroup?.linkType && linkedSurfaceIds.length > 0) {
-      linkSurfaces(surfaceId, linkedSurfaceIds, linkGroup.linkType);
-    }
+    spawnSurfaceForSelection(
+      { domain: selected.domain, intent: selected.intent },
+      { anchor: commandAnchor },
+    );
 
     setActiveDomains(
       dedupeDomains([selected.domain, ...interactionContext.activeDomains]),
@@ -411,17 +485,64 @@ export function GestureIntentOrchestrator() {
     commandSelectedIndex,
     dismissCommandSurface,
     interactionContext.activeDomains,
-    interactionContext.focusedSurface,
-    linkSurfaces,
     pushRecentAction,
-    registerSurface,
-    registerSurfaceMeta,
     setActiveDomains,
-    setSurfaceDependencies,
+    setCommandSurfaceOpen,
+    spawnSurfaceForSelection,
   ]);
 
+  const confirmSelectedComposition = React.useCallback(() => {
+    if (!compositionTarget) {
+      dismissAllTransientOverlays();
+      return;
+    }
+
+    const selected = compositionOptions[compositionSelectedIndex];
+    if (!selected) {
+      dismissAllTransientOverlays();
+      return;
+    }
+
+    spawnSurfaceForSelection(compositionTarget, {
+      anchor: compositionAnchor,
+      queryPatch: {
+        microPrimitives: selected.primitives,
+        microIncremental: selected.incremental ?? true,
+      },
+    });
+
+    setActiveDomains(
+      dedupeDomains([
+        compositionTarget.domain,
+        ...interactionContext.activeDomains,
+      ]),
+    );
+    pushRecentAction(
+      `confirm:${compositionTarget.domain}:${compositionTarget.intent}:${selected.id}`,
+    );
+
+    dismissAllTransientOverlays();
+  }, [
+    compositionAnchor,
+    compositionOptions,
+    compositionSelectedIndex,
+    compositionTarget,
+    dismissAllTransientOverlays,
+    interactionContext.activeDomains,
+    pushRecentAction,
+    setActiveDomains,
+    spawnSurfaceForSelection,
+  ]);
+
+  const backToCommandSurface = React.useCallback(() => {
+    dismissCompositionOverlay();
+    setCommandOpen(true);
+    setCommandSurfaceOpen(true);
+    lastCommandActivityAtRef.current = performance.now();
+  }, [dismissCompositionOverlay, setCommandSurfaceOpen]);
+
   React.useEffect(() => {
-    if (commandOpen) {
+    if (commandOpen || compositionOpen) {
       return;
     }
 
@@ -471,6 +592,7 @@ export function GestureIntentOrchestrator() {
     pushRecentAction("command_surface:predictive_open");
   }, [
     commandOpen,
+    compositionOpen,
     handPosition,
     activeDomainsSnapshot,
     focusedSurfaceSnapshot,
@@ -492,7 +614,7 @@ export function GestureIntentOrchestrator() {
   }, [commandOptions, commandSelectedIndex]);
 
   React.useEffect(() => {
-    if (!commandOpen) {
+    if (!commandOpen && !compositionOpen) {
       return;
     }
 
@@ -503,14 +625,14 @@ export function GestureIntentOrchestrator() {
       }
 
       if (performance.now() - last > COMMAND_SURFACE_IDLE_MS) {
-        dismissCommandSurface();
+        dismissAllTransientOverlays();
       }
     }, 250);
 
     return () => {
       window.clearInterval(id);
     };
-  }, [commandOpen, dismissCommandSurface]);
+  }, [commandOpen, compositionOpen, dismissAllTransientOverlays]);
 
   React.useEffect(() => {
     if (!gestureSignal) {
@@ -518,11 +640,42 @@ export function GestureIntentOrchestrator() {
     }
 
     if (gestureSignal.type === "summon_ui") {
-      if (commandOpen) {
+      if (compositionOpen) {
+        dismissAllTransientOverlays();
+      } else if (commandOpen) {
         dismissCommandSurface();
       } else {
         openCommandSurface(gestureSignal);
       }
+      clearGestureSignal();
+      return;
+    }
+
+    if (compositionOpen) {
+      lastCommandActivityAtRef.current = performance.now();
+
+      if (gestureSignal.type === "dismiss") {
+        dismissAllTransientOverlays();
+        clearGestureSignal();
+        return;
+      }
+
+      if (gestureSignal.type === "select") {
+        setCompositionSelectedIndex((prev) =>
+          compositionOptions.length === 0
+            ? 0
+            : (prev + 1) % compositionOptions.length,
+        );
+        clearGestureSignal();
+        return;
+      }
+
+      if (gestureSignal.type === "confirm") {
+        confirmSelectedComposition();
+        clearGestureSignal();
+        return;
+      }
+
       clearGestureSignal();
       return;
     }
@@ -559,24 +712,47 @@ export function GestureIntentOrchestrator() {
     commandOpen,
     commandOptions.length,
     confirmSelectedOption,
+    compositionOpen,
+    compositionOptions.length,
+    confirmSelectedComposition,
+    dismissAllTransientOverlays,
     dismissCommandSurface,
     gestureSignal,
     openCommandSurface,
   ]);
 
   return (
-    <CommandSurfaceOverlay
-      open={commandOpen}
-      anchor={commandAnchor}
-      options={commandOptions}
-      selectedIndex={commandSelectedIndex}
-      linkedPreview={linkedPreview}
-      onSelectIndex={(index) => {
-        setCommandSelectedIndex(index);
-        lastCommandActivityAtRef.current = performance.now();
-      }}
-      onConfirm={confirmSelectedOption}
-      onDismiss={dismissCommandSurface}
-    />
+    <>
+      <CommandSurfaceOverlay
+        open={commandOpen}
+        anchor={commandAnchor}
+        options={commandOptions}
+        selectedIndex={commandSelectedIndex}
+        linkedPreview={linkedPreview}
+        onSelectIndex={(index) => {
+          setCommandSelectedIndex(index);
+          lastCommandActivityAtRef.current = performance.now();
+        }}
+        onConfirm={confirmSelectedOption}
+        onDismiss={dismissCommandSurface}
+      />
+      {compositionTarget ? (
+        <WidgetCompositionOverlay
+          open={compositionOpen}
+          anchor={compositionAnchor}
+          domain={compositionTarget.domain}
+          intent={compositionTarget.intent}
+          options={compositionOptions}
+          selectedIndex={compositionSelectedIndex}
+          onSelectIndex={(index) => {
+            setCompositionSelectedIndex(index);
+            lastCommandActivityAtRef.current = performance.now();
+          }}
+          onConfirm={confirmSelectedComposition}
+          onBack={backToCommandSurface}
+          onDismiss={dismissAllTransientOverlays}
+        />
+      ) : null}
+    </>
   );
 }

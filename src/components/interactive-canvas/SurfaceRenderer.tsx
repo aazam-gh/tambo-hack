@@ -1,11 +1,15 @@
+import * as React from "react";
+
 import { DomainSurfaceFrame } from "@/components/interactive-canvas/DomainSurfaceFrame";
 import { AlertList } from "@/components/tambo/alert-list";
+import { ComposableGraph } from "@/components/tambo/composable-graph";
 import { Graph } from "@/components/tambo/graph";
 import { LogViewer } from "@/components/tambo/log-viewer";
 import { PipelineStatus } from "@/components/tambo/pipeline-status";
 import { Summary } from "@/components/tambo/summary";
 import { Table } from "@/components/tambo/table";
 import { Domains } from "@/lib/domains";
+import { normalizeMicroPrimitives, type MicroPrimitive } from "@/lib/micro-primitives";
 import { useSurfaceManager, useSurfaceManagerActions } from "@/lib/surface-manager";
 import type { SurfaceId, SurfaceMeta } from "@/lib/surfaces";
 import { cn } from "@/lib/utils";
@@ -32,6 +36,34 @@ function queryString<Values extends readonly string[]>(
     return undefined;
   }
   return (allowed as readonly string[]).includes(value) ? (value as Values[number]) : undefined;
+}
+
+function queryBoolean(query: Record<string, unknown>, key: string): boolean | undefined {
+  const value = query[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
+const MICRO_PRIMITIVES: MicroPrimitive[] = [
+  "Axis",
+  "DataLine",
+  "Legend",
+  "FilterControl",
+  "Tooltip",
+];
+const MICRO_PRIMITIVE_SET = new Set<string>(MICRO_PRIMITIVES);
+
+function queryMicroPrimitives(query: Record<string, unknown>): MicroPrimitive[] | null {
+  const value = query.microPrimitives;
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const filtered = value.filter(
+    (entry): entry is MicroPrimitive =>
+      typeof entry === "string" && MICRO_PRIMITIVE_SET.has(entry),
+  );
+  const normalized = normalizeMicroPrimitives(filtered);
+  return normalized.length > 0 ? normalized : null;
 }
 
 function cycleRangeDays(current: number): number {
@@ -80,7 +112,17 @@ export function SurfaceRenderer({
 }) {
   const { surfaces, highlightSourcesBySurface } = useSurfaceManager();
   const { updateSurfaceQuery } = useSurfaceManagerActions();
-  const meta = surfaces[surfaceId] ?? initialMeta;
+  const registeredMeta = surfaces[surfaceId];
+  const hasRegisteredRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (registeredMeta) {
+      hasRegisteredRef.current = true;
+    }
+  }, [registeredMeta]);
+
+  const meta =
+    registeredMeta ?? (!hasRegisteredRef.current ? initialMeta : undefined);
 
   const highlightSources = highlightSourcesBySurface[surfaceId] ?? [];
 
@@ -111,6 +153,8 @@ export function SurfaceRenderer({
     const sales = fetchSalesData({ rangeDays, region, plan });
     const delta = (sales.revenue.values.at(-1) ?? 0) - (sales.revenue.values[0] ?? 0);
     const direction = delta >= 0 ? "up" : "down";
+    const microPrimitives = queryMicroPrimitives(meta.query);
+    const microIncremental = queryBoolean(meta.query, "microIncremental") ?? true;
 
     if (meta.intent === "explain") {
       return (
@@ -140,23 +184,44 @@ export function SurfaceRenderer({
         toolbar={baseToolbar}
       >
         <div className="space-y-3">
-          <Graph
-            title="Revenue"
-            variant="solid"
-            size="sm"
-            showLegend={false}
-            data={{
-              type: "line",
-              labels: sales.revenue.labels,
-              datasets: [
-                {
-                  label: "Revenue",
-                  data: sales.revenue.values,
-                  color: "hsl(160, 82%, 47%)",
-                },
-              ],
-            }}
-          />
+          {microPrimitives ? (
+            <ComposableGraph
+              title="Revenue"
+              variant="solid"
+              size="sm"
+              incremental={microIncremental}
+              microPrimitives={microPrimitives}
+              data={{
+                type: "line",
+                labels: sales.revenue.labels,
+                datasets: [
+                  {
+                    label: "Revenue",
+                    data: sales.revenue.values,
+                    color: "hsl(160, 82%, 47%)",
+                  },
+                ],
+              }}
+            />
+          ) : (
+            <Graph
+              title="Revenue"
+              variant="solid"
+              size="sm"
+              showLegend={false}
+              data={{
+                type: "line",
+                labels: sales.revenue.labels,
+                datasets: [
+                  {
+                    label: "Revenue",
+                    data: sales.revenue.values,
+                    color: "hsl(160, 82%, 47%)",
+                  },
+                ],
+              }}
+            />
+          )}
           <Table
             title="By region"
             columns={[
@@ -176,6 +241,8 @@ export function SurfaceRenderer({
   if (meta.domain === "infra") {
     const service = queryString(meta.query, "service", ["api", "worker", "db"] as const);
     const infra = fetchInfraData({ rangeDays, service });
+    const microPrimitives = queryMicroPrimitives(meta.query);
+    const microIncremental = queryBoolean(meta.query, "microIncremental") ?? true;
 
     if (meta.intent === "explain") {
       const last = infra.errorRate.values.at(-1) ?? 0;
@@ -251,23 +318,44 @@ export function SurfaceRenderer({
         toolbar={toolbar}
       >
         <div className="space-y-3">
-          <Graph
-            title="Error rate (%)"
-            variant="solid"
-            size="sm"
-            showLegend={false}
-            data={{
-              type: "line",
-              labels: infra.errorRate.labels,
-              datasets: [
-                {
-                  label: "Error rate",
-                  data: infra.errorRate.values,
-                  color: "hsl(340, 82%, 66%)",
-                },
-              ],
-            }}
-          />
+          {microPrimitives ? (
+            <ComposableGraph
+              title="Error rate (%)"
+              variant="solid"
+              size="sm"
+              incremental={microIncremental}
+              microPrimitives={microPrimitives}
+              data={{
+                type: "line",
+                labels: infra.errorRate.labels,
+                datasets: [
+                  {
+                    label: "Error rate",
+                    data: infra.errorRate.values,
+                    color: "hsl(340, 82%, 66%)",
+                  },
+                ],
+              }}
+            />
+          ) : (
+            <Graph
+              title="Error rate (%)"
+              variant="solid"
+              size="sm"
+              showLegend={false}
+              data={{
+                type: "line",
+                labels: infra.errorRate.labels,
+                datasets: [
+                  {
+                    label: "Error rate",
+                    data: infra.errorRate.values,
+                    color: "hsl(340, 82%, 66%)",
+                  },
+                ],
+              }}
+            />
+          )}
           <AlertList title="Alerts" alerts={infra.alerts} />
           <LogViewer title="Recent logs" lines={infra.logs.slice(-16)} />
         </div>
@@ -303,29 +391,55 @@ export function SurfaceRenderer({
     );
     const marketing = fetchMarketingData({ rangeDays, channel });
 
+    const microPrimitives = queryMicroPrimitives(meta.query);
+    const microIncremental = queryBoolean(meta.query, "microIncremental") ?? true;
+
+    const graphNode = microPrimitives ? (
+      <ComposableGraph
+        title="CTR (%)"
+        variant="solid"
+        size="sm"
+        incremental={microIncremental}
+        microPrimitives={microPrimitives}
+        data={{
+          type: "line",
+          labels: marketing.ctr.labels,
+          datasets: [
+            {
+              label: "CTR",
+              data: marketing.ctr.values,
+              color: "hsl(220, 100%, 62%)",
+            },
+          ],
+        }}
+      />
+    ) : (
+      <Graph
+        title="CTR (%)"
+        variant="solid"
+        size="sm"
+        showLegend={false}
+        data={{
+          type: "line",
+          labels: marketing.ctr.labels,
+          datasets: [
+            {
+              label: "CTR",
+              data: marketing.ctr.values,
+              color: "hsl(220, 100%, 62%)",
+            },
+          ],
+        }}
+      />
+    );
+
     const wrappedGraph = (
       <div
         className={cn(
           highlightSources.length > 0 ? "rounded-lg ring-2 ring-fuchsia-500/40" : null,
         )}
       >
-        <Graph
-          title="CTR (%)"
-          variant="solid"
-          size="sm"
-          showLegend={false}
-          data={{
-            type: "line",
-            labels: marketing.ctr.labels,
-            datasets: [
-              {
-                label: "CTR",
-                data: marketing.ctr.values,
-                color: "hsl(220, 100%, 62%)",
-              },
-            ],
-          }}
-        />
+        {graphNode}
       </div>
     );
 

@@ -27,11 +27,11 @@ export type DomainIntent =
   | "filter";
 
 export type DomainUiComponent =
-  | "StockQuote"
-  | "CompanyProfile"
-  | "MarketNews"
-  | "InsiderSentiment"
-  | "BasicFinancials";
+  | "ProductQuote"
+  | "ProductProfile"
+  | "SalesHighlights"
+  | "ProfitSentiment"
+  | "ProductMetrics";
 
 export type DomainDefinition = {
   id: DomainId;
@@ -45,26 +45,26 @@ export type DomainDefinition = {
 export const Domains = {
   research: {
     id: "research",
-    label: "Equity Research",
+    label: "Product Insights",
     icon: DollarSign,
     intents: ["inspect", "analyze", "summarize"],
-    components: ["CompanyProfile", "BasicFinancials"],
+    components: ["ProductProfile", "ProductMetrics"],
     dataSource: "research",
   },
   trading: {
     id: "trading",
-    label: "Trading Desk",
+    label: "Pricing & Profit",
     icon: CreditCard,
     intents: ["inspect", "summarize"],
-    components: ["StockQuote", "InsiderSentiment"],
+    components: ["ProductQuote", "ProfitSentiment"],
     dataSource: "trading",
   },
   news: {
     id: "news",
-    label: "Market News",
+    label: "Sales Highlights",
     icon: Megaphone,
     intents: ["summarize"],
-    components: ["MarketNews"],
+    components: ["SalesHighlights"],
     dataSource: "news",
   },
   sales: {

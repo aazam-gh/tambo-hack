@@ -9,25 +9,25 @@
  */
 
 import {
-  StockQuote,
-  stockQuoteSchema,
-} from "@/components/tambo/stock-quote";
+  ProductQuote,
+  productQuoteSchema,
+} from "@/components/tambo/product-quote";
 import {
-  CompanyProfile,
-  companyProfileSchema,
-} from "@/components/tambo/company-profile";
+  ProductProfile,
+  productProfileSchema,
+} from "@/components/tambo/product-profile";
 import {
-  MarketNews,
-  marketNewsSchema,
-} from "@/components/tambo/market-news";
+  SalesHighlights,
+  salesHighlightsSchema,
+} from "@/components/tambo/sales-highlights";
 import {
-  InsiderSentiment,
-  insiderSentimentSchema,
-} from "@/components/tambo/insider-sentiment";
+  ProfitSentiment,
+  profitSentimentSchema,
+} from "@/components/tambo/profit-sentiment";
 import {
-  BasicFinancials,
-  basicFinancialsSchema,
-} from "@/components/tambo/basic-financials";
+  ProductMetrics,
+  productMetricsSchema,
+} from "@/components/tambo/product-metrics";
 import {
   GestureDataExplorer,
   gestureDataExplorerSchema,
@@ -35,43 +35,31 @@ import {
 import type { TamboComponent } from "@tambo-ai/react";
 import { TamboTool } from "@tambo-ai/react";
 
-import rawData from "./mock-data.json";
-
-// Type the JSON data
-interface SalesRecord {
-  "Order Date": string;
-  "Product Name": string;
-  "Category": string;
-  "Region": string;
-  "Quantity": number;
-  "Sales": number;
-  "Profit": number;
-}
-
-const salesData = rawData as SalesRecord[];
+import {
+  DEFAULT_MOCK_PRODUCT_NAME,
+  salesData,
+  type SalesRecord,
+} from "@/lib/mock-sales";
 
 // Helper to find relevant records
-function getProductRecords(symbol: string): SalesRecord[] {
-  if (!symbol) return [];
+function getProductRecords(productNameQuery: string): SalesRecord[] {
+  if (!productNameQuery) return [];
 
   // Try exact match first
   let matches = salesData.filter(
-    (r) => r["Product Name"].toLowerCase() === symbol.toLowerCase()
+    (r) =>
+      r["Product Name"].toLowerCase() === productNameQuery.toLowerCase(),
   );
 
   // If no exact match, try partial match
   if (matches.length === 0) {
     matches = salesData.filter((r) =>
-      r["Product Name"].toLowerCase().includes(symbol.toLowerCase())
+      r["Product Name"].toLowerCase().includes(productNameQuery.toLowerCase()),
     );
   }
 
-  // If still no match, return random 50 records to show something (fallback for demo)
   if (matches.length === 0) {
-    // stable random based on symbol length to get somewhat consistent results for same unknown query
-    const seed = symbol.length % 10;
-    const start = Math.floor((seed / 10) * (salesData.length - 50));
-    matches = salesData.slice(start, start + 50);
+    return [];
   }
 
   // Sort by date ascending
@@ -81,37 +69,63 @@ function getProductRecords(symbol: string): SalesRecord[] {
   );
 }
 
+function getProductRecordsOrDefault(productNameQuery: string): SalesRecord[] {
+  const records = getProductRecords(productNameQuery);
+  if (records.length > 0) {
+    return records;
+  }
+
+  if (
+    productNameQuery.trim().toLowerCase() ===
+    DEFAULT_MOCK_PRODUCT_NAME.toLowerCase()
+  ) {
+    return [];
+  }
+
+  return getProductRecords(DEFAULT_MOCK_PRODUCT_NAME);
+}
+
 export const tools: TamboTool<any, any>[] = [
   {
-    name: "stock_quote_read",
-    description: "Get real-time quote data for a product from internal sales data.",
-    tool: async (args: { symbol: string }) => {
-      const { symbol } = args;
-      const records = getProductRecords(symbol);
-
+    name: "product_quote_read",
+    description:
+      "Get a unit price snapshot for a product from the bundled mock sales dataset.",
+    tool: async (args: { productName: string }) => {
+      const { productName } = args;
+      const records = getProductRecordsOrDefault(productName);
       if (records.length === 0) {
-        throw new Error(`No data found for ${symbol}`);
+        throw new Error(`No data found for ${productName}`);
       }
 
-      const lastRecord = records[records.length - 1];
-      const prevRecord = records.length > 1 ? records[records.length - 2] : lastRecord;
+      const resolvedName = records[0]["Product Name"];
 
-      const currentPrice = lastRecord.Sales / lastRecord.Quantity;
-      const allPrices = records.map(r => r.Sales / r.Quantity);
-      const highPrice = Math.max(...allPrices);
-      const lowPrice = Math.min(...allPrices);
-      const openPrice = allPrices[0];
-      const previousClose = prevRecord.Sales / prevRecord.Quantity;
-      const change = currentPrice - previousClose;
-      const percentChange = previousClose !== 0 ? (change / previousClose) * 100 : 0;
+      const unitPrice = (r: SalesRecord) =>
+        r.Quantity > 0 ? r.Sales / r.Quantity : 0;
+
+      const validRecords = records.filter((r) => r.Quantity > 0);
+      if (validRecords.length === 0) {
+        throw new Error(`No valid quantity data for ${resolvedName}`);
+      }
+
+      const prices = validRecords.map(unitPrice);
+      const lastRecord = validRecords[validRecords.length - 1];
+      const prevRecord =
+        validRecords.length > 1 ? validRecords[validRecords.length - 2] : lastRecord;
+
+      const currentUnitPrice = unitPrice(lastRecord);
+      const previousUnitPrice = unitPrice(prevRecord);
+      const startUnitPrice = prices[0] ?? currentUnitPrice;
+      const change = currentUnitPrice - previousUnitPrice;
+      const percentChange =
+        previousUnitPrice !== 0 ? (change / previousUnitPrice) * 100 : 0;
 
       return {
-        symbol: lastRecord["Product Name"],
-        currentPrice,
-        highPrice,
-        lowPrice,
-        openPrice,
-        previousClose,
+        productName: resolvedName,
+        currentUnitPrice,
+        highUnitPrice: Math.max(...prices),
+        lowUnitPrice: Math.min(...prices),
+        startUnitPrice,
+        previousUnitPrice,
         change,
         percentChange,
       };
@@ -119,109 +133,129 @@ export const tools: TamboTool<any, any>[] = [
     toolSchema: {
       type: "object",
       properties: {
-        symbol: {
+        productName: {
           type: "string",
           description: "The product name (e.g. Laptop, Mouse)",
         },
       },
-      required: ["symbol"],
+      required: ["productName"],
     } as any,
   },
   {
-    name: "company_profile_read",
-    description: "Get general product information for a given symbol from internal sales data.",
-    tool: async (args: { symbol: string }) => {
-      const { symbol } = args;
-      const records = getProductRecords(symbol);
+    name: "product_profile_read",
+    description:
+      "Get a product overview (category, regions, totals) from the bundled mock sales dataset.",
+    tool: async (args: { productName: string }) => {
+      const { productName } = args;
+      const records = getProductRecordsOrDefault(productName);
       if (records.length === 0) {
-        throw new Error(`No data found for ${symbol}`);
+        throw new Error(`No data found for ${productName}`);
       }
 
       const latest = records[records.length - 1];
-      // Calculate total market cap as sum of all sales
-      const marketCap = salesData
-        .filter(r => r["Product Name"] === latest["Product Name"])
-        .reduce((sum, r) => sum + r.Sales, 0);
-
-      // Unique regions
-      const regions = [...new Set(records.map(r => r.Region))].join(", ");
+      const normalizedName = latest["Product Name"];
+      const sku = normalizedName.toUpperCase().replace(/\s+/g, "").slice(0, 6);
+      const totalSales = records.reduce((sum, r) => sum + r.Sales, 0);
+      const totalProfit = records.reduce((sum, r) => sum + r.Profit, 0);
+      const totalUnits = records.reduce((sum, r) => sum + r.Quantity, 0);
+      const regions = [...new Set(records.map((r) => r.Region))];
 
       return {
-        name: latest["Product Name"],
-        ticker: latest["Product Name"].toUpperCase().slice(0, 4),
-        logo: `https://avatar.vercel.sh/${latest["Product Name"]}.png?text=${latest["Product Name"].slice(0, 2).toUpperCase()}`,
-        industry: latest.Category,
-        weburl: `https://example.com/products/${latest["Product Name"].toLowerCase().replace(/\s+/g, '-')}`,
-        marketCapitalization: marketCap / 1000, // In millions (mock scale)
-        exchange: "E-COM",
-        country: regions || "Global",
+        productName: normalizedName,
+        sku,
+        imageUrl: `https://avatar.vercel.sh/${normalizedName}.png?text=${normalizedName.slice(0, 2).toUpperCase()}`,
+        category: latest.Category,
+        productUrl: `https://example.com/products/${normalizedName.toLowerCase().replace(/\s+/g, "-")}`,
+        totalSales,
+        totalProfit,
+        totalUnits,
+        regions,
       };
     },
     toolSchema: {
       type: "object",
       properties: {
-        symbol: {
+        productName: {
           type: "string",
           description: "The product name",
         },
       },
-      required: ["symbol"],
+      required: ["productName"],
     } as any,
   },
   {
-    name: "market_news_read",
-    description: "Get latest market news from internal sales trends.",
-    tool: async (args: { category: string } = { category: "general" }) => {
-      const { category } = args;
-      // Generate some mock news based on recent high sales
-      const recentHighSales = salesData
-        .filter(r => r.Sales > 5000)
-        .slice(-5)
-        .reverse();
+    name: "sales_highlights_read",
+    description:
+      "Get a small feed of notable sales events from the bundled mock dataset.",
+    tool: async (args: { category?: string } = {}) => {
+      const normalizedCategory = args.category?.trim().toLowerCase();
+      const filtered = normalizedCategory
+        ? salesData.filter((r) => r.Category.toLowerCase() === normalizedCategory)
+        : salesData;
 
-      const news = recentHighSales.map((r, i) => ({
-        category: r.Category,
-        datetime: new Date(r["Order Date"]).getTime(),
-        headline: `${r["Product Name"]} Sales Surge in ${r.Region}`,
-        id: i + 1000,
-        image: `https://avatar.vercel.sh/${r["Product Name"]}-news.png?text=NEWS`,
-        related: r["Product Name"],
-        source: "Internal Analytics",
-        summary: `Record breaking sales of $${r.Sales.toFixed(2)} observed for ${r["Product Name"]} in the ${r.Region} region on ${r["Order Date"]}.`,
-        url: "#"
-      }));
+      const highlights = [...filtered]
+        .sort((a, b) => {
+          const dateDelta =
+            new Date(b["Order Date"]).getTime() -
+            new Date(a["Order Date"]).getTime();
+          return dateDelta !== 0 ? dateDelta : b.Sales - a.Sales;
+        })
+        .slice(0, 5)
+        .map((r, i) => {
+          const productName = r["Product Name"];
+          const datetimeMs = new Date(r["Order Date"]).getTime();
 
-      return { news };
+          return {
+            id: `${productName}-${datetimeMs}-${i}`,
+            headline: `${productName} spike in ${r.Region}`,
+            summary: `Observed $${r.Sales.toFixed(2)} in sales and $${r.Profit.toFixed(2)} profit on ${r["Order Date"]}.`,
+            url: `https://example.com/products/${productName.toLowerCase().replace(/\s+/g, "-")}`,
+            imageUrl: `https://avatar.vercel.sh/${productName}-news.png?text=NEWS`,
+            datetimeMs,
+            source: "Mock Analytics",
+          };
+        });
+
+      return { highlights };
     },
     toolSchema: {
       type: "object",
       properties: {
         category: {
           type: "string",
-          description: "The news category",
+          description: "Optional category filter (e.g. Furniture)",
         },
       },
-      required: ["category"]
+      required: [],
     } as any,
   },
   {
-    name: "insider_sentiment_read",
-    description: "Get sentiment data for a product based on profit margins.",
-    tool: async (args: { symbol: string }) => {
-      const { symbol } = args;
-      const records = getProductRecords(symbol);
+    name: "profit_sentiment_read",
+    description:
+      "Get a monthly profitability trend (profit + margin) for a product from the bundled mock dataset.",
+    tool: async (args: { productName: string }) => {
+      const { productName } = args;
+      const records = getProductRecordsOrDefault(productName);
       if (records.length === 0) {
-        throw new Error(`No data found for ${symbol}`);
+        throw new Error(`No data found for ${productName}`);
       }
 
       // Aggregate by month for the last 12 months
-      const monthlyData = new Map<string, { year: number, month: number, profit: number, sales: number }>();
+      const monthlyData = new Map<
+        string,
+        { year: number; month: number; profit: number; sales: number }
+      >();
 
-      records.forEach(r => {
+      records.forEach((r) => {
         const date = new Date(r["Order Date"]);
         const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
         if (!monthlyData.has(key)) {
-          monthlyData.set(key, { year: date.getFullYear(), month: date.getMonth() + 1, profit: 0, sales: 0 });
+          monthlyData.set(key, {
+            year: date.getFullYear(),
+            month: date.getMonth() + 1,
+            profit: 0,
+            sales: 0,
+          });
         }
         const entry = monthlyData.get(key)!;
         entry.profit += r.Profit;
@@ -232,69 +266,76 @@ export const tools: TamboTool<any, any>[] = [
       const data = Array.from(monthlyData.values())
         .sort((a, b) => (a.year - b.year) || (a.month - b.month))
         .slice(-12)
-        .map(m => ({
-          symbol: records[0]["Product Name"],
+        .map((m) => ({
           year: m.year,
           month: m.month,
-          change: m.profit, // Use profit as "change" proxy
-          mspr: m.sales !== 0 ? (m.profit / m.sales) * 100 : 0 // Profit margin as sentiment proxy
+          profit: m.profit,
+          profitMarginPercent: m.sales !== 0 ? (m.profit / m.sales) * 100 : 0,
         }));
 
-      return { symbol: records[0]["Product Name"], data };
+      return { productName: records[0]["Product Name"], data };
     },
     toolSchema: {
       type: "object",
       properties: {
-        symbol: {
+        productName: {
           type: "string",
           description: "The product name",
         },
       },
-      required: ["symbol"],
+      required: ["productName"],
     } as any,
   },
   {
-    name: "basic_financials_read",
-    description: "Get basic financial metrics for a product from internal sales data.",
-    tool: async (args: { symbol: string }) => {
-      const { symbol } = args;
-      const records = getProductRecords(symbol);
+    name: "product_metrics_read",
+    description:
+      "Get key sales metrics for a product from the bundled mock sales dataset.",
+    tool: async (args: { productName: string }) => {
+      const { productName } = args;
+      const records = getProductRecordsOrDefault(productName);
       if (records.length === 0) {
-        throw new Error(`No data found for ${symbol}`);
+        throw new Error(`No data found for ${productName}`);
       }
 
-      const totalSales = records.reduce((s, r) => s + r.Sales, 0);
-      const totalProfit = records.reduce((s, r) => s + r.Profit, 0);
-      const totalQuant = records.reduce((s, r) => s + r.Quantity, 0);
+      const resolvedName = records[0]["Product Name"];
 
-      const prices = records.map(r => r.Sales / r.Quantity);
+      const validRecords = records.filter((r) => r.Quantity > 0);
+      if (validRecords.length === 0) {
+        throw new Error(`No valid quantity data for ${resolvedName}`);
+      }
 
-      // Prevent division by zero
-      const eps = totalQuant > 0 ? totalProfit / totalQuant : 0;
-      const pe = eps > 0 ? (prices[prices.length - 1] / eps) : 0;
+      const totalSales = validRecords.reduce((s, r) => s + r.Sales, 0);
+      const totalProfit = validRecords.reduce((s, r) => s + r.Profit, 0);
+      const unitsSold = validRecords.reduce((s, r) => s + r.Quantity, 0);
+      const orderCount = validRecords.length;
+
+      const prices = validRecords.map((r) => r.Sales / r.Quantity);
+      const avgUnitPrice = unitsSold > 0 ? totalSales / unitsSold : 0;
+      const profitMarginPercent = totalSales > 0 ? (totalProfit / totalSales) * 100 : 0;
 
       return {
-        symbol: records[0]["Product Name"],
-        metric: {
-          "52WeekHigh": Math.max(...prices),
-          "52WeekLow": Math.min(...prices),
-          "beta": 0.85 + (Math.random() * 0.5), // Mock beta
-          "dividendYield": totalSales > 0 ? (totalProfit / totalSales) * 5 : 0, // Mock yield based on margin
-          "eps": eps, // Profit per unit
-          "marketCapitalization": totalSales / 1000,
-          "pe": pe || 15 // P/E ratio
-        }
+        productName: resolvedName,
+        metrics: {
+          totalSales,
+          totalProfit,
+          profitMarginPercent,
+          unitsSold,
+          orderCount,
+          avgUnitPrice,
+          highUnitPrice: Math.max(...prices),
+          lowUnitPrice: Math.min(...prices),
+        },
       };
     },
     toolSchema: {
       type: "object",
       properties: {
-        symbol: {
+        productName: {
           type: "string",
           description: "The product name",
         },
       },
-      required: ["symbol"],
+      required: ["productName"],
     } as any,
   },
 ];
@@ -308,39 +349,39 @@ export const tools: TamboTool<any, any>[] = [
  */
 export const components: TamboComponent[] = [
   {
-    name: "StockQuote",
+    name: "ProductQuote",
     description:
-      "A real-time stock quote card showing the current price, high/low/open for the day, and change percent.",
-    component: StockQuote,
-    propsSchema: stockQuoteSchema as any,
+      "A unit price snapshot for a product derived from the mock sales dataset.",
+    component: ProductQuote,
+    propsSchema: productQuoteSchema as any,
   },
   {
-    name: "CompanyProfile",
+    name: "ProductProfile",
     description:
-      "A company profile card showing the logo, industry, exchange, market cap, and website link.",
-    component: CompanyProfile,
-    propsSchema: companyProfileSchema as any,
+      "A product profile showing category, regions, sales totals, and a link to the product page.",
+    component: ProductProfile,
+    propsSchema: productProfileSchema as any,
   },
   {
-    name: "MarketNews",
+    name: "SalesHighlights",
     description:
-      "A list of the latest market news articles with headlines, summaries, and images.",
-    component: MarketNews,
-    propsSchema: marketNewsSchema as any,
+      "A feed of notable sales events sourced from the mock dataset.",
+    component: SalesHighlights,
+    propsSchema: salesHighlightsSchema as any,
   },
   {
-    name: "InsiderSentiment",
+    name: "ProfitSentiment",
     description:
-      "A card showing insider sentiment trends for a company based on monthly share purchase ratios.",
-    component: InsiderSentiment,
-    propsSchema: insiderSentimentSchema as any,
+      "A profitability trend card showing profit and profit margin over time for a product.",
+    component: ProfitSentiment,
+    propsSchema: profitSentimentSchema as any,
   },
   {
-    name: "BasicFinancials",
+    name: "ProductMetrics",
     description:
-      "A component showing key financial metrics like P/E ratio, EPS, Dividend Yield, and Beta.",
-    component: BasicFinancials,
-    propsSchema: basicFinancialsSchema as any,
+      "Key product metrics like sales, profit, margin, units sold, and unit price range.",
+    component: ProductMetrics,
+    propsSchema: productMetricsSchema as any,
   },
   {
     name: "GestureDataExplorer",

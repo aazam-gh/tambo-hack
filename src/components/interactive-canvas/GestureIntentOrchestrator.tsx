@@ -6,6 +6,7 @@ import { SurfaceRenderer } from "@/components/interactive-canvas/SurfaceRenderer
 import { WidgetCompositionOverlay } from "@/components/interactive-canvas/WidgetCompositionOverlay";
 import { Domains, type DomainId, type DomainIntent } from "@/lib/domains";
 import type { CommandOption } from "@/lib/command-surface";
+import { DEFAULT_MOCK_PRODUCT_NAME } from "@/lib/mock-sales";
 import {
   getMicroCompositions,
   type MicroComposition,
@@ -45,13 +46,13 @@ function labelForOption(domain: DomainId, intent: DomainIntent): string {
   const domainLabel = Domains[domain].label;
 
   if (domain === "research" && intent === "analyze") {
-    return "Analyze equity metrics";
+    return "Analyze product metrics";
   }
   if (domain === "trading" && intent === "summarize") {
-    return "Summarize insider sentiment";
+    return "Summarize profit sentiment";
   }
   if (domain === "news" && intent === "summarize") {
-    return "Get latest market updates";
+    return "Get latest sales highlights";
   }
 
   const verb =
@@ -512,8 +513,9 @@ export function GestureIntentOrchestrator() {
 
     if (selected.domain === "news" || selected.domain === "trading" || selected.domain === "research") {
       const prompt = `[GESTURE_SYSTEM]: [REF_${Date.now()}] User confirmed intent "${selected.intent}" for ${selected.domain}. 
-        Please use the internal sales data tools to fetch the relevant data and display it using the most appropriate UI component (StockQuote, CompanyProfile, MarketNews, InsiderSentiment, or BasicFinancials).
-        IMPORTANT: If no product is currently active or mentioned in the conversation history, default to "Laptop" so that the data can be shown immediately.`;
+        Please use the internal tools backed by the bundled mock sales dataset to fetch the relevant data and display it using the most appropriate UI component (ProductQuote, ProductProfile, SalesHighlights, ProfitSentiment, or ProductMetrics).
+        CRITICAL: Only request data for products that exist in the bundled mock dataset. If you are not sure a product exists, always default to "${DEFAULT_MOCK_PRODUCT_NAME}".
+        IMPORTANT: If no product is currently active or mentioned in the conversation history, default to "${DEFAULT_MOCK_PRODUCT_NAME}" so that the data can be shown immediately.`;
 
       setValue(prompt);
       pendingPromptRef.current = prompt;
@@ -525,7 +527,7 @@ export function GestureIntentOrchestrator() {
         component: (
           <div className="w-64 p-4 rounded-xl border border-emerald-500/30 bg-background/80 backdrop-blur-md shadow-xl flex items-center gap-3">
             <div className="w-5 h-5 rounded-full border-2 border-emerald-500/30 border-t-emerald-500 animate-spin" />
-            <div className="text-sm font-medium text-emerald-600">Analyzing {selected.domain}...</div>
+            <div className="text-sm font-medium text-emerald-600">Analyzing {Domains[selected.domain]?.label ?? selected.domain}...</div>
           </div>
         ),
         clientX: commandAnchor?.x,
